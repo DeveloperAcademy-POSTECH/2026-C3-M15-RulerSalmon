@@ -9,16 +9,23 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+        NavigationStack {
+            VStack() {
+                Spacer()
 
-#Preview {
-    ContentView()
+                NavigationLink {
+                    AssistantChatView()
+                } label: {
+                    Text("[Dev] STT and Foundation Model")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .padding()
+        }
+    }
 }
