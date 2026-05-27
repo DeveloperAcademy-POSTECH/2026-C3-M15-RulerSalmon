@@ -11,7 +11,7 @@ import SwiftUI
 struct Retrospective_RulersalmonApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            FoundationAnalysisPoCView()
         }
     }
 }
