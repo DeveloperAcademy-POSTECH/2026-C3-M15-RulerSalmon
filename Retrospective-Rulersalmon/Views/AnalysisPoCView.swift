@@ -7,15 +7,8 @@
 
 import SwiftUI
 
-struct FoundationAnalysisPoCView: View {
-    @State private var transcript = MockTranscript.questionAnswerSample
-    @State private var analysisResult = ""
-    @State private var isAnalyzing = false
-    @State private var errorMessage: String?
-    private let analysisService = ReflectionAnalysisService()
-    
-    
-    
+struct AnalysisPoCView: View {
+    @StateObject private var viewModel = AnalysisPocViewModel()
     
     var body: some View {
         
@@ -24,12 +17,12 @@ struct FoundationAnalysisPoCView: View {
                 Text("Foundation Model 분석 PoC")
                     .font(.title2)
                     .bold()
+                
                 VStack(alignment: .leading, spacing: 8) {
-                    
                     Text("목업 전사문")
                         .font(.headline)
                     
-                    TextEditor(text: $transcript)
+                    TextEditor(text: $viewModel.transcript)
                         .frame(minHeight: 220)
                         .padding(8)
                         .overlay(
@@ -40,20 +33,19 @@ struct FoundationAnalysisPoCView: View {
                 
                 Button {
                     Task {
-                        await analyzeTranscript()
+                        await viewModel.analyzeTranscript()
                     }
                 } label: {
-            
-                    Text(isAnalyzing ? "분석 중..." : "분석하기")
+                    Text(viewModel.isAnalyzing ? "분석 중..." : "분석하기")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(isAnalyzing ? Color.gray : Color.blue)
+                        .background(viewModel.isAnalyzing ? Color.gray : Color.blue)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .disabled(isAnalyzing)
+                .disabled(viewModel.isAnalyzing)
             
-                if let errorMessage {
+                if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .font(.footnote)
                         .foregroundStyle(.red)
@@ -64,7 +56,7 @@ struct FoundationAnalysisPoCView: View {
                     Text("분석 결과")
                         .font(.headline)
                     
-                    if analysisResult.isEmpty {
+                    if viewModel.analysisResult.isEmpty {
                         Text("아직 분석 결과가 없습니다.")
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -72,7 +64,7 @@ struct FoundationAnalysisPoCView: View {
                             .background(Color.gray.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     } else {
-                        Text(analysisResult)
+                        Text(viewModel.analysisResult)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                             .background(Color.gray.opacity(0.1))
@@ -85,25 +77,10 @@ struct FoundationAnalysisPoCView: View {
             .padding()
         }
     }
-    
-    private func analyzeTranscript() async{
-        isAnalyzing = true
-        errorMessage = nil
-        
-        do{
-            let result = try await analysisService.analyze(transcript: transcript)
-            analysisResult = result
-        } catch{
-            errorMessage = error.localizedDescription
-        }
-        
-        isAnalyzing = false
-    }
-    
 }
 
 
 
 #Preview {
-    FoundationAnalysisPoCView()
+    AnalysisPoCView()
 }
