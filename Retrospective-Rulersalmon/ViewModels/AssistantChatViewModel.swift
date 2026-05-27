@@ -23,11 +23,11 @@ final class AssistantChatViewModel: ObservableObject {
     private let speechRecognitionService: SpeechRecognitionService
 
     init(
-        foundationModelService: FoundationModelServicing = FoundationModelService(),
-        speechRecognitionService: SpeechRecognitionService = SpeechRecognitionService()
+        foundationModelService: FoundationModelServicing? = nil,
+        speechRecognitionService: SpeechRecognitionService? = nil
     ) {
-        self.foundationModelService = foundationModelService
-        self.speechRecognitionService = speechRecognitionService
+        self.foundationModelService = foundationModelService ?? FoundationModelService()
+        self.speechRecognitionService = speechRecognitionService ?? SpeechRecognitionService()
     }
 
     func sendCurrentText() {
@@ -59,7 +59,7 @@ final class AssistantChatViewModel: ObservableObject {
                 return
             }
 
-            try speechRecognitionService.startRecording { [weak self] partialText in
+            try await speechRecognitionService.startRecording { [weak self] partialText in
                 self?.inputText = partialText
             }
             isRecording = true
