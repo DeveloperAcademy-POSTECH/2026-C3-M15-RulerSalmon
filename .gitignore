@@ -1,4 +1,5 @@
 *.DS_Store
 /prompt.md
+plan.md
 /.derivedData/
 /.derivedData-ios/

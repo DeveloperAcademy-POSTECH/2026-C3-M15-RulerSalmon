@@ -32,8 +32,7 @@ final class SpeechRecognitionService: NSObject {
         stopRecording()
 
         if #available(iOS 26.0, *),
-           let analyzerError = await startSpeechAnalyzerRecording(onPartialResult: onPartialResult) {
-            print("SpeechAnalyzer fallback: \(analyzerError.localizedDescription)")
+           let _ = await startSpeechAnalyzerRecording(onPartialResult: onPartialResult) {
             try startLegacyRecording(onPartialResult: onPartialResult)
         } else if !isRecording {
             try startLegacyRecording(onPartialResult: onPartialResult)

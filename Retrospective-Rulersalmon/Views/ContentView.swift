@@ -10,13 +10,13 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         NavigationStack {
-            VStack() {
+            VStack(spacing: 20) {
                 Spacer()
 
                 NavigationLink {
-                    AssistantChatView()
+                    ReflectionCallView()
                 } label: {
-                    Text("[Dev] STT and Foundation Model")
+                    Text("[Dev] Reflection Call Lab")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
