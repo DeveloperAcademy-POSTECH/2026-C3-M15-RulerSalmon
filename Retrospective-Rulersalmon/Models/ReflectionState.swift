@@ -14,8 +14,10 @@ struct ReflectionState: Codable, Equatable {
     var longedFor: ReflectionSlot = .init()
 
     var lastUserChunk: String?
+    var askedDimensions: [ReflectionDimension] = []
     var askedQuestions: [String] = []
     var currentTopic: String?
+    var lastUpdatedAt: Date?
 
     static let empty = ReflectionState()
 }

@@ -32,6 +32,7 @@ final class ReflectionCallViewModel: ObservableObject {
     private let questionGenerator = FollowUpQuestionGenerator()
 
     private var lastAIQuestionAt: Date = .distantPast
+    private var lastUserChunkAt: Date = .distantPast
 
     init(speechRecognitionService: SpeechRecognitionService? = nil) {
         self.speechRecognitionService = speechRecognitionService ?? SpeechRecognitionService()
@@ -76,20 +77,33 @@ final class ReflectionCallViewModel: ObservableObject {
         guard !text.isEmpty else { return }
 
         inputText = ""
-        commitChunk(text)
+        Task {
+            await commitChunk(text)
+        }
     }
 
     private func handlePartialText(_ partialText: String) {
         liveTranscript = partialText
         utteranceBuffer.update(partialText: partialText) { [weak self] committedChunk in
-            self?.commitChunk(committedChunk)
+            guard let self else { return }
+            Task {
+                await self.commitChunk(committedChunk)
+            }
         }
     }
 
-    private func commitChunk(_ text: String) {
+    private func commitChunk(_ text: String) async {
         let now = Date()
+        let timeSinceLastUserChunk = now.timeIntervalSince(lastUserChunkAt)
         let chunk = chunkAnalyzer.makeChunk(from: text, startedAt: now, endedAt: now)
-        let analysis = chunkAnalyzer.analyze(chunk)
+
+        guard !chunk.cleanedText.isEmpty else {
+            liveTranscript = ""
+            lastUserChunkAt = now
+            return
+        }
+
+        let analysis = await chunkAnalyzer.analyze(chunk)
 
         chunks.append(chunk)
         analyses.append(analysis)
@@ -99,19 +113,24 @@ final class ReflectionCallViewModel: ObservableObject {
 
         let decision = interventionDecider.decide(
             state: reflectionState,
-            timeSinceLastAIQuestion: Date().timeIntervalSince(lastAIQuestionAt)
+            timeSinceLastAIQuestion: now.timeIntervalSince(lastAIQuestionAt),
+            timeSinceLastUserChunk: timeSinceLastUserChunk,
+            isUserSpeaking: false
         )
 
         guard decision.shouldIntervene, let target = decision.targetDimension else {
+            lastUserChunkAt = now
             liveTranscript = ""
             return
         }
 
         let question = questionGenerator.generateQuestion(for: target, state: reflectionState)
+        reflectionState = stateTracker.recordQuestion(for: target, in: reflectionState)
         reflectionState.askedQuestions.append(question)
         lastAIQuestionAt = .now
         activeQuestion = question
         messages.append(ChatMessage(role: .assistant, text: question))
+        lastUserChunkAt = now
         liveTranscript = ""
     }
 
@@ -119,20 +138,41 @@ final class ReflectionCallViewModel: ObservableObject {
         progressText(for: reflectionState.liked)
     }
 
+    var likedFidelityText: String {
+        fidelityText(for: reflectionState.liked)
+    }
+
     var learnedProgressText: String {
         progressText(for: reflectionState.learned)
+    }
+
+    var learnedFidelityText: String {
+        fidelityText(for: reflectionState.learned)
     }
 
     var lackedProgressText: String {
         progressText(for: reflectionState.lacked)
     }
 
+    var lackedFidelityText: String {
+        fidelityText(for: reflectionState.lacked)
+    }
+
     var longedForProgressText: String {
         progressText(for: reflectionState.longedFor)
     }
 
+    var longedForFidelityText: String {
+        fidelityText(for: reflectionState.longedFor)
+    }
+
     private func progressText(for slot: ReflectionSlot) -> String {
         let percentage = Int((slot.confidence * 100).rounded())
+        return "\(percentage)%"
+    }
+
+    private func fidelityText(for slot: ReflectionSlot) -> String {
+        let percentage = Int((slot.fidelity * 100).rounded())
         return "\(percentage)%"
     }
 }

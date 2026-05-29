@@ -9,7 +9,7 @@ import Foundation
 
 @MainActor
 final class UtteranceBuffer {
-    var silenceCommitDelayNanoseconds: UInt64 = 800_000_000
+    var silenceCommitDelayNanoseconds: UInt64 = 1_000_000_000
     var minimumMeaningfulCharacterCount: Int = 8
     var minimumStableCharacterCount: Int = 12
     var longUtteranceCharacterCount: Int = 28
@@ -18,6 +18,7 @@ final class UtteranceBuffer {
     private var latestTranscript = ""
     private var latestRevision = 0
     private var commitTask: Task<Void, Never>?
+    private var lastCommittedChunk = ""
 
     func reset() {
         commitTask?.cancel()
@@ -25,6 +26,7 @@ final class UtteranceBuffer {
         committedTranscript = ""
         latestTranscript = ""
         latestRevision = 0
+        lastCommittedChunk = ""
     }
 
     func update(
@@ -55,8 +57,10 @@ final class UtteranceBuffer {
             let committedChunk = self.extractCommittedChunk()
             guard self.shouldCommit(text: self.latestTranscript, committedChunk: committedChunk) else { return }
             guard !committedChunk.isEmpty else { return }
+            guard normalize(committedChunk) != normalize(lastCommittedChunk) else { return }
 
             self.committedTranscript = self.latestTranscript
+            self.lastCommittedChunk = committedChunk
             await MainActor.run {
                 onCommitted(committedChunk)
             }
@@ -68,18 +72,24 @@ final class UtteranceBuffer {
         guard !normalized.isEmpty else { return false }
 
         let characterCount = normalized.count
+        let tokenCount = normalized.split(whereSeparator: { $0.isWhitespace }).count
         let hasSentenceBoundary = containsSentenceBoundary(in: normalized)
         let hasTopicShift = containsTopicShiftMarker(in: normalized)
+        let hasMajorParagraphMarker = containsMajorParagraphMarker(in: normalized)
 
         if committedChunk.isEmpty {
             return false
         }
 
-        if hasTopicShift {
+        if !hasSentenceBoundary {
+            return false
+        }
+
+        if hasMajorParagraphMarker {
             return true
         }
 
-        if hasSentenceBoundary {
+        if hasTopicShift {
             return true
         }
 
@@ -87,7 +97,11 @@ final class UtteranceBuffer {
             return true
         }
 
-        return characterCount >= minimumStableCharacterCount || isMeaningful(normalized)
+        if tokenCount >= 18 && characterCount >= minimumStableCharacterCount {
+            return true
+        }
+
+        return false
     }
 
     private func extractCommittedChunk() -> String {
@@ -99,44 +113,13 @@ final class UtteranceBuffer {
             return normalize(String(suffix))
         }
 
-        let committedTokens = tokenize(normalizedCommitted)
-        let latestTokens = tokenize(normalizedLatest)
-        let overlap = overlapCount(committedTokens: committedTokens, latestTokens: latestTokens)
-
-        guard overlap < latestTokens.count else {
-            return ""
-        }
-
-        return latestTokens.dropFirst(overlap).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalizedLatest
     }
 
     private func normalize(_ text: String) -> String {
         text
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-    }
-
-    private func tokenize(_ text: String) -> [String] {
-        text
-            .split(whereSeparator: { $0.isWhitespace })
-            .map(String.init)
-    }
-
-    private func overlapCount(committedTokens: [String], latestTokens: [String]) -> Int {
-        guard !committedTokens.isEmpty, !latestTokens.isEmpty else { return 0 }
-
-        let maxOverlap = min(committedTokens.count, latestTokens.count, 8)
-        guard maxOverlap > 0 else { return 0 }
-
-        for length in stride(from: maxOverlap, through: 1, by: -1) {
-            let committedSuffix = Array(committedTokens.suffix(length))
-            let latestPrefix = Array(latestTokens.prefix(length))
-            if committedSuffix == latestPrefix {
-                return length
-            }
-        }
-
-        return 0
     }
 
     private func containsSentenceBoundary(in text: String) -> Bool {
@@ -161,6 +144,15 @@ final class UtteranceBuffer {
         let markers = [
             "근데", "그리고", "다음", "한편", "또", "이제", "원래",
             "결국", "마지막으로", "전환", "바뀌", "넘어가", "다시", "새로"
+        ]
+        return markers.contains { text.contains($0) }
+    }
+
+    private func containsMajorParagraphMarker(in text: String) -> Bool {
+        let markers = [
+            "다만", "하지만", "그런데", "전체적으로",
+            "정리하면", "결론적으로", "마지막으로",
+            "한편", "반면", "다음에는", "다음엔", "추가로", "끝으로"
         ]
         return markers.contains { text.contains($0) }
     }

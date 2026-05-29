@@ -131,22 +131,26 @@ struct ReflectionCallView: View {
             VStack(spacing: 12) {
                 reflectionCard(
                     title: ReflectionDimension.liked.description,
-                    progress: viewModel.likedProgressText,
+                    confidence: viewModel.likedProgressText,
+                    fidelity: viewModel.likedFidelityText,
                     slot: viewModel.reflectionState.liked
                 )
                 reflectionCard(
                     title: ReflectionDimension.learned.description,
-                    progress: viewModel.learnedProgressText,
+                    confidence: viewModel.learnedProgressText,
+                    fidelity: viewModel.learnedFidelityText,
                     slot: viewModel.reflectionState.learned
                 )
                 reflectionCard(
                     title: ReflectionDimension.lacked.description,
-                    progress: viewModel.lackedProgressText,
+                    confidence: viewModel.lackedProgressText,
+                    fidelity: viewModel.lackedFidelityText,
                     slot: viewModel.reflectionState.lacked
                 )
                 reflectionCard(
                     title: ReflectionDimension.longedFor.description,
-                    progress: viewModel.longedForProgressText,
+                    confidence: viewModel.longedForProgressText,
+                    fidelity: viewModel.longedForFidelityText,
                     slot: viewModel.reflectionState.longedFor
                 )
             }
@@ -215,21 +219,20 @@ struct ReflectionCallView: View {
             .clipShape(Capsule())
     }
 
-    private func reflectionCard(title: String, progress: String, slot: ReflectionSlot) -> some View {
+    private func reflectionCard(title: String, confidence: String, fidelity: String, slot: ReflectionSlot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(title)
                     .font(.headline)
                 Spacer()
-                Text(progress)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.accentColor.opacity(0.12))
-                    .clipShape(Capsule())
+                HStack(spacing: 8) {
+                    metricPill(title: "Confidence", value: confidence)
+                    metricPill(title: "Fidelity", value: fidelity)
+                }
             }
 
             ProgressView(value: slot.confidence)
+            ProgressView(value: slot.fidelity)
 
             Text(slot.summary ?? "아직 누적된 요약이 없습니다.")
                 .font(.subheadline)
@@ -245,6 +248,18 @@ struct ReflectionCallView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func metricPill(title: String, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title)
+            Text(value)
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.accentColor.opacity(0.12))
+        .clipShape(Capsule())
     }
 }
 

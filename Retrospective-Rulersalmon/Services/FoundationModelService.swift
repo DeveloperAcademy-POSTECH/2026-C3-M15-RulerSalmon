@@ -19,15 +19,15 @@ final class FoundationModelService: FoundationModelServicing {
     #if canImport(FoundationModels)
     private let session: LanguageModelSession
     #endif
+    private static let defaultInstructions = """
+    You are a concise, helpful Korean assistant.
+    Reply naturally in Korean.
+    Keep answers short unless the user asks for detail.
+    """
 
-    init() {
+    init(instructions: String? = nil) {
         #if canImport(FoundationModels)
-        let instructions = """
-        You are a concise, helpful Korean assistant.
-        Reply naturally in Korean.
-        Keep answers short unless the user asks for detail.
-        """
-        session = LanguageModelSession(instructions: instructions)
+        session = LanguageModelSession(instructions: instructions ?? Self.defaultInstructions)
         #endif
     }
 
