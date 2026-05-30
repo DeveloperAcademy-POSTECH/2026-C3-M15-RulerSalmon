@@ -39,11 +39,14 @@ struct ReflectionStateTracker {
     }
 
     private func update(slot: inout ReflectionSlot, analysis: ChunkAnalysis, dimension: ReflectionDimension) {
-        slot.evidence = mergeEvidence(existing: slot.evidence, incoming: analysis.evidence)
+        let dimensionEvidence = dimensionEvidence(for: dimension, analysis: analysis)
+        slot.evidence = mergeEvidence(existing: slot.evidence, incoming: dimensionEvidence)
         slot.summary = resolvedSummary(for: dimension, analysis: analysis)
-        slot.confidence = max(slot.confidence, analysis.confidence)
+        slot.confidence = max(slot.confidence, confidence(for: dimension, analysis: analysis))
         slot.fidelity = max(slot.fidelity, fidelity(for: dimension, analysis: analysis))
-        slot.isSatisfied = slot.confidence >= 0.68 || slot.fidelity >= 0.68 || slot.evidence.count >= 2
+        let strongMatch = slot.confidence >= 0.72 && slot.fidelity >= 0.68
+        let evidenceBackedMatch = slot.evidence.count >= 2 && slot.fidelity >= 0.62
+        slot.isSatisfied = strongMatch || evidenceBackedMatch
     }
 
     private func mergeEvidence(existing: [String], incoming: [String]) -> [String] {
@@ -78,7 +81,8 @@ struct ReflectionStateTracker {
 
     private func resolvedSummary(for dimension: ReflectionDimension, analysis: ChunkAnalysis) -> String {
         if let summary = analysis.dimensionSummaries[dimension.rawValue]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !summary.isEmpty {
+           !summary.isEmpty,
+           isDimensionSpecific(summary, for: dimension) {
             return summary
         }
 
@@ -86,19 +90,64 @@ struct ReflectionStateTracker {
     }
 
     private func fallbackDimensionSummary(for dimension: ReflectionDimension, analysis: ChunkAnalysis) -> String {
-        let evidence = analysis.evidence.first ?? analysis.summary
-        let focus = dimension.description
+        let evidence = dimensionEvidence(for: dimension, analysis: analysis).first
+            ?? analysis.evidence.first
+            ?? analysis.summary
 
         switch dimension {
         case .liked:
-            return "\(focus)은 \(evidence)"
+            return "좋았던 점은 \(evidence)"
         case .learned:
-            return "\(focus)은 \(evidence)"
+            return "배운 점은 \(evidence)"
         case .lacked:
-            return "\(focus)은 \(evidence)"
+            return "부족했던 점은 \(evidence)"
         case .longedFor:
-            return "\(focus)은 \(evidence)"
+            return "바라는 점은 \(evidence)"
         }
+    }
+
+    private func dimensionEvidence(for dimension: ReflectionDimension, analysis: ChunkAnalysis) -> [String] {
+        let cues = summaryCueKeywords(for: dimension)
+        let preferred = analysis.evidence.filter { item in
+            let lowered = item.lowercased()
+            return cues.contains(where: { lowered.contains($0.lowercased()) })
+        }
+
+        if !preferred.isEmpty {
+            return preferred
+        }
+
+        let clauseMatches = analysis.clauses.filter { clause in
+            let lowered = clause.lowercased()
+            return cues.contains(where: { lowered.contains($0.lowercased()) })
+        }
+
+        if !clauseMatches.isEmpty {
+            return clauseMatches
+        }
+
+        return analysis.evidence
+    }
+
+    private func isDimensionSpecific(_ summary: String, for dimension: ReflectionDimension) -> Bool {
+        let lowered = summary.lowercased()
+        let targetCues = summaryCueKeywords(for: dimension)
+        let otherCues = ReflectionDimension.allCases
+            .filter { $0 != dimension }
+            .flatMap { summaryCueKeywords(for: $0) }
+
+        let targetMatch = targetCues.contains { lowered.contains($0.lowercased()) }
+        let otherMatch = otherCues.contains { lowered.contains($0.lowercased()) }
+
+        if targetMatch && !otherMatch {
+            return true
+        }
+
+        if summary.contains(dimension.description) && !otherMatch {
+            return true
+        }
+
+        return false
     }
 
     private func fidelity(for dimension: ReflectionDimension, analysis: ChunkAnalysis) -> Double {
@@ -126,6 +175,39 @@ struct ReflectionStateTracker {
         score += keywordBonus(for: dimension, analysis: analysis)
 
         return min(score, 1.0)
+    }
+
+    private func confidence(for dimension: ReflectionDimension, analysis: ChunkAnalysis) -> Double {
+        var score = 0.0
+
+        if analysis.detectedDimensions.contains(dimension) {
+            score += 0.18
+        }
+
+        if analysis.primaryDimension == dimension {
+            score += 0.16
+        }
+
+        if !dimensionEvidence(for: dimension, analysis: analysis).isEmpty {
+            score += 0.22
+        }
+
+        if let summary = analysis.dimensionSummaries[dimension.rawValue], !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            score += 0.14
+            score += summarySpecificityBonus(for: dimension, summary: summary)
+        }
+
+        score += keywordBonus(for: dimension, analysis: analysis) * 0.6
+
+        if analysis.chunkType == .unknown || analysis.chunkType == .filler {
+            score -= 0.12
+        }
+
+        if analysis.missingFollowUpHints.contains(dimension) {
+            score -= 0.08
+        }
+
+        return min(max(score, 0), 0.9)
     }
 
     private func summarySpecificityBonus(for dimension: ReflectionDimension, summary: String) -> Double {

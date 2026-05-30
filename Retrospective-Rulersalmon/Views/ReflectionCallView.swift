@@ -19,10 +19,6 @@ struct ReflectionCallView: View {
 
                 transcriptSection
 
-                if let question = viewModel.activeQuestion {
-                    questionSection(question)
-                }
-
                 reflectionStateSection
 
                 messageSection
@@ -91,6 +87,10 @@ struct ReflectionCallView: View {
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...4)
 
+            if let question = viewModel.activeQuestion {
+                questionSection(question)
+            }
+
             HStack {
                 statusPill(title: viewModel.isRecording ? "Listening" : "Idle", color: viewModel.isRecording ? .green : .gray)
                 statusPill(title: "Chunks \(viewModel.chunks.count)", color: .blue)
@@ -112,16 +112,11 @@ struct ReflectionCallView: View {
     }
 
     private func questionSection(_ question: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Current Follow-up")
-
-            Text(question)
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(Color.accentColor.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
+        Text(question)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 2)
     }
 
     private var reflectionStateSection: some View {

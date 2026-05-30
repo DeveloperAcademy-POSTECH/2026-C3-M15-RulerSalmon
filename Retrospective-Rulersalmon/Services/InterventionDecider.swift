@@ -12,7 +12,8 @@ struct InterventionDecider {
         state: ReflectionState,
         timeSinceLastAIQuestion: TimeInterval,
         timeSinceLastUserChunk: TimeInterval,
-        isUserSpeaking: Bool
+        isUserSpeaking: Bool,
+        isTurnEnded: Bool
     ) -> InterventionDecision {
         guard !isUserSpeaking else {
             return InterventionDecision(
@@ -23,7 +24,7 @@ struct InterventionDecider {
             )
         }
 
-        guard timeSinceLastUserChunk >= 1.2 else {
+        guard isTurnEnded || timeSinceLastUserChunk >= 1.2 else {
             return InterventionDecision(
                 shouldIntervene: false,
                 targetDimension: nil,
@@ -32,7 +33,8 @@ struct InterventionDecider {
             )
         }
 
-        guard timeSinceLastAIQuestion >= 8 else {
+        let minimumQuestionInterval = isTurnEnded ? 1.8 : 8.0
+        guard timeSinceLastAIQuestion >= minimumQuestionInterval else {
             return InterventionDecision(
                 shouldIntervene: false,
                 targetDimension: nil,

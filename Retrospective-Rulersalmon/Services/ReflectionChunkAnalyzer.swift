@@ -80,15 +80,26 @@ struct ReflectionChunkAnalyzer {
 
         규칙:
         - rawText와 cleanedText를 함께 참고하되, cleanedText를 우선 활용하라.
-        - 4L는 서로 배타적인 라벨이 아니다. 한 chunk에 여러 차원이 동시에 공존하면 모두 포함하라.
-        - liked만 먼저 고르지 말고, learned / lacked / longedFor 신호가 보이면 함께 넣어라.
+        - 4L는 서로 배타적인 라벨이 아니지만, 가능한 한 최소한의 차원만 선택하라.
+        - liked만 먼저 고르지 말고, learned / lacked / longedFor 신호가 "명시적으로" 보일 때만 함께 넣어라.
+        - 단순한 고민, 생각, 검토, 정리, 방향 탐색만으로는 여러 차원을 동시에 확장하지 마라.
+        - 학습 결과가 분명하게 드러나지 않으면 learned를 넣지 마라.
+        - 부족함이나 막힘이 구체적으로 드러나지 않으면 lacked를 넣지 마라.
+        - 다음 행동이나 바람이 분명하게 드러나지 않으면 longedFor를 넣지 마라.
         - summary는 chunk 전체를 한 문장으로 요약하되, 너무 일반적이면 안 된다.
-        - dimensionSummaries는 각 차원의 관점에서 따로 써라. 같은 chunk라도 4L마다 표현이 조금 달라야 한다.
+        - dimensionSummaries는 각 차원의 관점에서 따로 써라. 같은 chunk라도 4L마다 표현이 명확히 달라야 한다.
+        - dimensionSummaries의 네 값은 같은 문장을 반복하지 말고, 각 차원이 무엇을 말하는지 서로 다른 초점을 가져야 한다.
+        - liked는 "무엇이 잘 됐는지", learned는 "무엇을 알게 되었는지", lacked는 "무엇이 부족하거나 막혔는지", longedFor는 "다음에 무엇을 바꾸고 싶은지"만 적어라.
+        - 한 문장에 여러 차원이 같이 들어 있더라도, 각 dimensionSummary는 그 차원에 해당하는 부분만 다시 골라 써라.
+        - dimensionSummary에 chunk 전체를 그대로 복붙하지 말고, 해당 차원을 한 번 더 풀어서 설명하라.
         - dimensionSummaries는 반드시 네 개 키를 모두 출력하라. 해당 차원이 전혀 없으면 빈 문자열 "" 로 두어라.
         - liked는 만족/성과/협업/안정감이 보일 때, learned는 배움/깨달음/이해가 보일 때,
           lacked는 아쉬움/부족/막힘/어려움이 보일 때, longedFor는 바람/개선/다음 행동이 보일 때 선택하라.
         - keywords는 원문에 실제로 드러난 표현만 넣어라.
         - evidence는 원문에서 바로 확인되는 짧은 문장으로만 작성하라.
+        - evidence는 차원마다 최대한 다른 문장을 고르되, 같은 evidence를 4L 전체에 반복하지 마라.
+        - evidence는 각 차원이 실제로 말한 부분만 담아라. 공통 문장이나 전체 요약을 evidence로 남기지 마라.
+        - summary가 모든 차원에 공통으로 들어갈 것 같으면, summary와 evidence를 더 구체적인 차원별 문장으로 다시 좁혀라.
         - summary와 dimensionSummaries는 "string", "summary", "text", "null" 같은 자리표시자를 절대 쓰지 마라.
         - 배열은 해당 항목이 없으면 빈 배열 [] 로 출력하라.
         - 출력이 망설여지면 가장 타당한 값만 남기고, 애매한 것은 빈 배열 또는 빈 문자열로 비워라.
@@ -254,6 +265,32 @@ struct ReflectionChunkAnalyzer {
           "confidence": 0.62
         }
 
+        예시 6 - 고민이 많지만 learned는 아직 불명확한 경우:
+        입력:
+        이번 작업을 하면서 로직에 대한 고민이 많았어. 어떻게 알고리즘을 짜고 최적화를 할지, UX를 개선할 수 있는지 좀 많이 고민했던 것 같아.
+        출력 예:
+        {
+          "chunkType": "problem",
+          "summary": "로직과 UX 개선 방향을 두고 고민이 많았지만, 아직 배움보다 고민과 방향 탐색이 더 두드러진 회고다.",
+          "dimensionSummaries": {
+            "liked": "",
+            "learned": "",
+            "lacked": "부족했던 점은 로직과 UX 개선 방향을 어떻게 풀지 아직 구체적으로 정리되지 않았다는 점이다.",
+            "longedFor": "바라는 점은 알고리즘과 최적화, UX 개선을 다음에는 더 구체적으로 설계해보고 싶다는 점이다."
+          },
+          "detectedDimensions": ["lacked", "longedFor"],
+          "primaryDimension": "lacked",
+          "emotions": ["고민"],
+          "keywords": ["로직", "알고리즘", "최적화", "UX 개선"],
+          "clauses": ["이번 작업을 하면서 로직에 대한 고민이 많았어", "어떻게 알고리즘을 짜고 최적화를 할지", "UX를 개선할 수 있는지 좀 많이 고민했던 것 같아"],
+          "evidence": ["로직에 대한 고민이 많았어", "어떻게 알고리즘을 짜고 최적화를 할지"],
+          "missingFollowUpHints": ["liked", "learned"],
+          "hasSentenceBoundary": true,
+          "hasTopicShift": true,
+          "isMeaningful": true,
+          "confidence": 0.72
+        }
+
         rawText:
         \(chunk.rawText)
 
@@ -284,7 +321,11 @@ struct ReflectionChunkAnalyzer {
         let chunkType = payload.chunkType == .unknown ? fallback.chunkType : payload.chunkType
         let detectedDimensions = mergedDimensions(payload.detectedDimensions, fallback.detectedDimensions)
         let primaryDimension = resolvedPrimaryDimension(payload.primaryDimension, fallback: fallback.primaryDimension, detectedDimensions: detectedDimensions)
-        let dimensionSummaries = mergedDimensionSummaries(payload.dimensionSummaries, fallback.dimensionSummaries)
+        let dimensionSummaries = mergedDimensionSummaries(
+            payload.dimensionSummaries,
+            fallback.dimensionSummaries,
+            overallSummary: payload.summary
+        )
         let emotions = mergeTextArray(payload.emotions, fallback.emotions)
         let keywords = mergeTextArray(payload.keywords, fallback.keywords)
         let clauses = mergeTextArray(payload.clauses, fallback.clauses)
@@ -425,7 +466,7 @@ struct ReflectionChunkAnalyzer {
         fallbackSummary: String
     ) -> String {
         let focus = focusPrefix(for: dimension)
-        let evidenceText = evidence.first ?? chunk.cleanedText
+        let evidenceText = dimensionEvidenceSnippet(for: dimension, chunk: chunk, evidence: evidence)
         let keywordText = keywords.prefix(2).joined(separator: ", ")
 
         var core = evidenceText.isEmpty ? fallbackSummary : evidenceText
@@ -444,6 +485,30 @@ struct ReflectionChunkAnalyzer {
         return "\(focus) 관련 회고로 보이며, \(core)"
     }
 
+    private func dimensionEvidenceSnippet(
+        for dimension: ReflectionDimension,
+        chunk: SpeechChunk,
+        evidence: [String]
+    ) -> String {
+        let cues = dimensionCueKeywords(for: dimension)
+
+        if let matchedEvidence = evidence.first(where: { item in
+            let lowered = item.lowercased()
+            return cues.contains(where: { lowered.contains($0.lowercased()) })
+        }) {
+            return matchedEvidence
+        }
+
+        if let matchedClause = splitClauses(in: chunk.rawText).first(where: { clause in
+            let lowered = clause.lowercased()
+            return cues.contains(where: { lowered.contains($0.lowercased()) })
+        }) {
+            return matchedClause
+        }
+
+        return evidence.first ?? chunk.cleanedText
+    }
+
     private func focusPrefix(for dimension: ReflectionDimension) -> String {
         switch dimension {
         case .liked:
@@ -454,6 +519,19 @@ struct ReflectionChunkAnalyzer {
             return "부족했던 점"
         case .longedFor:
             return "바라는 점"
+        }
+    }
+
+    private func dimensionCueKeywords(for dimension: ReflectionDimension) -> [String] {
+        switch dimension {
+        case .liked:
+            return ["좋았", "뿌듯", "만족", "잘 됐", "안정", "호흡", "괜찮"]
+        case .learned:
+            return ["배웠", "알게", "깨달", "이해", "정리", "감이", "배운 점"]
+        case .lacked:
+            return ["아쉬", "부족", "어려웠", "막혔", "꼬였", "헷갈", "회고를 바로"]
+        case .longedFor:
+            return ["다음", "하고 싶", "해보고 싶", "원하", "바라", "개선", "다듬", "바꾸"]
         }
     }
 
@@ -501,13 +579,14 @@ struct ReflectionChunkAnalyzer {
 
     private func mergedDimensionSummaries(
         _ modelSummaries: [String: String],
-        _ fallbackSummaries: [String: String]
+        _ fallbackSummaries: [String: String],
+        overallSummary: String
     ) -> [String: String] {
         var merged: [String: String] = [:]
 
         for dimension in ReflectionDimension.allCases {
             let key = dimension.rawValue
-            let modelValue = sanitizeDimensionSummary(modelSummaries[key])
+            let modelValue = sanitizeDimensionSummary(modelSummaries[key], for: dimension, overallSummary: overallSummary)
             let fallbackValue = sanitizeDimensionSummary(fallbackSummaries[key])
 
             if let modelValue {
@@ -525,6 +604,16 @@ struct ReflectionChunkAnalyzer {
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return nil }
         guard !isPlaceholderSummary(normalized) else { return nil }
+        return normalized
+    }
+
+    private func sanitizeDimensionSummary(
+        _ value: String?,
+        for dimension: ReflectionDimension,
+        overallSummary: String
+    ) -> String? {
+        guard let normalized = sanitizeDimensionSummary(value) else { return nil }
+        guard isDimensionSpecific(normalized, for: dimension, overallSummary: overallSummary) else { return nil }
         return normalized
     }
 
@@ -555,6 +644,37 @@ struct ReflectionChunkAnalyzer {
             "값없음", "없음", "내용", "placeholder"
         ]
         return placeholders.contains(where: { lowered == $0 })
+    }
+
+    private func isDimensionSpecific(
+        _ summary: String,
+        for dimension: ReflectionDimension,
+        overallSummary: String
+    ) -> Bool {
+        let lowered = summary.lowercased()
+        let overallLowered = overallSummary.lowercased()
+
+        if !overallLowered.isEmpty, lowered == overallLowered {
+            return false
+        }
+
+        let targetCues = dimensionCueKeywords(for: dimension)
+        let otherCues = ReflectionDimension.allCases
+            .filter { $0 != dimension }
+            .flatMap { dimensionCueKeywords(for: $0) }
+
+        let targetMatch = targetCues.contains { lowered.contains($0.lowercased()) }
+        let otherMatch = otherCues.contains { lowered.contains($0.lowercased()) }
+
+        if targetMatch && !otherMatch {
+            return true
+        }
+
+        if summary.contains(dimension.description) && !otherMatch {
+            return true
+        }
+
+        return false
     }
 
     private func clean(_ text: String) -> String {
