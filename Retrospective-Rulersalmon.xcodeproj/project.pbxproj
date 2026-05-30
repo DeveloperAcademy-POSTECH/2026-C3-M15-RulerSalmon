@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BA861C802FBED43E00F3EBA0 /* CosyVoiceTTS in Frameworks */ = {isa = PBXBuildFile; productRef = BA861C812FBED43E00F3EBA0 /* CosyVoiceTTS */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BA861C692FBED43D00F3EBA0 /* Retrospective-Rulersalmon.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Retrospective-Rulersalmon.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BA861C802FBED43E00F3EBA0 /* CosyVoiceTTS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "Retrospective-Rulersalmon";
 			packageProductDependencies = (
+				BA861C812FBED43E00F3EBA0 /* CosyVoiceTTS */,
 			);
 			productName = "Retrospective-Rulersalmon";
 			productReference = BA861C692FBED43D00F3EBA0 /* Retrospective-Rulersalmon.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = BA861C602FBED43D00F3EBA0;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BA861C822FBED43E00F3EBA0 /* XCRemoteSwiftPackageReference "speech-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BA861C6A2FBED43D00F3EBA0 /* Products */;
 			projectDirPath = "";
@@ -332,6 +341,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BA861C822FBED43E00F3EBA0 /* XCRemoteSwiftPackageReference "speech-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/soniqo/speech-swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BA861C812FBED43E00F3EBA0 /* CosyVoiceTTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BA861C822FBED43E00F3EBA0 /* XCRemoteSwiftPackageReference "speech-swift" */;
+			productName = CosyVoiceTTS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BA861C612FBED43D00F3EBA0 /* Project object */;
 }

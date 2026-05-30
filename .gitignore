@@ -1,2 +1,13 @@
 *.DS_Store
 /prompt.md
+
+# Generated audio outputs
+*.wav
+
+# SwiftPM build output
+.build/
+**/.build/
+
+# Xcode user-local state
+**/xcuserdata/
+**/*.xcuserstate
