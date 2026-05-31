@@ -1,152 +1,331 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var coach = VoiceCoachViewModel()
+    @State private var transcript = """
+    이번 스프린트는 일정이 촉박해서 힘들었지만 팀원들이 적극적으로 도와줘서 끝까지 마무리할 수 있었다.
+    소통은 이전보다 좋아졌고 리뷰 과정에서 배운 점도 많았다.
+    다만 요구사항이 중간에 바뀌어서 혼란스러운 순간이 있었고 테스트 시간이 부족했던 점은 아쉽다.
+    결과물은 생각보다 안정적으로 나와서 전반적으로는 만족스럽다.
+    """
+    @State private var result = RetrospectiveSentimentResult.empty
+
+    private let analyzer = RetrospectiveSentimentAnalyzer()
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
-                header
-                voicePicker
-                textInput
-                playbackControls
-                latencyPanel
-                Text(coach.voiceSampleStatus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+                    inputSection
+                    scoreSection
+                    keywordSection
+                    segmentSection
+                }
+                .padding(20)
             }
-            .padding(20)
-            .navigationTitle("TTS Voice Test")
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("감정 분석 PoC")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    StatusPill(text: coach.statusText, isBusy: coach.isSpeaking)
+                    Button {
+                        analyze()
+                    } label: {
+                        Label("분석", systemImage: "chart.bar.xaxis")
+                    }
+                    .disabled(transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
-        .task {
-            coach.setAppActive(scenePhase == .active)
-            coach.prepare()
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            coach.setAppActive(newPhase == .active)
+        .onAppear {
+            analyze()
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("목소리 선택")
-                .font(.headline)
-            Text("chaem, cindy, friday 중 하나를 선택하고 입력한 텍스트를 해당 목소리로 읽습니다.")
+            Text("회고록의 긍정/부정 비율과 만족도 점수를 산출합니다.")
+                .font(.title3.weight(.semibold))
+            Text("현재 PoC는 로컬 규칙 기반 분석이며, 이후 Create ML Text Classifier의 NLModel 결과로 교체할 수 있는 구조입니다.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
     }
 
-    private var voicePicker: some View {
-        Picker("목소리", selection: Binding(
-            get: { coach.selectedSlot },
-            set: { coach.selectSlot($0) }
-        )) {
-            ForEach(VoiceSlot.allCases) { slot in
-                Text(slot.title).tag(slot)
-            }
-        }
-        .pickerStyle(.segmented)
-        .disabled(coach.isSpeaking)
-    }
+    private var inputSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("회고 전사문")
+                .font(.headline)
 
-    private var textInput: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TextField("읽을 텍스트를 입력해 주세요", text: $coach.ttsText, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(4...8)
-                .submitLabel(.send)
-                .disabled(coach.isSpeaking)
-                .onSubmit {
-                    Task { await coach.speakInputText() }
+            TextEditor(text: $transcript)
+                .frame(minHeight: 180)
+                .padding(8)
+                .scrollContentBackground(.hidden)
+                .background(.background, in: RoundedRectangle(cornerRadius: 8))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(.separator), lineWidth: 0.5)
                 }
 
-            Text("측정 입력 길이: \(coach.effectiveInputCharacterCount)자")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var playbackControls: some View {
-        HStack(spacing: 12) {
             Button {
-                Task { await coach.speakInputText() }
+                analyze()
             } label: {
-                Label("읽기", systemImage: "speaker.wave.2.fill")
+                Label("감정 분석하기", systemImage: "sparkline")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(coach.isSpeaking || coach.ttsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-            Button {
-                coach.stopSpeaking()
-            } label: {
-                Image(systemName: "speaker.slash.fill")
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.bordered)
         }
     }
 
-    private var latencyPanel: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Latency")
+    private var scoreSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("분석 결과")
                 .font(.headline)
 
-            if coach.latencyMetrics.isEmpty {
-                Text("아직 측정값 없음")
-                    .font(.caption)
+            HStack(spacing: 12) {
+                ScoreTile(
+                    title: "긍정",
+                    value: "\(formatPercent(result.positivePercentage))%",
+                    tint: .green
+                )
+                ScoreTile(
+                    title: "부정",
+                    value: "\(formatPercent(result.negativePercentage))%",
+                    tint: .red
+                )
+                ScoreTile(
+                    title: "만족도",
+                    value: "\(formatScore(result.satisfactionScore))/5",
+                    tint: .blue
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                RatioBar(
+                    positivePercentage: result.positivePercentage,
+                    negativePercentage: result.negativePercentage
+                )
+
+                HStack {
+                    ForEach([
+                        RetrospectiveSentimentLabel.positive,
+                        .mixed,
+                        .neutral,
+                        .negative
+                    ], id: \.self) { label in
+                        LabelCountPill(label: label, count: result.labelCounts[label, default: 0])
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var keywordSection: some View {
+        HStack(alignment: .top, spacing: 12) {
+            KeywordList(title: "긍정 키워드", keywords: result.positiveKeywords, tint: .green)
+            KeywordList(title: "부정 키워드", keywords: result.negativeKeywords, tint: .red)
+        }
+    }
+
+    private var segmentSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("문장별 판정")
+                .font(.headline)
+
+            if result.segments.isEmpty {
+                Text("분석할 회고록을 입력해 주세요.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(coach.latencyMetrics) { metric in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(metric.voiceName) · \(metric.characterCount)자")
-                            .font(.caption.weight(.semibold))
-                        HStack(spacing: 12) {
-                            Text("합성 \(formatSeconds(metric.synthesisTime))")
-                            Text("첫 재생 \(formatSeconds(metric.firstPlaybackTime))")
-                            Text("완료 \(formatSeconds(metric.totalTime))")
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                ForEach(result.segments) { segment in
+                    SegmentRow(segment: segment)
+                }
+            }
+        }
+    }
+
+    private func analyze() {
+        result = analyzer.analyze(transcript)
+    }
+
+    private func formatPercent(_ value: Double) -> String {
+        String(format: "%.0f", value)
+    }
+
+    private func formatScore(_ value: Double) -> String {
+        String(format: "%.1f", value)
+    }
+}
+
+private struct ScoreTile: View {
+    let title: String
+    let value: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title2.weight(.bold))
+                .minimumScaleFactor(0.72)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(tint)
+                .frame(width: 4)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct RatioBar: View {
+    let positivePercentage: Double
+    let negativePercentage: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            let totalWidth = proxy.size.width
+            let positiveWidth = totalWidth * max(0, min(positivePercentage, 100)) / 100
+            let negativeWidth = totalWidth * max(0, min(negativePercentage, 100)) / 100
+
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(.green)
+                    .frame(width: positiveWidth)
+                Rectangle()
+                    .fill(.red)
+                    .frame(width: negativeWidth)
+                Rectangle()
+                    .fill(Color(.systemGray5))
+            }
+        }
+        .frame(height: 12)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .accessibilityLabel("긍정 \(Int(positivePercentage)) 퍼센트, 부정 \(Int(negativePercentage)) 퍼센트")
+    }
+}
+
+private struct LabelCountPill: View {
+    let label: RetrospectiveSentimentLabel
+    let count: Int
+
+    var body: some View {
+        Text("\(label.title) \(count)")
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(tint.opacity(0.12), in: Capsule())
+            .foregroundStyle(tint)
+    }
+
+    private var tint: Color {
+        switch label {
+        case .positive:
+            .green
+        case .neutral:
+            .secondary
+        case .negative:
+            .red
+        case .mixed:
+            .orange
+        }
+    }
+}
+
+private struct KeywordList: View {
+    let title: String
+    let keywords: [SentimentKeyword]
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+
+            if keywords.isEmpty {
+                Text("감지된 키워드 없음")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(keywords) { keyword in
+                    HStack {
+                        Text(keyword.text)
+                            .font(.callout.weight(.medium))
+                        Spacer()
+                        Text("\(keyword.count)")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(tint)
                     }
                     .padding(.vertical, 2)
                 }
             }
         }
-        .padding(12)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func formatSeconds(_ value: TimeInterval) -> String {
-        String(format: "%.2fs", value)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(16)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
-private struct StatusPill: View {
-    let text: String
-    let isBusy: Bool
+private struct SegmentRow: View {
+    let segment: SentimentSegment
 
     var body: some View {
-        HStack(spacing: 6) {
-            if isBusy {
-                ProgressView()
-                    .controlSize(.small)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(segment.label.title)
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(tint.opacity(0.14), in: Capsule())
+                    .foregroundStyle(tint)
+                Spacer()
+                Text(String(format: "%.2f", segment.score))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
-            Text(text)
-                .font(.caption.weight(.semibold))
+
+            Text(segment.text)
+                .font(.callout)
+
+            if !segment.positiveKeywords.isEmpty || !segment.negativeKeywords.isEmpty {
+                Text(keywordSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.thinMaterial, in: Capsule())
+        .padding(14)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var keywordSummary: String {
+        var parts: [String] = []
+        if !segment.positiveKeywords.isEmpty {
+            parts.append("긍정: \(segment.positiveKeywords.joined(separator: ", "))")
+        }
+        if !segment.negativeKeywords.isEmpty {
+            parts.append("부정: \(segment.negativeKeywords.joined(separator: ", "))")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var tint: Color {
+        switch segment.label {
+        case .positive:
+            .green
+        case .neutral:
+            .secondary
+        case .negative:
+            .red
+        case .mixed:
+            .orange
+        }
     }
 }
 
