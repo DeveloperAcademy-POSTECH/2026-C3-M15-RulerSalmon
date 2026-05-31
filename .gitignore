@@ -11,3 +11,9 @@
 # Xcode user-local state
 **/xcuserdata/
 **/*.xcuserstate
+
+# Local derived data
+.derivedData-ios/
+**/.derivedData-ios/
+.derivedData/
+**/.derivedData/
