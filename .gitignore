@@ -17,3 +17,21 @@
 **/.derivedData-ios/
 .derivedData/
 **/.derivedData/
+
+# Python caches and virtual environments
+__pycache__/
+**/__pycache__/
+*.pyc
+.venv/
+**/.venv/
+.venv-*/
+**/.venv-*/
+
+# Local Piper clone
+/piper/
+
+# Piper ONNX voice POC local data and generated artifacts
+/Piper-ONNX-Voice-Model/input/
+/Piper-ONNX-Voice-Model/dataset/wav/
+/Piper-ONNX-Voice-Model/dataset/*.csv
+/Piper-ONNX-Voice-Model/output/

@@ -1,0 +1,11 @@
+{
+  "id": "custom_ko_voice_v1",
+  "name": "Custom Korean Voice v1",
+  "language": "ko",
+  "sampleRate": 22050,
+  "model": "custom_ko_voice.onnx",
+  "config": "custom_ko_voice.onnx.json",
+  "version": "0.1.0",
+  "trainingDataMinutes": 8,
+  "quality": "poc"
+}
