@@ -50,9 +50,9 @@
   - 이슈 단위 작업은 `issue`에서 분기하거나 `issue` 계열 브랜치로 관리한다.
 
 ### Branch Naming
-- 기본 형식은 `dev/<work-name>/<dev-nickname>` 또는 `issue/<work-name>/<dev-nickname>`를 사용한다.
+- 기본 형식은 `feat/<work-name>/<dev-nickname>` 또는 `issue/<work-name>/<dev-nickname>`를 사용한다.
 - 브랜치 이름은 소문자와 하이픈을 우선 사용한다.
-- 예시: `dev/login-screen`, `issue/fix-empty-state`, `feature/profile-edit`
+- 예시: `feat/login-screen`, `issue/fix-empty-state`, `feat/profile-edit`
 
 ### Pull Request Rules
 - PR 제목은 브랜치 성격을 앞에 붙인다.

@@ -1,2 +1,4 @@
 *.DS_Store
 /prompt.md
+/.derivedData/
+/.derivedData-ios/
