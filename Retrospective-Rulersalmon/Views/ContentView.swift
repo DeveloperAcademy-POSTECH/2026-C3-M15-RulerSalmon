@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var transcript = """
-    이번 스프린트는 일정이 촉박해서 힘들었지만 팀원들이 적극적으로 도와줘서 끝까지 마무리할 수 있었다.
+    이번 프로젝트는 일정이 촉박해서 힘들었지만 팀원들이 적극적으로 도와줘서 끝까지 마무리할 수 있었다.
     소통은 이전보다 좋아졌고 리뷰 과정에서 배운 점도 많았다.
     다만 요구사항이 중간에 바뀌어서 혼란스러운 순간이 있었고 테스트 시간이 부족했던 점은 아쉽다.
     결과물은 생각보다 안정적으로 나와서 전반적으로는 만족스럽다.
@@ -10,7 +10,7 @@ struct ContentView: View {
     @State private var result = RetrospectiveSentimentResult.empty
 
     private let analyzer = RetrospectiveSentimentAnalyzer()
-
+ 
     var body: some View {
         NavigationStack {
             ScrollView {
