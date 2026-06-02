@@ -14,6 +14,8 @@ struct NicknameTextField: View {
         VStack(alignment: .leading){
             Text("닉네임")
                 .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.gray600)
             
             TextField("닉네임을 입력해주세요", text: $nickname
         )

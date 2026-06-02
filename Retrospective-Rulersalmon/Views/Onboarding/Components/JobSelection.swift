@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct JobSelectionView: View {
+struct JobSelection: View {
     @Binding var selectedJob: Job
 
     var body: some View {
@@ -33,6 +33,6 @@ struct JobSelectionView: View {
 }
 
 #Preview {
-    JobSelectionView(selectedJob: .constant(.student))
+    JobSelection(selectedJob: .constant(.student))
         .padding()
 }
