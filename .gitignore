@@ -8,6 +8,12 @@ plan.md
 **/xcuserdata/
 **/*.xcuserstate
 
+# Xcode user-specific
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
 # Python caches and virtual environments
 __pycache__/
 **/__pycache__/

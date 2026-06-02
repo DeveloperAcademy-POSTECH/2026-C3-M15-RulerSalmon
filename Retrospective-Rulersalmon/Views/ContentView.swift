@@ -11,6 +11,11 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ReflectionCallView()
+                .padding()
         }
     }
+}
+
+#Preview {
+    ContentView()
 }
