@@ -1,0 +1,17 @@
+{
+  "id": "custom_ko_melotts_v1",
+  "name": "Custom Korean MeloTTS Voice v1",
+  "engine": "melotts",
+  "language": "ko",
+  "sampleRate": 44100,
+  "model": "custom_ko_melotts.onnx",
+  "config": "custom_ko_melotts.config.json",
+  "version": "0.1.0",
+  "trainingDataMinutes": 8,
+  "quality": "poc",
+  "requires": {
+    "runtime": "onnxruntime-mobile",
+    "textNormalizer": true,
+    "phonemizer": true
+  }
+}

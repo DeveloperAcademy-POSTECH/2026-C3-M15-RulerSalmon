@@ -1,0 +1,19 @@
+# Placeholder MeloTTS Korean training config.
+# Replace this file with the verified config from your chosen MeloTTS fork.
+
+dataset:
+  metadata_path: dataset/metadata.csv
+  wav_dir: dataset/wav
+
+training:
+  batch_size: 4
+  max_epochs: 50
+  learning_rate: 0.0001
+
+model:
+  base_model: pretrained/melotts-ko-base
+
+notes:
+  - Verify sample rate compatibility with your chosen MeloTTS fork.
+  - Verify tokenizer and phonemizer requirements.
+  - 8 minutes of data is for POC only and is likely to overfit.

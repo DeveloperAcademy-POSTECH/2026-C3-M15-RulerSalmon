@@ -35,3 +35,14 @@ __pycache__/
 /Piper-ONNX-Voice-Model/dataset/wav/
 /Piper-ONNX-Voice-Model/dataset/*.csv
 /Piper-ONNX-Voice-Model/output/
+
+# MeloTTS local data, upstream clone, and generated artifacts
+/melotts-ios-poc/input/
+/melotts-ios-poc/dataset/wav/
+/melotts-ios-poc/dataset/*.csv
+/melotts-ios-poc/dataset/*.list
+/melotts-ios-poc/dataset/*.json
+/melotts-ios-poc/output/
+/melotts-ios-poc/third_party/
+/melotts-ios-poc/training/checkpoints/
+/melotts-ios-poc/training/logs/
