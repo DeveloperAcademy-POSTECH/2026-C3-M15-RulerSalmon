@@ -32,10 +32,12 @@ struct UserInfoCard: View {
     }
 }
 
-#Preview {
-    UserInfoCard(
-        nickname: .constant("김여운"),
-        selectedJob: .constant(.student),
-        selectedAgeGroup: .constant(.twenties)
-    )
+struct UserInfoCard_Previews: PreviewProvider {
+    static var previews: some View {
+        UserInfoCard(
+            nickname: .constant("김여운"),
+            selectedJob: .constant(.student),
+            selectedAgeGroup: .constant(.twenties)
+        )
+    }
 }

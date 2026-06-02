@@ -11,11 +11,12 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ReflectionCallView()
-                .padding()
         }
     }
 }
 
-#Preview {
-    ContentView()
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }

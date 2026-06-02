@@ -32,7 +32,9 @@ struct JobSelection: View {
     }
 }
 
-#Preview {
-    JobSelection(selectedJob: .constant(.student))
-        .padding()
+struct JobSelection_Previews: PreviewProvider {
+    static var previews: some View {
+        JobSelection(selectedJob: .constant(.student))
+            .padding()
+    }
 }
