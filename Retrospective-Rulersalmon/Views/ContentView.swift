@@ -9,23 +9,13 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        NavigationStack {
-            VStack() {
-                Spacer()
-
-                NavigationLink {
-                    AssistantChatView()
-                } label: {
-                    Text("[Dev] STT and Foundation Model")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal)
-
-                Spacer()
-            }
-            .padding()
+        VStack {
+            OnboardingTitle(headline: "안녕하세요", subtitle: "최근 회고에서 조금 지쳐 보였어요. 오늘은 짧고 간단하게 해봐요")
         }
+        .padding()
     }
+}
+
+#Preview {
+    ContentView()
 }

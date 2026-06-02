@@ -2,3 +2,9 @@
 /prompt.md
 /.derivedData/
 /.derivedData-ios/
+
+# Xcode user-specific
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
