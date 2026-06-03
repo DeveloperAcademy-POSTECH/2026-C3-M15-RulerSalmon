@@ -19,6 +19,7 @@ struct PermissionRow: View {
                 .frame(width: 56, height: 56)
                 .overlay(
                     Image(systemName: systemImageName)
+                        .font(.title2)
                         .foregroundStyle(Color.blue500))
                 .padding(.trailing, 16)
             
@@ -48,8 +49,10 @@ struct PermissionRow: View {
                 .fill(Color.white)
             
         }
-        
-        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 8)
+        .overlay{
+            RoundedRectangle(cornerRadius: 30)
+                .stroke(Color.gray300)
+        }
         .padding(.horizontal, 16)
 
         

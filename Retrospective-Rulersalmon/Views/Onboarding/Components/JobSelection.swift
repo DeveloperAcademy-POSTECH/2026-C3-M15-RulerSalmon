@@ -2,7 +2,7 @@
 //  JobSelectionView.swift
 //  Retrospective-Rulersalmon
 //
-//  Created by Codex on 6/1/26.
+//  Created by dlsundn on 6/1/26.
 //
 
 import SwiftUI
@@ -11,8 +11,8 @@ struct JobSelection: View {
     @Binding var selectedJob: Job
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("역할")
+        VStack(alignment: .leading, spacing: 8) {
+            Text("직업")
                 .font(.subheadline)
                 .fontWeight(.bold)
                 .foregroundStyle(Color.gray600)
@@ -27,6 +27,7 @@ struct JobSelection: View {
                     }
                 }
             }
+            Caption(caption : "회고 질문과 조언을 직업 맥락에 맞게 조정해요.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -34,5 +35,4 @@ struct JobSelection: View {
 
 #Preview {
     JobSelection(selectedJob: .constant(.student))
-        .padding()
 }

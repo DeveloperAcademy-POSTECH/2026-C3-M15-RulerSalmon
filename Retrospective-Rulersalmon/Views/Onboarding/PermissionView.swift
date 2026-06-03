@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-struct PermmisionView: View {
+struct PermissionView: View {
+    let onAccept: () -> Void
     
     var body: some View {
         ZStack {
@@ -35,7 +36,7 @@ struct PermmisionView: View {
                 
                 Spacer()
                 
-                AcceptButton(labelText: "권한 요청")
+                AcceptButton(labelText: "권한 허용하기",action: {onAccept()})
             }
             .padding(.top, 40)
         }
@@ -44,5 +45,5 @@ struct PermmisionView: View {
 }
 
 #Preview {
-    PermmisionView()
+    PermissionView(onAccept: {})
 }

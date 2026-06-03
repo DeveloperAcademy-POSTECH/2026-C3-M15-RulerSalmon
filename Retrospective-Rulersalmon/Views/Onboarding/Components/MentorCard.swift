@@ -14,11 +14,17 @@ struct MentorCard: View {
     
     var body: some View {
         
-            VStack(spacing: 14) {
+            VStack(spacing: 16) {
                 Image(mentor.imageName)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 128, height: 128)
+                    .frame(width: 276, height: 276)
+                    .shadow(
+                        color: Color.gray.opacity(0.12),
+                        radius: 44,
+                        x: 0,
+                        y: 18
+                    )
                 
                 Text(mentor.name)
                     .font(.system(size: 26))
@@ -32,7 +38,6 @@ struct MentorCard: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(nil)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 40)
                 
                 HStack{
                     ForEach(mentor.tags, id: \.self){ tag in
@@ -46,16 +51,12 @@ struct MentorCard: View {
                                 Capsule()
                                     .fill(Color.blue50)
                             }
-                            .padding(.bottom, 40)
                     }
                 }
-                
-                AcceptButton(labelText:  "멘토 선택")
-                
             }
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 26)
-            .padding(.vertical, 30)
+            .frame(height: 469)
+            .padding(.horizontal, 29)
             .background{
                 RoundedRectangle(cornerRadius: 30)
                     .fill(Color.white)
@@ -63,7 +64,6 @@ struct MentorCard: View {
             .overlay{
                 RoundedRectangle(cornerRadius: 30)
                     .stroke(Color.gray300)
-                    .shadow(color: Color.gray, radius: 10)
             }
         }
 }
@@ -74,5 +74,5 @@ struct MentorCard: View {
         isSelected: true,
         onTap: {}
     )
-    
+    .padding(10)
 }

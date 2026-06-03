@@ -8,32 +8,53 @@
 import SwiftUI
 
 struct MentorSelectView: View {
-    @State private var selectedMentorID: Mentor.ID? = Mentor.sampleMentors.first?.id
+    @State private var selectedIndex: Int = 0
+    
+    private let mentors = Mentor.sampleMentors
     
     var body: some View {
-        VStack{
-            OnboardingTitle(headline: "나의 회고를 도와줄\n멘토를 선택해 주세요", subtitle: "멘토는 나중에 제한 없이 변경할 수 있어요.")
+        ZStack {
+            Color.gray50
+                .ignoresSafeArea(.all)
             
-            TabView(selection: $selectedMentorID) {
-                ForEach(Mentor.sampleMentors) { mentor in
-                    MentorCard(
-                        mentor: mentor,
-                        isSelected: selectedMentorID == mentor.id,
-                        onTap: {
-                            selectedMentorID = mentor.id
-                        }
-                    )
-                    .tag(Optional(mentor.id))
-                    .padding(.horizontal, 24)
+            VStack(spacing : 0){
+                OnboardingTitle(headline: "회고 멘토를 선택해 주세요", subtitle: "멘토는 나중에라도\n제한 없이 변경할 수 있어요.")
+                    .padding(.bottom,10)
+                    
+                TabView(selection: $selectedIndex) {
+                    ForEach(mentors.indices, id: \.self) { index in
+                        MentorCard(
+                            mentor: mentors[index],
+                            isSelected: selectedIndex == index,
+                            onTap: {
+                                selectedIndex = index
+                            }
+                        )
+                        .tag(index)
+                        .padding(.horizontal, 51)
+                    }
                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                
+                
+                
+                PageIndicator(
+                    pageCount: mentors.count,
+                    selectedIndex: selectedIndex
+                )
+                .padding(.top, 8)
+                .padding(.bottom, 28)
+                
+                Spacer()
+                
+                AcceptButton(labelText:  "멘토 선택하기", action:{})
+                
             }
-            .tabViewStyle(.page(indexDisplayMode: .automatic))
-            .frame(height: 520)
+            .padding(.top,16)
         }
-        
-        
     }
 }
+
 
 #Preview {
     MentorSelectView()

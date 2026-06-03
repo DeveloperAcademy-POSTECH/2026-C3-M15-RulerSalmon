@@ -9,9 +9,9 @@ import SwiftUI
 
 struct AcceptButtonStyle: ButtonStyle{
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        RoundedRectangle(cornerRadius: 16)
+        RoundedRectangle(cornerRadius: 50)
             .fill(Color.blue600)
-            .frame(maxWidth:.infinity, maxHeight: 56)
+            .frame(maxWidth:.infinity, maxHeight: 60)
             .padding(.horizontal, 16)
             .overlay{
                 configuration.label
@@ -25,9 +25,11 @@ struct AcceptButtonStyle: ButtonStyle{
 
 struct AcceptButton: View {
     let labelText: String
+    let action: ()-> Void
 
     var body: some View {
         Button{
+            action()
         }label: {
             Text(labelText)
         }
@@ -37,5 +39,5 @@ struct AcceptButton: View {
 }
 
 #Preview {
-    AcceptButton(labelText: "권한 요청")
+    AcceptButton(labelText: "권한 요청", action: {})
 }

@@ -13,8 +13,8 @@ struct UserInfoCard: View {
     @Binding var selectedAgeGroup: AgeGroup
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            NicknameTextField(nickname: $nickname)
+        VStack(alignment: .leading, spacing: 24) {
+            NicknameTextField(nickname: $nickname, title: "닉네임")
             JobSelection(selectedJob: $selectedJob)
             AgePicker(selectedAgeGroup: $selectedAgeGroup)
         }

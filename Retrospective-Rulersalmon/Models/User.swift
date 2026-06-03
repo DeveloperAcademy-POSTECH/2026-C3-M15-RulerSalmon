@@ -30,10 +30,12 @@ class User {
     let nickname: String
     let job: Job
     let ageGroup: AgeGroup
+    let personalMentor: String
 
-    init(nickname: String, job: Job, ageGroup: AgeGroup) {
+    init(nickname: String, job: Job, ageGroup: AgeGroup, personalMentor: String) {
         self.nickname = nickname
         self.job = job
         self.ageGroup = ageGroup
+        self.personalMentor = personalMentor
     }
 }
