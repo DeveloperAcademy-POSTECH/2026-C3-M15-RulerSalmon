@@ -11,50 +11,67 @@ struct AssistantChatView: View {
     @StateObject private var viewModel = AssistantChatViewModel()
 
     var body: some View {
-        VStack(spacing: 16) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    ForEach(viewModel.messages) { message in
-                        ChatBubbleView(message: message)
+        NavigationStack {
+            VStack(spacing: 16) {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        ForEach(viewModel.messages) { message in
+                            ChatBubbleView(message: message)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical)
-            }
 
-            VStack(spacing: 12) {
-                TextField("메시지를 입력하세요", text: $viewModel.inputText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(1...4)
+                VStack(spacing: 12) {
+                    TextField("메시지를 입력하세요", text: $viewModel.inputText, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(1...4)
 
-                HStack(spacing: 12) {
-                    Button {
-                        viewModel.toggleRecording()
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.toggleRecording()
+                        } label: {
+                            Label(viewModel.isRecording ? "중지" : "STT", systemImage: viewModel.isRecording ? "stop.circle.fill" : "mic.circle.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button {
+                            viewModel.sendCurrentText()
+                        } label: {
+                            Label("전송", systemImage: "paperplane.fill")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isResponding)
+                    }
+
+                    NavigationLink {
+                        FourLResultView(messages: viewModel.messages)
                     } label: {
-                        Label(viewModel.isRecording ? "중지" : "STT", systemImage: viewModel.isRecording ? "stop.circle.fill" : "mic.circle.fill")
+                        Label("채팅 종료", systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-
-                    Button {
-                        viewModel.sendCurrentText()
-                    } label: {
-                        Label("전송", systemImage: "paperplane.fill")
+                }
+                .padding(.bottom)
+            }
+            .padding()
+            .navigationTitle("Assistant Demo")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Mock") {
+                        viewModel.loadMockConversation()
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isResponding)
                 }
             }
-            .padding(.bottom)
-        }
-        .padding()
-        .navigationTitle("Assistant Demo")
-        .alert("안내", isPresented: Binding(
-            get: { viewModel.alertMessage != nil },
-            set: { if !$0 { viewModel.alertMessage = nil } }
-        )) {
-            Button("확인", role: .cancel) { }
-        } message: {
-            Text(viewModel.alertMessage ?? "")
+            .alert("안내", isPresented: Binding(
+                get: { viewModel.alertMessage != nil },
+                set: { if !$0 { viewModel.alertMessage = nil } }
+            )) {
+                Button("확인", role: .cancel) { }
+            } message: {
+                Text(viewModel.alertMessage ?? "")
+            }
         }
     }
 }
