@@ -8,6 +8,14 @@
 .build/
 **/.build/
 
+# Xcode derived data
+/.derivedData/
+/.derivedData-ios/
+
 # Xcode user-local state
 **/xcuserdata/
 **/*.xcuserstate
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
