@@ -1,0 +1,30 @@
+{
+  "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/Retrospective-Rulersalmon/Models/ChunkAnalysis.swift" : {
+    "const-values" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkAnalysis.swiftconstvalues",
+    "dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkAnalysis.d",
+    "diagnostics" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkAnalysis.dia",
+    "object" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkAnalysis.o",
+    "swift-dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkAnalysis.swiftdeps"
+  },
+  "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/Retrospective-Rulersalmon/Models/ChunkType.swift" : {
+    "const-values" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkType.swiftconstvalues",
+    "dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkType.d",
+    "diagnostics" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkType.dia",
+    "object" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkType.o",
+    "swift-dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ChunkType.swiftdeps"
+  },
+  "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/Retrospective-Rulersalmon/Models/InterventionDecision.swift" : {
+    "const-values" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/InterventionDecision.swiftconstvalues",
+    "dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/InterventionDecision.d",
+    "diagnostics" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/InterventionDecision.dia",
+    "object" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/InterventionDecision.o",
+    "swift-dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/InterventionDecision.swiftdeps"
+  },
+  "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/Retrospective-Rulersalmon/Models/Mentor.swift" : {
+    "const-values" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/Mentor.swiftconstvalues",
+    "dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/Mentor.d",
+    "diagnostics" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/Mentor.dia",
+    "object" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/Mentor.o",
+    "swift-dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/Mentor.swiftdeps"
+  }
+}

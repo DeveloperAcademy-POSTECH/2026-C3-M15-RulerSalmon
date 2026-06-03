@@ -1,0 +1,23 @@
+{
+  "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/Retrospective-Rulersalmon/ViewModels/ReflectionChatViewModel.swift" : {
+    "const-values" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ReflectionChatViewModel.swiftconstvalues",
+    "dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ReflectionChatViewModel.d",
+    "diagnostics" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ReflectionChatViewModel.dia",
+    "object" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ReflectionChatViewModel.o",
+    "swift-dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/ReflectionChatViewModel.swiftdeps"
+  },
+  "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/Retrospective-Rulersalmon/Views/Onboarding/Components/AgePicker.swift" : {
+    "const-values" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/AgePicker.swiftconstvalues",
+    "dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/AgePicker.d",
+    "diagnostics" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/AgePicker.dia",
+    "object" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/AgePicker.o",
+    "swift-dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/AgePicker.swiftdeps"
+  },
+  "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/Retrospective-Rulersalmon/Views/Onboarding/Components/JobSelection.swift" : {
+    "const-values" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/JobSelection.swiftconstvalues",
+    "dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/JobSelection.d",
+    "diagnostics" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/JobSelection.dia",
+    "object" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/JobSelection.o",
+    "swift-dependencies" : "/Users/devpaul/Dev/Academy/Challenge3/Retrospective-Rulersalmon/.derivedData-temp/Build/Intermediates.noindex/Retrospective-Rulersalmon.build/Debug-iphoneos/Retrospective-Rulersalmon.build/Objects-normal/arm64/JobSelection.swiftdeps"
+  }
+}
