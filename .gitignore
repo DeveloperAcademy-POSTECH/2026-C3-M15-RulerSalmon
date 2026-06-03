@@ -3,10 +3,14 @@
 plan.md
 /.derivedData/
 /.derivedData-ios/
+/.derivedData-temp/
+/.swift-module-cache/
 
 # Xcode user-local state
 **/xcuserdata/
 **/*.xcuserstate
+*.xcbkptlist
+*.xcschememanagement.plist
 
 # Xcode user-specific
 *.xcuserstate
