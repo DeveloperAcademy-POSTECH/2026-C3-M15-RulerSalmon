@@ -8,21 +8,16 @@
 import SwiftUI
 
 struct MainPageView: View {
-    private let retrospectives = [
-        RetrospectiveItem(date: "6/10", title: "자신감 키우기"),
-        RetrospectiveItem(date: "6/9", title: "피드백 문화"),
-        RetrospectiveItem(date: "6/8", title: "목표 설정"),
-        RetrospectiveItem(date: "6/7", title: "발표 준비"),
-        RetrospectiveItem(date: "6/6", title: "협업 회고"),
-        RetrospectiveItem(date: "6/5", title: "집중 루틴"),
-        RetrospectiveItem(date: "6/4", title: "작게 회복한 하루"),
-        RetrospectiveItem(date: "6/3", title: "다음 액션 정리")
-    ]
+    @StateObject private var viewModel: MainPageViewModel
+
+    init(viewModel: MainPageViewModel = MainPageViewModel()) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     var body: some View {
         TabView {
             NavigationStack {
-                MainHomeView(retrospectives: retrospectives)
+                MainHomeView(content: viewModel.content)
             }
             .tabItem {
                 Label("홈", systemImage: "house.fill")
@@ -40,7 +35,7 @@ struct MainPageView: View {
 }
 
 private struct MainHomeView: View {
-    let retrospectives: [RetrospectiveItem]
+    let content: MainPageContent
 
     var body: some View {
         ZStack {
@@ -49,9 +44,12 @@ private struct MainHomeView: View {
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 36) {
-                    MainHeaderView()
-                    TodayMentorCard()
-                    RetrospectiveListView(items: retrospectives)
+                    MainHeaderView(
+                        userName: content.userName,
+                        encouragementMessage: content.encouragementMessage
+                    )
+                    TodayMentorCard(content: content)
+                    RetrospectiveListView(items: content.retrospectives)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, MainPageLayout.screenPadding)
@@ -75,10 +73,13 @@ private enum MainPageLayout {
 }
 
 private struct MainHeaderView: View {
+    let userName: String
+    let encouragementMessage: String
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("안녕하세요, 김여운 님")
+                Text("안녕하세요, \(userName) 님")
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(Color.gray900)
                     .lineLimit(2)
@@ -90,7 +91,7 @@ private struct MainHeaderView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("최근 회고에서 조금 지쳐 보였어요.\n오늘은 짧고 간단하게 해 봐요.")
+            Text(encouragementMessage)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(Color.gray600)
                 .lineSpacing(4)
@@ -102,13 +103,15 @@ private struct MainHeaderView: View {
 }
 
 private struct TodayMentorCard: View {
+    let content: MainPageContent
+
     var body: some View {
         VStack(spacing: 16) {
             HStack(spacing: 16) {
-                MentorAvatarTile()
+                MentorAvatarTile(imageName: content.mentorImageName)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("오늘 함께할 멘토")
+                    Text(content.mentorBadgeTitle)
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Color.blue500)
                         .padding(.horizontal, 13)
@@ -119,7 +122,7 @@ private struct TodayMentorCard: View {
                         }
 
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("Howard")
+                        Text(content.mentorName)
                             .font(.system(size: 30, weight: .bold))
                             .foregroundStyle(Color.blue500)
                             .lineLimit(1)
@@ -135,7 +138,7 @@ private struct TodayMentorCard: View {
             }
             .frame(maxWidth: .infinity)
 
-            Text("안녕하십니까! 하워드입니다!\n저와 함께 하루를 정리해 보시죠!")
+            Text(content.mentorGreeting)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(Color.gray600)
                 .multilineTextAlignment(.center)
@@ -145,7 +148,7 @@ private struct TodayMentorCard: View {
             MainPrimaryNavigationButton(
                 title: "회고 시작",
                 systemImageName: "phone.fill",
-                destination: AssistantChatView()
+                destination: ReflectionChatView()
             )
         }
         .frame(maxWidth: .infinity)
@@ -163,8 +166,10 @@ private struct TodayMentorCard: View {
 }
 
 private struct MentorAvatarTile: View {
+    let imageName: String
+
     var body: some View {
-        Image("Howard")
+        Image(imageName)
             .resizable()
             .scaledToFit()
             .frame(width: 96, height: 96)
@@ -363,16 +368,8 @@ private struct RetrospectiveDetailPlaceholderView: View {
     }
 }
 
-private struct RetrospectiveItem: Identifiable {
-    let date: String
-    let title: String
-
-    var id: String {
-        date + title
+struct MainPageView_Previews: PreviewProvider {
+    static var previews: some View {
+        MainPageView()
     }
-}
-
-
-#Preview {
-    MainPageView()
 }

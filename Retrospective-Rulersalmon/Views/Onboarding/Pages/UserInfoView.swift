@@ -8,9 +8,10 @@
 import SwiftUI
 
 struct UserInfoView: View {
-    @State private var nickname: String = ""
-    @State private var selectedJob: Job = .student
-    @State private var selectedAgeGroup: AgeGroup = .twenties
+    @Binding var nickname: String
+    @Binding var selectedJob: Job
+    @Binding var selectedAgeGroup: AgeGroup
+    let onNext: () -> Void
     
     var body: some View {
         ZStack {
@@ -30,7 +31,7 @@ struct UserInfoView: View {
                 )
                 
                 Spacer()
-                AcceptButton(labelText: "내 정보 저장")
+                AcceptButton(labelText: "내 정보 저장", action: onNext)
     
             }
             .padding(.top, 40)
@@ -40,6 +41,13 @@ struct UserInfoView: View {
     }
 }
 
-#Preview {
-    UserInfoView()
+struct UserInfoView_Previews: PreviewProvider {
+    static var previews: some View {
+        UserInfoView(
+            nickname: .constant(""),
+            selectedJob: .constant(.student),
+            selectedAgeGroup: .constant(.twenties),
+            onNext: {}
+        )
+    }
 }

@@ -50,7 +50,7 @@ struct MentorCard: View {
                     }
                 }
                 
-                AcceptButton(labelText:  "멘토 선택")
+                AcceptButton(labelText:  "멘토 선택", action: onTap)
                 
             }
             .frame(maxWidth: .infinity)
@@ -68,11 +68,12 @@ struct MentorCard: View {
         }
 }
 
-#Preview {
-    MentorCard(
-        mentor: Mentor.sampleMentors[0],
-        isSelected: true,
-        onTap: {}
-    )
-    
+struct MentorCard_Previews: PreviewProvider {
+    static var previews: some View {
+        MentorCard(
+            mentor: Mentor.sampleMentors[0],
+            isSelected: true,
+            onTap: {}
+        )
+    }
 }
