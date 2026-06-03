@@ -8,6 +8,7 @@ struct ContentView: View {
     결과물은 생각보다 안정적으로 나와서 전반적으로는 만족스럽다.
     """
     @State private var result = RetrospectiveSentimentResult.empty
+    @State private var debugMessage = "분석 대기 중"
 
     private let analyzer = RetrospectiveSentimentAnalyzer()
  
@@ -16,6 +17,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header
+                    debugSection
                     inputSection
                     scoreSection
                     keywordSection
@@ -36,7 +38,7 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             analyze()
         }
     }
@@ -45,10 +47,23 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("회고록의 긍정/부정 비율과 만족도 점수를 산출합니다.")
                 .font(.title3.weight(.semibold))
-            Text("현재 PoC는 로컬 규칙 기반 분석이며, 이후 Create ML Text Classifier의 NLModel 결과로 교체할 수 있는 구조입니다.")
+            Text("현재 PoC는 HowRU KoELECTRA CoreML 회귀 모델로 문장별 감정 점수를 계산합니다.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var debugSection: some View {
+        #if DEBUG
+        Text(debugMessage)
+            .font(.caption.monospaced())
+            .foregroundStyle(.secondary)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.background, in: RoundedRectangle(cornerRadius: 8))
+        #else
+        EmptyView()
+        #endif
     }
 
     private var inputSection: some View {
@@ -147,6 +162,12 @@ struct ContentView: View {
 
     private func analyze() {
         result = analyzer.analyze(transcript)
+        let scoreSummary = result.segments
+            .prefix(4)
+            .map { String(format: "%.2f", $0.score) }
+            .joined(separator: ", ")
+        debugMessage = "\(analyzer.debugStatus), segments: \(result.segments.count), scores: [\(scoreSummary)]"
+        print("[ContentView] \(debugMessage)")
     }
 
     private func formatPercent(_ value: Double) -> String {

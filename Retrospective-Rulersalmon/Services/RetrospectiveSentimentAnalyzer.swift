@@ -1,5 +1,6 @@
 import Foundation
-import NaturalLanguage  // NLModel, NLTokenizer
+import CoreML
+import NaturalLanguage
 
 enum RetrospectiveSentimentLabel: String {
     case positive
@@ -27,7 +28,7 @@ struct SentimentKeyword: Identifiable {
     let count: Int
 }
 
-struct SentimentSegment: Identifiable {     // 문장 조각 단위
+struct SentimentSegment: Identifiable {
     let id = UUID()
     let text: String
     let label: RetrospectiveSentimentLabel
@@ -36,7 +37,7 @@ struct SentimentSegment: Identifiable {     // 문장 조각 단위
     let negativeKeywords: [String]
 }
 
-struct RetrospectiveSentimentResult {       // 전체 회고 텍스트 분석 결과
+struct RetrospectiveSentimentResult {
     let positivePercentage: Double
     let negativePercentage: Double
     let satisfactionScore: Double
@@ -57,15 +58,20 @@ struct RetrospectiveSentimentResult {       // 전체 회고 텍스트 분석 �
 }
 
 struct RetrospectiveSentimentAnalyzer {
-    private let model: NLModel?
+    private let model: HowRUEmotionRegressionFloat32?
+    private let tokenizer: HowRUTokenizer
+    private let maxTokenLength = 128
 
-    init(modelResourceName: String = "AIHUB binary 1") {
-        guard let modelURL = Bundle.main.url(forResource: modelResourceName, withExtension: "mlmodelc") else {
-            model = nil
-            return
-        }
+    var debugStatus: String {
+        "model: \(model == nil ? "not loaded" : "loaded"), vocab: \(tokenizer.isReady ? "loaded" : "not loaded")"
+    }
 
-        model = try? NLModel(contentsOf: modelURL)
+    init() {
+        let configuration = MLModelConfiguration()
+        configuration.computeUnits = .all
+
+        model = try? HowRUEmotionRegressionFloat32(configuration: configuration)
+        tokenizer = HowRUTokenizer()
     }
 
     func analyze(_ transcript: String) -> RetrospectiveSentimentResult {
@@ -73,10 +79,10 @@ struct RetrospectiveSentimentAnalyzer {
         guard !segments.isEmpty else { return .empty }
 
         let positiveEvidence = segments.reduce(0) { partial, segment in
-            partial + evidenceWeight(for: segment.label, target: .positive)
+            partial + max(segment.score, 0)
         }
         let negativeEvidence = segments.reduce(0) { partial, segment in
-            partial + evidenceWeight(for: segment.label, target: .negative)
+            partial + abs(min(segment.score, 0))
         }
         let evidenceTotal = positiveEvidence + negativeEvidence
 
@@ -109,10 +115,10 @@ struct RetrospectiveSentimentAnalyzer {
     }
 
     private func analyzeSegment(_ rawText: String) -> SentimentSegment {
-        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)      // 공백 제거
-        let label = predictedLabel(for: text)                                   // 감정 예측
-        let score = score(for: label)                                           // 점수 변환
-        let keywords = extractKeywords(from: text)                              // 키워드 추출
+        let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let score = predictedScore(for: text)
+        let label = label(for: score)
+        let keywords = extractKeywords(from: text)
 
         return SentimentSegment(
             text: text,
@@ -123,49 +129,59 @@ struct RetrospectiveSentimentAnalyzer {
         )
     }
 
-    private func predictedLabel(for text: String) -> RetrospectiveSentimentLabel {  // 모델로 감정 예측
-        guard let rawLabel = model?.predictedLabel(for: text) else {
+    private func predictedScore(for text: String) -> Double {
+        guard let model else {
+            debugLog("HowRUEmotionRegressionFloat32 failed to load.")
+            return 0
+        }
+
+        guard let tokenized = tokenizer.encode(text, maxLength: maxTokenLength) else {
+            debugLog("HowRUTokenizer failed to encode text. Check that vocab.txt is included in the app target.")
+            return 0
+        }
+
+        do {
+            let output = try model.prediction(
+                input_ids: tokenized.inputIds,
+                attention_mask: tokenized.attentionMask,
+                token_type_ids: tokenized.tokenTypeIds
+            )
+            let score = output.emotion_score[0].doubleValue
+            guard score.isFinite else {
+                debugLog("HowRUEmotionRegressionFloat32 returned a non-finite score: \(score). Re-export the CoreML model with FLOAT32 precision.")
+                return 0
+            }
+            return score
+        } catch {
+            debugLog("HowRUEmotionRegressionFloat32 prediction failed: \(error.localizedDescription)")
+            return 0
+        }
+    }
+
+    private func debugLog(_ message: String) {
+        #if DEBUG
+        print("[RetrospectiveSentimentAnalyzer] \(message)")
+        #endif
+    }
+
+    private func label(for score: Double) -> RetrospectiveSentimentLabel {
+        if score >= 0.2 {
+            return .positive
+        } else if score <= -0.2 {
+            return .negative
+        } else {
             return .neutral
         }
-
-        return RetrospectiveSentimentLabel(rawValue: rawLabel) ?? .neutral
     }
 
-    private func score(for label: RetrospectiveSentimentLabel) -> Double {          // 감정 라벨을 숫자 점수로 변환 (segment 에 저장되지만 전체 퍼센트 저장에 직접 쓰이진 않음)
-        switch label {
-        case .positive:
-            1
-        case .mixed:
-            0.2
-        case .neutral:
-            0
-        case .negative:
-            -1
-        }
-    }
-
-    private func evidenceWeight(            // 특정 라벨이 긍정/부정 근거에 얼마나 기여하는지 계산
-        for label: RetrospectiveSentimentLabel,
-        target: RetrospectiveSentimentLabel
-    ) -> Double {
-        switch (label, target) {
-        case (.positive, .positive), (.negative, .negative):
-            1
-        case (.mixed, .positive), (.mixed, .negative):
-            0.5
-        default:
-            0
-        }
-    }
-
-    private func splitIntoSegments(_ transcript: String) -> [String] {       // 전체 transcript 를 문장 단위로 나눔
+    private func splitIntoSegments(_ transcript: String) -> [String] {
         transcript
             .components(separatedBy: CharacterSet(charactersIn: ".?!。！？\n"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
 
-    private func extractKeywords(from text: String) -> [String] {           // 텍스트에서 키워드 후보를 뽑음
+    private func extractKeywords(from text: String) -> [String] {
         let tokenizer = NLTokenizer(unit: .word)
         tokenizer.string = text
 
@@ -178,7 +194,7 @@ struct RetrospectiveSentimentAnalyzer {
             return true
         }
 
-        return Array(Set(tokens)).sorted()  // 중복 제거 (Set), 정렬
+        return Array(Set(tokens)).sorted()
     }
 
     private func isKeywordCandidate(_ token: String) -> Bool {
@@ -192,21 +208,21 @@ struct RetrospectiveSentimentAnalyzer {
         return !stopwords.contains(token)
     }
 
-    private func aggregateKeywords(         // 여러 segment 에서 키워드를 모아 집계함
+    private func aggregateKeywords(
         from segments: [SentimentSegment],
         labels: Set<RetrospectiveSentimentLabel>
     ) -> [SentimentKeyword] {
         let keywords = segments
-            .filter { labels.contains($0.label) }       // 지정한 label 에 해당하는 segment 만 필터링하고,
-            .flatMap { extractKeywords(from: $0.text) } // 각 문장에서 키워드를 다시 추출
+            .filter { labels.contains($0.label) }
+            .flatMap { extractKeywords(from: $0.text) }
 
         return Dictionary(grouping: keywords, by: { $0 })
-            .map { SentimentKeyword(text: $0.key, count: $0.value.count) }  // 키워드별 등장 횟수 세고,
-            .sorted {                                                       // 많이 나온 순서로 정렬
-                if $0.count == $1.count { return $0.text < $1.text }        // 횟수 같으면 가나다/문자열 순 정렬
+            .map { SentimentKeyword(text: $0.key, count: $0.value.count) }
+            .sorted {
+                if $0.count == $1.count { return $0.text < $1.text }
                 return $0.count > $1.count
             }
-            .prefix(8)                                                      // 상위 8개 반환
+            .prefix(8)
             .map { $0 }
     }
 }
