@@ -10,7 +10,7 @@ import Foundation
 struct ReflectionChunkAnalyzer {
     private let foundationModelService: FoundationModelService
     private static let analysisInstructions = """
-    You are a concise Korean analysis engine for retrospective text chunks.
+    You are a concise Korean analysis engine for retrospective speech chunks.
     Return only a single valid JSON object and nothing else.
     """
 
@@ -20,9 +20,9 @@ struct ReflectionChunkAnalyzer {
         )
     }
 
-    func makeChunk(from rawText: String, startedAt: Date = .now, endedAt: Date = .now) -> ReflectionChunk {
+    func makeChunk(from rawText: String, startedAt: Date = .now, endedAt: Date = .now) -> SpeechChunk {
         let cleanedText = clean(rawText)
-        return ReflectionChunk(
+        return SpeechChunk(
             rawText: rawText,
             cleanedText: cleanedText,
             startedAt: startedAt,
@@ -31,29 +31,21 @@ struct ReflectionChunkAnalyzer {
         )
     }
 
-    func analyze(
-        _ chunk: ReflectionChunk,
-        retrievedContext: RetrievedReflectionContext? = nil
-    ) async -> ChunkAnalysis {
+    func analyze(_ chunk: SpeechChunk) async -> ChunkAnalysis {
         guard !chunk.cleanedText.isEmpty else {
             return fallbackAnalyze(chunk)
         }
 
-        if let modelAnalysis = await analyzeWithFoundationModel(chunk, retrievedContext: retrievedContext) {
+        if let modelAnalysis = await analyzeWithFoundationModel(chunk) {
             return modelAnalysis
         }
 
         return fallbackAnalyze(chunk)
     }
 
-    private func analyzeWithFoundationModel(
-        _ chunk: ReflectionChunk,
-        retrievedContext: RetrievedReflectionContext?
-    ) async -> ChunkAnalysis? {
+    private func analyzeWithFoundationModel(_ chunk: SpeechChunk) async -> ChunkAnalysis? {
         do {
-            let response = try await foundationModelService.respond(
-                to: analysisPrompt(for: chunk, retrievedContext: retrievedContext)
-            )
+            let response = try await foundationModelService.respond(to: analysisPrompt(for: chunk))
             guard let payload = parseAnalysisResponse(from: response) else {
                 return nil
             }
@@ -64,17 +56,11 @@ struct ReflectionChunkAnalyzer {
         }
     }
 
-    private func analysisPrompt(
-        for chunk: ReflectionChunk,
-        retrievedContext: RetrievedReflectionContext?
-    ) -> String {
-        let retrievedMemory = retrievedContext?.koreanPromptBlock() ?? "없음"
-
-        return """
-        너는 한국어 회고 텍스트 청크를 구조화해서 분석하는 엔진이다.
+    private func analysisPrompt(for chunk: SpeechChunk) -> String {
+        """
+        너는 한국어 회고 발화 청크를 구조화해서 분석하는 엔진이다.
         아래 입력을 보고 반드시 JSON 객체 1개만 출력하라. 설명 문장, 마크다운, 코드블록은 금지한다.
         이 작업은 "한 가지 예시에 맞춰 끼워 넣기"가 아니라, 여러 회고 패턴을 수렴해서 가장 타당한 구조를 뽑는 일이다.
-        아래의 관련 회고 메모리는 현재 청크를 더 정확하게 이해하기 위한 참고 문맥이다. 현재 청크보다 우선하면 안 되지만, 주제 연결과 의미 보강에는 활용해도 된다.
 
         목표:
         - chunkType: event, emotion, insight, problem, desire, filler, unknown 중 하나
@@ -310,9 +296,6 @@ struct ReflectionChunkAnalyzer {
 
         cleanedText:
         \(chunk.cleanedText)
-
-        관련 회고 메모리:
-        \(retrievedMemory)
         """
     }
 
@@ -332,7 +315,7 @@ struct ReflectionChunkAnalyzer {
         return try? JSONDecoder().decode(ModelChunkAnalysis.self, from: data)
     }
 
-    private func makeChunkAnalysis(from chunk: ReflectionChunk, payload: ModelChunkAnalysis) -> ChunkAnalysis {
+    private func makeChunkAnalysis(from chunk: SpeechChunk, payload: ModelChunkAnalysis) -> ChunkAnalysis {
         let fallback = fallbackAnalysisParts(for: chunk)
 
         let chunkType = payload.chunkType == .unknown ? fallback.chunkType : payload.chunkType
@@ -374,7 +357,7 @@ struct ReflectionChunkAnalyzer {
         )
     }
 
-    private func fallbackAnalyze(_ chunk: ReflectionChunk) -> ChunkAnalysis {
+    private func fallbackAnalyze(_ chunk: SpeechChunk) -> ChunkAnalysis {
         let parts = fallbackAnalysisParts(for: chunk)
         return ChunkAnalysis(
             originalText: chunk.rawText,
@@ -396,7 +379,7 @@ struct ReflectionChunkAnalyzer {
         )
     }
 
-    private func fallbackAnalysisParts(for chunk: ReflectionChunk) -> AnalysisParts {
+    private func fallbackAnalysisParts(for chunk: SpeechChunk) -> AnalysisParts {
         let keywords = matchedKeywords(in: chunk.cleanedText)
         let clauses = splitClauses(in: chunk.rawText)
         let dimensions = detectedDimensions(in: chunk.cleanedText)
@@ -451,7 +434,7 @@ struct ReflectionChunkAnalyzer {
     }
 
     private func makeDimensionSummaries(
-        from chunk: ReflectionChunk,
+        from chunk: SpeechChunk,
         dimensions: [ReflectionDimension],
         primaryDimension: ReflectionDimension?,
         keywords: [String],
@@ -476,7 +459,7 @@ struct ReflectionChunkAnalyzer {
 
     private func makeDimensionSummary(
         for dimension: ReflectionDimension,
-        chunk: ReflectionChunk,
+        chunk: SpeechChunk,
         primaryDimension: ReflectionDimension?,
         keywords: [String],
         evidence: [String],
@@ -504,7 +487,7 @@ struct ReflectionChunkAnalyzer {
 
     private func dimensionEvidenceSnippet(
         for dimension: ReflectionDimension,
-        chunk: ReflectionChunk,
+        chunk: SpeechChunk,
         evidence: [String]
     ) -> String {
         let cues = dimensionCueKeywords(for: dimension)
@@ -819,7 +802,7 @@ struct ReflectionChunkAnalyzer {
     }
 
     private func makeSummary(
-        from chunk: ReflectionChunk,
+        from chunk: SpeechChunk,
         dimensions: [ReflectionDimension],
         primaryDimension: ReflectionDimension?,
         keywords: [String]

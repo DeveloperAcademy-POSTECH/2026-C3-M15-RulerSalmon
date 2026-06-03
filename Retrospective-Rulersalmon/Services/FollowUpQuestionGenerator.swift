@@ -18,9 +18,11 @@ final class FollowUpQuestionGenerator {
 
     private static let fallbackMarker = "Unable to prepare a model response."
     private static let plannerInstructions = """
-    너는 한국어 회고 대화를 이어가는 질문 설계자다.
-    현재 회고 상태와 관련 메모리를 참고해서 다음 한 문장을 정한다.
-    출력은 반드시 JSON 하나만 한다.
+    You plan the next short but meaningful message for a Korean retrospective coach.
+    Decide only one next action based on structured reflection state.
+    Your job is not casual chit-chat.
+    Your job is to help the user deepen the reflection one step further.
+    Output JSON only.
     """
 
     init(foundationModelService: FoundationModelServicing? = nil) {
@@ -30,16 +32,14 @@ final class FollowUpQuestionGenerator {
     func generateNextMessage(
         state: ReflectionState,
         analysis: ChunkAnalysis?,
-        interventionDecision: InterventionDecision,
-        retrievedContext: RetrievedReflectionContext? = nil
+        interventionDecision: InterventionDecision
     ) async -> QuestionGenerationResult {
         if shouldClose(state: state) {
             if let fmResult = await foundationModelResult(
                 state: state,
                 analysis: analysis,
                 interventionDecision: interventionDecision,
-                mode: PlannerMode.closing,
-                retrievedContext: retrievedContext
+                mode: .closing
             ) {
                 return fmResult
             }
@@ -56,8 +56,7 @@ final class FollowUpQuestionGenerator {
             state: state,
             analysis: analysis,
             interventionDecision: interventionDecision,
-            mode: PlannerMode.followUp(target),
-            retrievedContext: retrievedContext
+            mode: .followUp(target)
         ) {
             return fmResult
         }
@@ -72,8 +71,7 @@ final class FollowUpQuestionGenerator {
         state: ReflectionState,
         analysis: ChunkAnalysis?,
         interventionDecision: InterventionDecision,
-        mode: PlannerMode,
-        retrievedContext: RetrievedReflectionContext?
+        mode: PlannerMode
     ) async -> QuestionGenerationResult? {
         do {
             let response = try await foundationModelService.respond(
@@ -81,8 +79,7 @@ final class FollowUpQuestionGenerator {
                     state: state,
                     analysis: analysis,
                     interventionDecision: interventionDecision,
-                    mode: mode,
-                    retrievedContext: retrievedContext
+                    mode: mode
                 )
             )
 
@@ -114,8 +111,7 @@ final class FollowUpQuestionGenerator {
         state: ReflectionState,
         analysis: ChunkAnalysis?,
         interventionDecision: InterventionDecision,
-        mode: PlannerMode,
-        retrievedContext: RetrievedReflectionContext?
+        mode: PlannerMode
     ) -> String {
         let liked = slotLine(for: .liked, slot: state.liked)
         let learned = slotLine(for: .learned, slot: state.learned)
@@ -126,27 +122,43 @@ final class FollowUpQuestionGenerator {
         let recentSignals = recentSignals(from: analysis)
         let modeLine = mode.promptLine
         let askedQuestions = recentQuestions(from: state)
-        let retrievedMemory = retrievedContext?.koreanPromptBlock() ?? "없음"
 
         return """
-        너는 회고 대화를 이어가는 코치다.
-        아래 상태와 관련 메모리를 보고 다음 한 문장을 정해라.
+        Decide the next Korean coach message for a retrospective conversation.
 
-        규칙:
-        - 최종 사용자 메시지는 반드시 한국어 반말 한 문장이다.
-        - 존댓말, 안내문 톤, 평가하는 말투를 쓰지 마라.
-        - 질문은 한 번에 하나만 한다.
-        - 문장은 짧고 자연스럽게 유지하되, 너무 얕거나 뻔하면 안 된다.
-        - 사용자의 마지막 회고에 가장 가까운 맥락에서 이어지는 질문이어야 한다.
-        - 관련 메모리는 같은 세션 안에서 이미 나온 맥락을 다시 연결할 때만 써라.
-        - 관련 메모리를 새로운 주제로 확장하는 근거로 쓰지 마라.
-        - 관련 메모리와 최신 회고가 충돌하면 최신 회고를 우선한다.
-        - 표면 요약 반복보다 이유, 기준, 막힌 지점, 감정의 배경, 다음 시도를 한 단계 더 묻는 게 좋다.
-        - 사용자가 고민, 판단, 기준, 최적화, 개선, 막힘을 말했으면 그 구체적인 지점을 먼저 파고들어라.
-        - 4L, 점수, 부족한 항목, 평가 기준 같은 내부 판단을 직접 언급하지 마라.
-        - 이 프롬프트의 문장을 베끼지 마라.
+        Rules:
+        - The final user-facing message must be in Korean.
+        - Use casual Korean speech only. Always speak in 반말.
+        - Never use honorific or polite endings such as "요", "까요", "해요", "주세요", "있을까요", "좋을 것 같아요".
+        - Keep it short: exactly one sentence.
+        - Ask exactly one question only.
+        - Never ask two questions in a row.
+        - Never connect two separate prompts in one message.
+        - Aim for roughly 18 to 42 Korean characters.
+        - Sound warm, friendly, and lightly mentoring, like a close senior or thoughtful friend.
+        - Do not simply paraphrase or repeat the user's wording.
+        - Stay close to what the user actually said. Do not jump to a new topic unless the state strongly supports it.
+        - Base the question on the strongest visible cue from the latest reflection, not on a generic coaching pattern.
+        - Ask one level deeper: reason, turning point, decision criterion, tradeoff, emotion behind the event, blocker, or next concrete experiment.
+        - Prefer specific questions over broad ones.
+        - If the same dimension is still weak, continue digging into that dimension instead of jumping around.
+        - A good follow-up should feel like a natural continuation of the user's last thought.
+        - If action is follow_up, ask exactly one natural question.
+        - If action is close, end the reflection naturally without sounding abrupt.
+        - Avoid vague questions like "어땠어?", "왜 그랬어?" unless there is no better anchor.
+        - Avoid sounding generic, shallow, or like a template.
+        - If the user mentions 고민, 판단, 기준, 최적화, 개선, 막힘, 선택, trade-off, ask about the concrete point of difficulty or criterion first.
+        - Do not introduce themes like goal-setting, feedback process, teamwork, schedule, or communication unless they are explicitly present in the reflection state.
+        - Prefer concrete questions about difficulty, decision criteria, bottlenecks, meaning, or next action before broader coaching themes.
+        - Never copy wording from this prompt.
+        - Never quote or reuse list items from this prompt verbatim.
+        - Write the question as if you inferred it freshly from the reflection, not from instructions.
+        - Never mention 4L, reflection dimensions, weak slots, missing information, scores, confidence, fidelity, completeness, or evaluation.
+        - Do not hint that you are checking a framework or rubric.
+        - The user should feel invited to keep talking, not assessed.
+        - Ask in a way that sounds curious and conversational, not diagnostic.
 
-        출력은 반드시 JSON 하나만 한다. 스키마는 아래와 같다.
+        Output JSON only with this schema:
         {
           "action": "follow_up" | "close",
           "dimension": "liked" | "learned" | "lacked" | "longedFor" | null,
@@ -154,90 +166,87 @@ final class FollowUpQuestionGenerator {
           "message": "final Korean message"
         }
 
-        의도 가이드:
-        - liked: 무엇이 잘 됐는지, 왜 의미 있었는지, 무엇이 좋았는지
-        - learned: 무엇을 새로 알게 됐는지, 어떤 기준이 생겼는지
-        - lacked: 어디서 막혔는지, 무엇이 부족했는지, 왜 어려웠는지
-        - longedFor: 다음에는 무엇을 바꾸고 싶은지, 어떤 시도를 해보고 싶은지
+        Intent guidance:
+        - liked: ask what specifically worked, why it mattered, or what made it feel meaningful.
+        - learned: ask what new insight, criterion, or realization emerged.
+        - lacked: ask what blocked progress, what felt insufficient, or where the user struggled most.
+        - longedFor: ask what they want to change next time, what experiment they want to try, or what better version they imagine.
 
-        모드:
+        Mode:
         \(modeLine)
 
-        현재 회고 상태:
+        Reflection state:
         \(liked)
         \(learned)
         \(lacked)
         \(longedFor)
 
-        질문 판단 힌트:
-        - 현재 대상 차원: \(target)
-        - 긴급도: \(urgency)
-        - 판단 이유: \(interventionDecision.reason)
-        - 지금까지 한 질문 수: \(state.askedQuestions.count)
-        - 최근 질문: \(askedQuestions)
-        - 최신 사용자 회고 힌트: \(latestChunkHint(state: state, analysis: analysis))
+        Decision hints:
+        - target dimension: \(target)
+        - urgency: \(urgency)
+        - reason: \(interventionDecision.reason)
+        - asked question count: \(state.askedQuestions.count)
+        - recent asked questions: \(askedQuestions)
+        - latest user chunk hint: \(latestChunkHint(state: state, analysis: analysis))
 
-        최신 분석 신호:
+        Recent analysis signals:
         \(recentSignals)
-
-        같은 세션의 관련 회고 메모리:
-        \(retrievedMemory)
         """
     }
 
     private func slotLine(for dimension: ReflectionDimension, slot: ReflectionSlot) -> String {
-        let summary = koreanSignalLabel(for: slot.summary)
+        let summary = englishLabel(for: slot.summary)
         let evidenceCount = slot.evidence.count
         let confidence = String(format: "%.2f", slot.confidence)
         let fidelity = String(format: "%.2f", slot.fidelity)
         let gap = String(format: "%.2f", max(0, 1 - max(slot.confidence, slot.fidelity)))
 
-        return "- \(dimension.description): 충족=\(slot.isSatisfied), confidence=\(confidence), fidelity=\(fidelity), gap=\(gap), evidence 수=\(evidenceCount), 요약 힌트=\(summary)"
+        return "- \(dimension.rawValue): satisfied=\(slot.isSatisfied), confidence=\(confidence), fidelity=\(fidelity), gap=\(gap), evidenceCount=\(evidenceCount), summaryHint=\(summary)"
     }
 
     private func recentSignals(from analysis: ChunkAnalysis?) -> String {
         guard let analysis else {
-            return "- 없음"
+            return "- none"
         }
 
-        let dimensions = analysis.detectedDimensions.map(\.description).joined(separator: ", ")
-        let keywords = analysis.keywords.prefix(3).joined(separator: ", ")
-        let summary = koreanSignalLabel(for: analysis.summary)
-        let primary = analysis.primaryDimension?.description ?? "없음"
+        let dimensions = analysis.detectedDimensions.map(\.rawValue).joined(separator: ", ")
+        let keywords = analysis.keywords.prefix(3).map(englishLabel).joined(separator: ", ")
+        let summary = englishLabel(for: analysis.summary)
+        let primary = analysis.primaryDimension?.rawValue ?? "none"
 
         return """
-        - 중심 차원: \(primary)
-        - 감지 차원: \(dimensions.isEmpty ? "없음" : dimensions)
-        - 키워드: \(keywords.isEmpty ? "없음" : keywords)
-        - 요약 힌트: \(summary)
+        - primaryDimension: \(primary)
+        - detectedDimensions: \(dimensions.isEmpty ? "none" : dimensions)
+        - keywords: \(keywords.isEmpty ? "none" : keywords)
+        - summaryHint: \(summary)
         """
     }
 
     private func recentQuestions(from state: ReflectionState) -> String {
         let recent = state.askedQuestions.suffix(3)
-        guard !recent.isEmpty else { return "없음" }
-        return recent.joined(separator: " / ")
+        guard !recent.isEmpty else { return "none" }
+        return recent.map(englishLabel).joined(separator: ", ")
     }
 
     private func latestChunkHint(state: ReflectionState, analysis: ChunkAnalysis?) -> String {
         let source = analysis?.cleanedText ?? state.lastUserChunk ?? ""
         let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "없음" }
+        guard !trimmed.isEmpty else { return "none" }
 
         if trimmed.contains("고민") || trimmed.contains("판단") || trimmed.contains("기준") {
-            return "판단 기준 관련 고민"
+            return "decision_or_criteria_concern"
         }
         if trimmed.contains("최적화") || trimmed.contains("개선") || trimmed.contains("UX") || trimmed.contains("ux") {
-            return "개선 또는 최적화 고민"
+            return "improvement_or_optimization_concern"
         }
         if trimmed.contains("어렵") || trimmed.contains("막") || trimmed.contains("부족") {
-            return "어려움 또는 부족 신호"
+            return "difficulty_or_lack_signal"
         }
         if trimmed.contains("배") || trimmed.contains("알게") || trimmed.contains("이해") {
-            return "배움 신호"
+            return "learning_signal"
         }
 
-        return "일반 회고 신호"
+        return "general_reflection_signal"
     }
 
     private func parsePlan(from response: String) -> QuestionPlan? {
@@ -415,81 +424,27 @@ final class FollowUpQuestionGenerator {
         "좋아, 지금 회고는 꽤 잘 정리됐어. 여기서 천천히 마무리해도 되겠다."
     }
 
-    private func koreanSignalLabel(for text: String?) -> String {
+    private func englishLabel(for text: String?) -> String {
         guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else {
-            return "없음"
+            return "none"
         }
 
+        // Keep the payload locale-safe by avoiding the original Korean text.
         if text.contains("좋") || text.contains("만족") || text.contains("뿌듯") {
-            return "긍정 결과"
+            return "positive_result"
         }
         if text.contains("배") || text.contains("알게") || text.contains("이해") {
-            return "배움 신호"
+            return "learning_signal"
         }
         if text.contains("부족") || text.contains("어려") || text.contains("막") {
-            return "어려움 신호"
+            return "difficulty_signal"
         }
         if text.contains("다음") || text.contains("바꾸") || text.contains("개선") {
-            return "다음 변화 신호"
+            return "future_change_signal"
         }
 
-        return "회고 신호"
-    }
-}
-
-struct ReflectionMemoryEntry: Identifiable, Equatable {
-    let id: UUID
-    let text: String
-    let summary: String
-    let dimensionHints: [ReflectionDimension]
-    let keywords: [String]
-    let evidence: [String]
-    let createdAt: Date
-
-    init(
-        id: UUID = UUID(),
-        text: String,
-        summary: String,
-        dimensionHints: [ReflectionDimension],
-        keywords: [String],
-        evidence: [String],
-        createdAt: Date
-    ) {
-        self.id = id
-        self.text = text
-        self.summary = summary
-        self.dimensionHints = dimensionHints
-        self.keywords = keywords
-        self.evidence = evidence
-        self.createdAt = createdAt
-    }
-}
-
-struct RetrievedReflectionContext: Equatable {
-    let entries: [ReflectionMemoryEntry]
-
-    var isEmpty: Bool {
-        entries.isEmpty
-    }
-
-    func koreanPromptBlock() -> String {
-        guard !entries.isEmpty else { return "없음" }
-
-        return entries.enumerated().map { index, entry in
-            let dimensions = entry.dimensionHints.map(\.description).joined(separator: ", ")
-            let keywords = entry.keywords.prefix(3).joined(separator: ", ")
-            let evidence = entry.evidence.prefix(2).joined(separator: " / ")
-
-            return """
-            \(index + 1). 요약: \(entry.summary)
-               원문: \(entry.text)
-               차원: \(dimensions.isEmpty ? "없음" : dimensions)
-               키워드: \(keywords.isEmpty ? "없음" : keywords)
-               근거: \(evidence.isEmpty ? "없음" : evidence)
-            """
-        }
-        .joined(separator: "\n")
+        return "reflection_signal"
     }
 }
 
