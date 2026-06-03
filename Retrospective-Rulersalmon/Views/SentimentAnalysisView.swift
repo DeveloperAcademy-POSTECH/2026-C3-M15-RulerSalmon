@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ContentView: View {
+struct SentimentAnalysisView: View {
     @State private var transcript = """
     이번 프로젝트는 일정이 촉박해서 힘들었지만 팀원들이 적극적으로 도와줘서 끝까지 마무리할 수 있었다.
     소통은 이전보다 좋아졌고 리뷰 과정에서 배운 점도 많았다.
@@ -167,7 +167,7 @@ struct ContentView: View {
             .map { String(format: "%.2f", $0.score) }
             .joined(separator: ", ")
         debugMessage = "\(analyzer.debugStatus), segments: \(result.segments.count), scores: [\(scoreSummary)]"
-        print("[ContentView] \(debugMessage)")
+        print("[SentimentAnalysisView] \(debugMessage)")
     }
 
     private func formatPercent(_ value: Double) -> String {
@@ -351,5 +351,5 @@ private struct SegmentRow: View {
 }
 
 #Preview {
-    ContentView()
+    SentimentAnalysisView()
 }
