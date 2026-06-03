@@ -36,7 +36,6 @@ final class FoundationModelService: FoundationModelServicing {
         }
 
         do {
-            print("[FoundationModel] session.respond invoked")
             let response = try await session.respond(to: prompt)
             return response.content
         } catch {

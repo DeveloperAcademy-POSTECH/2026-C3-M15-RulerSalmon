@@ -18,8 +18,9 @@ final class FollowUpQuestionGenerator {
 
     private static let fallbackMarker = "Unable to prepare a model response."
     private static let plannerInstructions = """
-    너는 한국어 회고 대화를 이어가는 질문 설계자다.
-    현재 회고 상태와 관련 메모리를 참고해서 다음 한 문장을 정한다.
+    너는 한국어 회고 대화를 자연스럽게 이어가는 멘토다.
+    사용자의 마지막 말에 바로 이어지는 짧고 자연스러운 반말 질문 한 문장을 만든다.
+    내부 분류 기준이나 평가 문구는 절대 드러내지 않는다.
     출력은 반드시 JSON 하나만 한다.
     """
 
@@ -30,14 +31,18 @@ final class FollowUpQuestionGenerator {
     func generateNextMessage(
         state: ReflectionState,
         analysis: ChunkAnalysis?,
+        turnFourLAnalysis: TurnFourLAnalysis,
         interventionDecision: InterventionDecision,
+        policy: QuestionGenerationPolicy,
         retrievedContext: RetrievedReflectionContext? = nil
     ) async -> QuestionGenerationResult {
-        if shouldClose(state: state) {
+        if policy.shouldClose {
             if let fmResult = await foundationModelResult(
                 state: state,
                 analysis: analysis,
+                turnFourLAnalysis: turnFourLAnalysis,
                 interventionDecision: interventionDecision,
+                policy: policy,
                 mode: PlannerMode.closing,
                 retrievedContext: retrievedContext
             ) {
@@ -48,14 +53,16 @@ final class FollowUpQuestionGenerator {
         }
 
         guard interventionDecision.shouldIntervene,
-              let target = interventionDecision.targetDimension else {
+              let target = policy.targetDimension ?? interventionDecision.targetDimension else {
             return .none
         }
 
         if let fmResult = await foundationModelResult(
             state: state,
             analysis: analysis,
+            turnFourLAnalysis: turnFourLAnalysis,
             interventionDecision: interventionDecision,
+            policy: policy,
             mode: PlannerMode.followUp(target),
             retrievedContext: retrievedContext
         ) {
@@ -64,23 +71,35 @@ final class FollowUpQuestionGenerator {
 
         return .followUp(
             dimension: target,
-            text: fallbackQuestion(for: target, state: state, analysis: analysis)
+            text: fallbackQuestion(
+                for: target,
+                intent: policy.intent,
+                state: state,
+                analysis: analysis,
+                turnFourLAnalysis: turnFourLAnalysis,
+                retrievedContext: retrievedContext
+            )
         )
     }
 
     private func foundationModelResult(
         state: ReflectionState,
         analysis: ChunkAnalysis?,
+        turnFourLAnalysis: TurnFourLAnalysis,
         interventionDecision: InterventionDecision,
+        policy: QuestionGenerationPolicy,
         mode: PlannerMode,
         retrievedContext: RetrievedReflectionContext?
     ) async -> QuestionGenerationResult? {
         do {
+            print("[FoundationModel][Question] session.respond invoked")
             let response = try await foundationModelService.respond(
                 to: plannerPrompt(
                     state: state,
                     analysis: analysis,
+                    turnFourLAnalysis: turnFourLAnalysis,
                     interventionDecision: interventionDecision,
+                    policy: policy,
                     mode: mode,
                     retrievedContext: retrievedContext
                 )
@@ -99,7 +118,14 @@ final class FollowUpQuestionGenerator {
                 let dimension = ReflectionDimension(rawValue: plan.dimension ?? "") ?? mode.defaultDimension
                 return .followUp(
                     dimension: dimension,
-                    text: renderFollowUpQuestion(plan: plan, dimension: dimension, state: state, analysis: analysis)
+                    text: renderFollowUpQuestion(
+                        plan: plan,
+                        dimension: dimension,
+                        state: state,
+                        analysis: analysis,
+                        turnFourLAnalysis: turnFourLAnalysis,
+                        retrievedContext: retrievedContext
+                    )
                 )
 
             default:
@@ -113,7 +139,9 @@ final class FollowUpQuestionGenerator {
     private func plannerPrompt(
         state: ReflectionState,
         analysis: ChunkAnalysis?,
+        turnFourLAnalysis: TurnFourLAnalysis,
         interventionDecision: InterventionDecision,
+        policy: QuestionGenerationPolicy,
         mode: PlannerMode,
         retrievedContext: RetrievedReflectionContext?
     ) -> String {
@@ -127,6 +155,8 @@ final class FollowUpQuestionGenerator {
         let modeLine = mode.promptLine
         let askedQuestions = recentQuestions(from: state)
         let retrievedMemory = retrievedContext?.koreanPromptBlock() ?? "없음"
+        let fourLFirstPass = turnFourLAnalysis.koreanPromptBlock()
+        let policyLine = "- 질문 의도: \(policy.intent.koreanDescription) / 초점: \(policy.focusText ?? "없음") / 판단 근거: \(policy.reasoning)"
 
         return """
         너는 회고 대화를 이어가는 코치다.
@@ -137,28 +167,45 @@ final class FollowUpQuestionGenerator {
         - 존댓말, 안내문 톤, 평가하는 말투를 쓰지 마라.
         - 질문은 한 번에 하나만 한다.
         - 문장은 짧고 자연스럽게 유지하되, 너무 얕거나 뻔하면 안 된다.
+        - 질문은 실제 사용자가 방금 한 말에서 구체적인 표현 하나를 잡아 이어 물어야 한다.
         - 사용자의 마지막 회고에 가장 가까운 맥락에서 이어지는 질문이어야 한다.
+        - 필요하면 "그랬구나,"처럼 아주 짧게 공감하고 바로 핵심 질문으로 들어가도 된다.
         - 관련 메모리는 같은 세션 안에서 이미 나온 맥락을 다시 연결할 때만 써라.
         - 관련 메모리를 새로운 주제로 확장하는 근거로 쓰지 마라.
         - 관련 메모리와 최신 회고가 충돌하면 최신 회고를 우선한다.
         - 표면 요약 반복보다 이유, 기준, 막힌 지점, 감정의 배경, 다음 시도를 한 단계 더 묻는 게 좋다.
         - 사용자가 고민, 판단, 기준, 최적화, 개선, 막힘을 말했으면 그 구체적인 지점을 먼저 파고들어라.
         - 4L, 점수, 부족한 항목, 평가 기준 같은 내부 판단을 직접 언급하지 마라.
+        - "4L", "차원", "축", "카테고리", "평가" 같은 단어를 쓰지 마라.
+        - "~를 지나면서", "~쪽은", "~부분은", "~중" 같은 어색한 연결 표현을 쓰지 마라.
         - 이 프롬프트의 문장을 베끼지 마라.
+        - 사용자의 말에 없는 새 주제를 열지 마라.
+        - 질문은 한 문장, 물음표 하나로 끝내라.
 
         출력은 반드시 JSON 하나만 한다. 스키마는 아래와 같다.
         {
           "action": "follow_up" | "close",
           "dimension": "liked" | "learned" | "lacked" | "longedFor" | null,
-          "intent": "best_part" | "lesson" | "blocker" | "next_step" | "wrap_up",
+          "intent": "reason" | "example" | "blocker" | "feeling" | "lesson" | "nextStep" | "wrapUp",
           "message": "final Korean message"
         }
 
         의도 가이드:
-        - liked: 무엇이 잘 됐는지, 왜 의미 있었는지, 무엇이 좋았는지
-        - learned: 무엇을 새로 알게 됐는지, 어떤 기준이 생겼는지
-        - lacked: 어디서 막혔는지, 무엇이 부족했는지, 왜 어려웠는지
-        - longedFor: 다음에는 무엇을 바꾸고 싶은지, 어떤 시도를 해보고 싶은지
+        - liked: reason 또는 example 중심
+        - learned: lesson 또는 reason 중심
+        - lacked: blocker, feeling, reason, example 중 하나
+        - longedFor: nextStep 중심
+        - 마무리일 때는 wrapUp 사용
+
+        좋은 예시:
+        - 입력이 "정보가 없어서 막막했어"이면: "그랬구나, 어떤 정보가 없어서 막막했어?"
+        - 입력이 "기준이 잘 안 잡혔어"이면: "그때 어떤 기준이 제일 안 잡혔어?"
+        - 입력이 "UX를 더 개선하고 싶어"이면: "다음엔 UX를 어떤 방향으로 먼저 바꿔보고 싶어?"
+
+        나쁜 예시:
+        - "4L 중 어떤 부분이 더 필요해 보여?"
+        - "를 지나면서 새로 보인 게 있었어?"
+        - "다음 단계에서는 무엇이 가장 어려웠는지 설명해줄 수 있을까?"
 
         모드:
         \(modeLine)
@@ -176,9 +223,13 @@ final class FollowUpQuestionGenerator {
         - 지금까지 한 질문 수: \(state.askedQuestions.count)
         - 최근 질문: \(askedQuestions)
         - 최신 사용자 회고 힌트: \(latestChunkHint(state: state, analysis: analysis))
+        \(policyLine)
 
         최신 분석 신호:
         \(recentSignals)
+
+        1차 4L 분류 결과:
+        \(fourLFirstPass)
 
         같은 세션의 관련 회고 메모리:
         \(retrievedMemory)
@@ -265,18 +316,28 @@ final class FollowUpQuestionGenerator {
         plan: QuestionPlan,
         dimension: ReflectionDimension,
         state: ReflectionState,
-        analysis: ChunkAnalysis?
+        analysis: ChunkAnalysis?,
+        turnFourLAnalysis: TurnFourLAnalysis,
+        retrievedContext: RetrievedReflectionContext?
     ) -> String {
         let trimmed = normalizeQuestion(plan.message)
         if isUsableKoreanMessage(trimmed),
            !looksPromptCopied(trimmed),
            !containsHonorificTone(trimmed),
            !containsMultipleQuestions(trimmed),
-           !containsAwkwardPhrasing(trimmed) {
+           !containsAwkwardPhrasing(trimmed),
+           !containsInternalJargon(trimmed) {
             return trimmed
         }
 
-        return fallbackQuestion(for: dimension, state: state, analysis: analysis)
+        return fallbackQuestion(
+            for: dimension,
+            intent: plan.intent.flatMap(QuestionIntent.init(rawValue:)) ?? .reason,
+            state: state,
+            analysis: analysis,
+            turnFourLAnalysis: turnFourLAnalysis,
+            retrievedContext: retrievedContext
+        )
     }
 
     private func renderClosingMessage(plan: QuestionPlan) -> String {
@@ -284,7 +345,8 @@ final class FollowUpQuestionGenerator {
         if isUsableKoreanMessage(trimmed),
            !looksPromptCopied(trimmed),
            !containsHonorificTone(trimmed),
-           !containsAwkwardPhrasing(trimmed) {
+           !containsAwkwardPhrasing(trimmed),
+           !containsInternalJargon(trimmed) {
             return trimmed
         }
 
@@ -367,48 +429,81 @@ final class FollowUpQuestionGenerator {
         return bannedFragments.contains { text.contains($0) }
     }
 
-    private func shouldClose(state: ReflectionState) -> Bool {
-        let slots = [state.liked, state.learned, state.lacked, state.longedFor]
-        let satisfiedCount = slots.filter(\.isSatisfied).count
-        let averageFidelity = slots.map(\.fidelity).reduce(0, +) / Double(slots.count)
-        let averageConfidence = slots.map(\.confidence).reduce(0, +) / Double(slots.count)
+    private func containsInternalJargon(_ text: String) -> Bool {
+        let bannedFragments = [
+            "4L",
+            "차원",
+            "축",
+            "카테고리",
+            "평가",
+            "를 지나면서",
+            "쪽은",
+            "부분은"
+        ]
 
-        return satisfiedCount == slots.count || (satisfiedCount >= 3 && averageFidelity >= 0.72 && averageConfidence >= 0.70)
+        return bannedFragments.contains { text.contains($0) }
     }
 
     private func fallbackQuestion(
         for dimension: ReflectionDimension,
+        intent: QuestionIntent,
         state: ReflectionState,
-        analysis: ChunkAnalysis?
+        analysis: ChunkAnalysis?,
+        turnFourLAnalysis: TurnFourLAnalysis,
+        retrievedContext: RetrievedReflectionContext?
     ) -> String {
-        let context = QuestionContext(state: state, analysis: analysis)
+        let context = QuestionContext(state: state, analysis: analysis, turnFourLAnalysis: turnFourLAnalysis)
         let focus = context.focusPhrase(for: dimension)
+        let latestText = (analysis?.cleanedText ?? state.lastUserChunk ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
-        switch dimension {
-        case .liked:
-            if let focus {
-                return "\(focus) 쪽에서 특히 괜찮았던 건 뭐였어?"
-            }
-            return "이번 경험에서 뭐가 제일 좋았어?"
-
-        case .learned:
-            if let focus {
-                return "\(focus)를 지나면서 새로 보인 게 있었어?"
-            }
-            return "이번 경험을 하면서 새로 알게 된 게 있어?"
-
-        case .lacked:
-            if let focus {
-                return "\(focus) 쪽은 왜 그렇게 고민이 길어졌어?"
-            }
-            return "이번에는 어느 지점에서 제일 많이 막혔어?"
-
-        case .longedFor:
-            if let focus {
-                return "다음엔 \(focus) 쪽을 어떻게 바꿔보고 싶어?"
-            }
-            return "다음엔 어떤 식으로 바꿔보고 싶어?"
+        if latestText.contains("정보") && (latestText.contains("막막") || latestText.contains("답답")) {
+            return "그랬구나, 어떤 정보가 없어서 막막했어?"
         }
+
+        if latestText.contains("기준") && (latestText.contains("안") || latestText.contains("어렵") || latestText.contains("막")) {
+            return "그때 어떤 기준이 제일 안 잡혔어?"
+        }
+
+        if latestText.contains("막막") {
+            return "그랬구나, 뭐가 제일 막막했어?"
+        }
+
+        let retrievedFocus = retrievedContext?.items.first?.entry.text
+        let anchor = focus ?? retrievedFocus ?? latestText
+
+        switch (dimension, intent) {
+        case (.liked, .reason):
+            return "그랬구나, \(trimmedAnchor(anchor, fallback: "그 장면"))이 왜 특히 괜찮았어?"
+        case (.liked, _):
+            return "그중에서 뭐가 제일 좋았어?"
+
+        case (.learned, .lesson):
+            return "그 일을 겪으면서 새로 알게 된 게 뭐였어?"
+        case (.learned, _):
+            return "그때 어떤 기준이 새로 잡혔어?"
+
+        case (.lacked, .blocker):
+            return "그랬구나, 어디서 제일 막혔어?"
+        case (.lacked, .feeling):
+            return "그때 제일 답답했던 순간이 언제였어?"
+        case (.lacked, .example):
+            return "그랬구나, 특히 어느 순간에 더 어렵게 느껴졌어?"
+        case (.lacked, _):
+            return "그랬구나, 왜 그렇게 느껴졌는지 조금만 더 말해줄래?"
+
+        case (.longedFor, .nextStep):
+            return "그럼 다음엔 뭘 먼저 바꿔보고 싶어?"
+        case (.longedFor, _):
+            return "그럼 다음엔 어떤 식으로 해보고 싶어?"
+        }
+    }
+
+    private func trimmedAnchor(_ text: String, fallback: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return fallback }
+        if trimmed.count <= 18 { return trimmed }
+        let index = trimmed.index(trimmed.startIndex, offsetBy: 18)
+        return String(trimmed[..<index]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func fallbackClosingMessage() -> String {
@@ -438,60 +533,6 @@ final class FollowUpQuestionGenerator {
     }
 }
 
-struct ReflectionMemoryEntry: Identifiable, Equatable {
-    let id: UUID
-    let text: String
-    let summary: String
-    let dimensionHints: [ReflectionDimension]
-    let keywords: [String]
-    let evidence: [String]
-    let createdAt: Date
-
-    init(
-        id: UUID = UUID(),
-        text: String,
-        summary: String,
-        dimensionHints: [ReflectionDimension],
-        keywords: [String],
-        evidence: [String],
-        createdAt: Date
-    ) {
-        self.id = id
-        self.text = text
-        self.summary = summary
-        self.dimensionHints = dimensionHints
-        self.keywords = keywords
-        self.evidence = evidence
-        self.createdAt = createdAt
-    }
-}
-
-struct RetrievedReflectionContext: Equatable {
-    let entries: [ReflectionMemoryEntry]
-
-    var isEmpty: Bool {
-        entries.isEmpty
-    }
-
-    func koreanPromptBlock() -> String {
-        guard !entries.isEmpty else { return "없음" }
-
-        return entries.enumerated().map { index, entry in
-            let dimensions = entry.dimensionHints.map(\.description).joined(separator: ", ")
-            let keywords = entry.keywords.prefix(3).joined(separator: ", ")
-            let evidence = entry.evidence.prefix(2).joined(separator: " / ")
-
-            return """
-            \(index + 1). 요약: \(entry.summary)
-               원문: \(entry.text)
-               차원: \(dimensions.isEmpty ? "없음" : dimensions)
-               키워드: \(keywords.isEmpty ? "없음" : keywords)
-               근거: \(evidence.isEmpty ? "없음" : evidence)
-            """
-        }
-        .joined(separator: "\n")
-    }
-}
 
 private extension FollowUpQuestionGenerator {
     enum PlannerMode {
@@ -527,6 +568,7 @@ private extension FollowUpQuestionGenerator {
     struct QuestionContext {
         let state: ReflectionState
         let analysis: ChunkAnalysis?
+        let turnFourLAnalysis: TurnFourLAnalysis
 
         func focusPhrase(for dimension: ReflectionDimension) -> String? {
             let slot = slot(for: dimension)
@@ -543,6 +585,11 @@ private extension FollowUpQuestionGenerator {
             if let summary = analysis?.dimensionSummaries[dimension.rawValue]?.trimmingCharacters(in: .whitespacesAndNewlines),
                !summary.isEmpty {
                 return clipped(summary)
+            }
+
+            if let evidence = turnFourLAnalysis.evidence(for: dimension).first,
+               !evidence.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return clipped(evidence)
             }
 
             if let topic = state.currentTopic?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -568,12 +615,30 @@ private extension FollowUpQuestionGenerator {
 
         private func clipped(_ text: String) -> String {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.count <= 22 {
+                .replacingOccurrences(of: "좋았던 점은 ", with: "")
+                .replacingOccurrences(of: "배운 점은 ", with: "")
+                .replacingOccurrences(of: "부족했던 점은 ", with: "")
+                .replacingOccurrences(of: "바라는 점은 ", with: "")
+                .replacingOccurrences(of: "다는 점이다.", with: "")
+                .replacingOccurrences(of: "라는 점이다.", with: "")
+                .replacingOccurrences(of: "이다.", with: "")
+
+            let separators = [",", " 그리고 ", " 그래서 ", " 다만 ", "."]
+            for separator in separators {
+                if let range = trimmed.range(of: separator) {
+                    let candidate = String(trimmed[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if candidate.count >= 4 {
+                        return candidate
+                    }
+                }
+            }
+
+            if trimmed.count <= 18 {
                 return trimmed
             }
 
-            let index = trimmed.index(trimmed.startIndex, offsetBy: 22)
-            return String(trimmed[..<index])
+            let index = trimmed.index(trimmed.startIndex, offsetBy: 18)
+            return String(trimmed[..<index]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
 }

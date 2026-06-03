@@ -33,13 +33,18 @@ struct ReflectionChunkAnalyzer {
 
     func analyze(
         _ chunk: ReflectionChunk,
+        turnFourLAnalysis: TurnFourLAnalysis? = nil,
         retrievedContext: RetrievedReflectionContext? = nil
     ) async -> ChunkAnalysis {
         guard !chunk.cleanedText.isEmpty else {
             return fallbackAnalyze(chunk)
         }
 
-        if let modelAnalysis = await analyzeWithFoundationModel(chunk, retrievedContext: retrievedContext) {
+        if let modelAnalysis = await analyzeWithFoundationModel(
+            chunk,
+            turnFourLAnalysis: turnFourLAnalysis,
+            retrievedContext: retrievedContext
+        ) {
             return modelAnalysis
         }
 
@@ -48,11 +53,17 @@ struct ReflectionChunkAnalyzer {
 
     private func analyzeWithFoundationModel(
         _ chunk: ReflectionChunk,
+        turnFourLAnalysis: TurnFourLAnalysis?,
         retrievedContext: RetrievedReflectionContext?
     ) async -> ChunkAnalysis? {
         do {
+            print("[FoundationModel][Analysis] session.respond invoked")
             let response = try await foundationModelService.respond(
-                to: analysisPrompt(for: chunk, retrievedContext: retrievedContext)
+                to: analysisPrompt(
+                    for: chunk,
+                    turnFourLAnalysis: turnFourLAnalysis,
+                    retrievedContext: retrievedContext
+                )
             )
             guard let payload = parseAnalysisResponse(from: response) else {
                 return nil
@@ -66,9 +77,11 @@ struct ReflectionChunkAnalyzer {
 
     private func analysisPrompt(
         for chunk: ReflectionChunk,
+        turnFourLAnalysis: TurnFourLAnalysis?,
         retrievedContext: RetrievedReflectionContext?
     ) -> String {
         let retrievedMemory = retrievedContext?.koreanPromptBlock() ?? "없음"
+        let firstPass = turnFourLAnalysis?.koreanPromptBlock() ?? "없음"
 
         return """
         너는 한국어 회고 텍스트 청크를 구조화해서 분석하는 엔진이다.
@@ -311,6 +324,9 @@ struct ReflectionChunkAnalyzer {
         cleanedText:
         \(chunk.cleanedText)
 
+        1차 4L 분류 힌트:
+        \(firstPass)
+
         관련 회고 메모리:
         \(retrievedMemory)
         """
@@ -346,7 +362,13 @@ struct ReflectionChunkAnalyzer {
         let emotions = mergeTextArray(payload.emotions, fallback.emotions)
         let keywords = mergeTextArray(payload.keywords, fallback.keywords)
         let clauses = mergeTextArray(payload.clauses, fallback.clauses)
-        let evidence = mergeTextArray(payload.evidence, fallback.evidence)
+        let sourceClauses = clauses.isEmpty ? fallback.clauses : clauses
+        let evidence = validatedEvidence(
+            from: payload.evidence,
+            chunk: chunk,
+            clauses: sourceClauses,
+            fallback: fallback.evidence
+        )
         let missingFollowUpHints = resolveMissingHints(payload.missingFollowUpHints, detectedDimensions: detectedDimensions)
         let hasSentenceBoundary = payload.hasSentenceBoundary || fallback.hasSentenceBoundary
         let hasTopicShift = payload.hasTopicShift || fallback.hasTopicShift
@@ -592,6 +614,57 @@ struct ReflectionChunkAnalyzer {
             merged.append(item)
         }
         return merged
+    }
+
+    private func validatedEvidence(
+        from modelValues: [String],
+        chunk: ReflectionChunk,
+        clauses: [String],
+        fallback: [String]
+    ) -> [String] {
+        let validatedModel = sanitizeTextArray(modelValues).compactMap { candidate in
+            validatedEvidenceItem(candidate, chunk: chunk, clauses: clauses)
+        }
+
+        if !validatedModel.isEmpty {
+            var merged = validatedModel
+            for item in fallback where !merged.contains(item) {
+                merged.append(item)
+            }
+            return merged
+        }
+
+        return fallback
+    }
+
+    private func validatedEvidenceItem(
+        _ candidate: String,
+        chunk: ReflectionChunk,
+        clauses: [String]
+    ) -> String? {
+        let normalizedCandidate = normalizedEvidenceText(candidate)
+        guard !normalizedCandidate.isEmpty else { return nil }
+
+        if normalizedEvidenceText(chunk.rawText).contains(normalizedCandidate)
+            || normalizedEvidenceText(chunk.cleanedText).contains(normalizedCandidate) {
+            return candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if let matchedClause = clauses.first(where: {
+            normalizedEvidenceText($0).contains(normalizedCandidate)
+                || normalizedCandidate.contains(normalizedEvidenceText($0))
+        }) {
+            return matchedClause
+        }
+
+        return nil
+    }
+
+    private func normalizedEvidenceText(_ text: String) -> String {
+        text
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "ko_KR"))
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .joined()
     }
 
     private func mergedDimensionSummaries(

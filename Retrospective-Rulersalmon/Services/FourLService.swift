@@ -62,6 +62,11 @@ final class FourLService {
         }
     }
 
+    func classify(text: String, messageId: UUID = UUID(), date: Date = .now) -> [FourLClassificationResult] {
+        let chunks = chunker.chunks(from: [ChatMessage(role: .user, text: text)])
+        return chunks.map(classify(chunk:))
+    }
+
     func topResultsByFourL(from results: [FourLClassificationResult], limit: Int = 2) -> [String: [FourLClassificationResult]] {
         Dictionary(grouping: results.filter(\.isFourLRelated), by: \.label)
             .mapValues { items in
