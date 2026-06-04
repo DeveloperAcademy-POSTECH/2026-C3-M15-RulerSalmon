@@ -50,5 +50,8 @@ struct NicknameTextField: View {
     }
 }
 
-#Preview {
-    NicknameTextField(nickname: .constant("김여운"), title : "닉네임")}
+struct NicknameTextField_Previews: PreviewProvider {
+    static var previews: some View {
+        NicknameTextField(nickname: .constant("김여운"))
+    }
+}

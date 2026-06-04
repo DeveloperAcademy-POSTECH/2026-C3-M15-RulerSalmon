@@ -8,9 +8,10 @@
 import SwiftUI
 
 struct UserInfoView: View {
-    @State private var nickname: String = ""
-    @State private var selectedJob: Job = .student
-    @State private var selectedAgeGroup: AgeGroup = .twenties
+    @Binding var nickname: String
+    @Binding var selectedJob: Job
+    @Binding var selectedAgeGroup: AgeGroup
+    let onNext: () -> Void
     
     let onAccept: () -> Void
     
@@ -32,9 +33,7 @@ struct UserInfoView: View {
                 )
                 
                 Spacer()
-                AcceptButton(labelText: "정보 저장하기"){
-                    onAccept()
-                }
+                AcceptButton(labelText: "내 정보 저장", action: onNext)
     
             }
             .padding(.top, 16)
@@ -44,6 +43,13 @@ struct UserInfoView: View {
     }
 }
 
-#Preview {
-    UserInfoView(onAccept: {})
+struct UserInfoView_Previews: PreviewProvider {
+    static var previews: some View {
+        UserInfoView(
+            nickname: .constant(""),
+            selectedJob: .constant(.student),
+            selectedAgeGroup: .constant(.twenties),
+            onNext: {}
+        )
+    }
 }

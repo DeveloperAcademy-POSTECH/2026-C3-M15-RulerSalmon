@@ -25,7 +25,7 @@ struct AcceptButtonStyle: ButtonStyle{
 
 struct AcceptButton: View {
     let labelText: String
-    let action: ()-> Void
+    let action: () -> Void
 
     var body: some View {
         Button{
@@ -38,6 +38,8 @@ struct AcceptButton: View {
     }
 }
 
-#Preview {
-    AcceptButton(labelText: "권한 요청", action: {})
+struct AcceptButton_Previews: PreviewProvider {
+    static var previews: some View {
+        AcceptButton(labelText: "권한 요청", action: {})
+    }
 }

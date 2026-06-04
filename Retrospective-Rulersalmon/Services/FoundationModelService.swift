@@ -6,7 +6,6 @@
 //
 
 import Foundation
-
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -19,15 +18,14 @@ final class FoundationModelService: FoundationModelServicing {
     #if canImport(FoundationModels)
     private let session: LanguageModelSession
     #endif
+    private static let defaultInstructions = """
+    너는 30대 한국의 회고 전문가이다.
+    사용자의 회고에 맞게 간단한 질문으로 자연스러운 한국어 답변을 한다.
+    """
 
-    init() {
+    init(instructions: String? = nil) {
         #if canImport(FoundationModels)
-        let instructions = """
-        You are a concise, helpful Korean assistant.
-        Reply naturally in Korean.
-        Keep answers short unless the user asks for detail.
-        """
-        session = LanguageModelSession(instructions: instructions)
+        session = LanguageModelSession(instructions: instructions ?? Self.defaultInstructions)
         #endif
     }
 
@@ -49,6 +47,6 @@ final class FoundationModelService: FoundationModelServicing {
     }
 
     private static func fallbackResponse(for prompt: String) -> String {
-        "모델 응답을 준비할 수 없어서 임시 답변을 보여드려요. 입력: \(prompt)"
+        "Unable to prepare a model response. Input: \(prompt)"
     }
 }

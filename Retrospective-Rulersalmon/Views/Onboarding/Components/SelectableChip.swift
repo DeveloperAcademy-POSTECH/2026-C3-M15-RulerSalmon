@@ -33,9 +33,11 @@ struct SelectableChip: View {
     }
 }
 
-#Preview {
-    HStack {
-        SelectableChip(label: "학생", isSelected: true) {}
-        SelectableChip(label: "직장인", isSelected: true) {}
+struct SelectableChip_Previews: PreviewProvider {
+    static var previews: some View {
+        HStack {
+            SelectableChip(label: "학생", isSelected: true) {}
+            SelectableChip(label: "직장인", isSelected: true) {}
+        }
     }
 }

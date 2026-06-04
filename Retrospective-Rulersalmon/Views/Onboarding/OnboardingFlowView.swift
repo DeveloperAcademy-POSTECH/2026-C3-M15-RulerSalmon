@@ -2,33 +2,46 @@
 //  OnboardingFlowView.swift
 //  Retrospective-Rulersalmon
 //
-//  Created by dlsundn on 6/3/26.
+//  Created by DevPaul on 6/2/26.
 //
 
 import SwiftUI
 
 struct OnboardingFlowView: View {
-    @State private var path: [OnboardingRoute] = []
-    
+    @StateObject private var viewModel = OnboardingFlowViewModel()
+
     var body: some View {
-        NavigationStack(path: $path){
-            PermissionView{
-                path.append(.userInfo)
-            }
-            .navigationDestination(for: OnboardingRoute.self){ route in
-                switch route {
-                case .userInfo:
-                    UserInfoView {
-                        path.append(.mentorSelect)
-                    }
-                case .mentorSelect:
-                    MentorSelectView()
+        Group {
+            switch viewModel.step {
+            case .userInfo:
+                UserInfoView(
+                    nickname: $viewModel.nickname,
+                    selectedJob: $viewModel.selectedJob,
+                    selectedAgeGroup: $viewModel.selectedAgeGroup
+                ) {
+                    viewModel.goToMentorSelection()
                 }
+
+            case .mentorSelection:
+                MentorSelectView(selectedMentorID: $viewModel.selectedMentorID) {
+                    viewModel.goToPermissions()
+                }
+
+            case .permissions:
+                PermmisionView {
+                    viewModel.completeOnboarding()
+                }
+
+            case .reflection:
+                ContentView()
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.step)
     }
 }
 
-#Preview {
-    OnboardingFlowView()
+struct OnboardingFlowView_Previews: PreviewProvider {
+    static var previews: some View {
+        OnboardingFlowView()
+    }
 }

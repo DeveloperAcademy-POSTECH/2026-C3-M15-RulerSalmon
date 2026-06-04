@@ -52,6 +52,9 @@ struct AgePicker: View {
     }
 }
 
-#Preview {
-    AgePicker(selectedAgeGroup: .constant(.twenties))
+struct AgePicker_Previews: PreviewProvider {
+    static var previews: some View {
+        AgePicker(selectedAgeGroup: .constant(.twenties))
+            .padding()
+    }
 }

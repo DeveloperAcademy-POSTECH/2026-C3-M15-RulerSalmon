@@ -29,9 +29,11 @@ struct OnboardingTitle: View {
     }
 }
 
-#Preview {
-    OnboardingTitle(
-        headline: "더 나은 회고를 위해 권한이 필요해요",
-        subtitle: "회의 일정과 음성 기록을 더 빠르게 정리하기 위해 사용해요."
-    )
+struct OnboardingTitle_Previews: PreviewProvider {
+    static var previews: some View {
+        OnboardingTitle(
+            headline: "더 나은 회고를 위해 권한이 필요해요",
+            subtitle: "회의 일정과 음성 기록을 더 빠르게 정리하기 위해 사용해요."
+        )
+    }
 }
