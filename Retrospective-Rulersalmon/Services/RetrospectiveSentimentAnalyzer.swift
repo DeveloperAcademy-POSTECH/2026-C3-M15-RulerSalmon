@@ -58,7 +58,7 @@ struct RetrospectiveSentimentResult {
 }
 
 struct RetrospectiveSentimentAnalyzer {
-    private let model: HowRUEmotionRegressionFloat32?
+    private let model: HowRUInt8?
     private let tokenizer: HowRUTokenizer
     private let maxTokenLength = 128
 
@@ -70,7 +70,7 @@ struct RetrospectiveSentimentAnalyzer {
         let configuration = MLModelConfiguration()
         configuration.computeUnits = .all
 
-        model = try? HowRUEmotionRegressionFloat32(configuration: configuration)
+        model = try? HowRUInt8(configuration: configuration)
         tokenizer = HowRUTokenizer()
     }
 
@@ -131,7 +131,7 @@ struct RetrospectiveSentimentAnalyzer {
 
     private func predictedScore(for text: String) -> Double {
         guard let model else {
-            debugLog("HowRUEmotionRegressionFloat32 failed to load.")
+            debugLog("HowRUInt8 failed to load.")
             return 0
         }
 
@@ -148,12 +148,12 @@ struct RetrospectiveSentimentAnalyzer {
             )
             let score = output.emotion_score[0].doubleValue
             guard score.isFinite else {
-                debugLog("HowRUEmotionRegressionFloat32 returned a non-finite score: \(score). Re-export the CoreML model with FLOAT32 precision.")
+                debugLog("HowRUInt8 returned a non-finite score: \(score). Re-export the CoreML model with INT8 precision.")
                 return 0
             }
             return score
         } catch {
-            debugLog("HowRUEmotionRegressionFloat32 prediction failed: \(error.localizedDescription)")
+            debugLog("HowRUInt8 prediction failed: \(error.localizedDescription)")
             return 0
         }
     }
