@@ -38,7 +38,6 @@ struct RetrospectiveSentimentResult {
     let positivePercentage: Double
     let negativePercentage: Double
     let satisfactionScore: Double
-    let labelCounts: [RetrospectiveSentimentLabel: Int]
     let positiveKeywords: [SentimentKeyword]
     let negativeKeywords: [SentimentKeyword]
     let segments: [SentimentSegment]
@@ -47,7 +46,6 @@ struct RetrospectiveSentimentResult {
         positivePercentage: 0,
         negativePercentage: 0,
         satisfactionScore: 3,
-        labelCounts: [:],
         positiveKeywords: [],
         negativeKeywords: [],
         segments: []
@@ -104,7 +102,6 @@ struct RetrospectiveSentimentAnalyzer {
             positivePercentage: positivePercentage,
             negativePercentage: negativePercentage,
             satisfactionScore: satisfactionScore,
-            labelCounts: Dictionary(grouping: segments, by: \.label).mapValues(\.count),
             positiveKeywords: aggregateKeywords(from: segments, labels: [.positive]),
             negativeKeywords: aggregateKeywords(from: segments, labels: [.negative]),
             segments: segments

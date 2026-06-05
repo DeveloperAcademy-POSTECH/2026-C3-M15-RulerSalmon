@@ -120,16 +120,6 @@ struct SentimentAnalysisView: View {
                     positivePercentage: result.positivePercentage,
                     negativePercentage: result.negativePercentage
                 )
-
-                HStack {
-                    ForEach([
-                        RetrospectiveSentimentLabel.positive,
-                        .neutral,
-                        .negative
-                    ], id: \.self) { label in
-                        LabelCountPill(label: label, count: result.labelCounts[label, default: 0])
-                    }
-                }
             }
         }
         .padding(16)
@@ -229,31 +219,6 @@ private struct RatioBar: View {
         .frame(height: 12)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .accessibilityLabel("긍정 \(Int(positivePercentage)) 퍼센트, 부정 \(Int(negativePercentage)) 퍼센트")
-    }
-}
-
-private struct LabelCountPill: View {
-    let label: RetrospectiveSentimentLabel
-    let count: Int
-
-    var body: some View {
-        Text("\(label.title) \(count)")
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(tint.opacity(0.12), in: Capsule())
-            .foregroundStyle(tint)
-    }
-
-    private var tint: Color {
-        switch label {
-        case .positive:
-            .green
-        case .neutral:
-            .secondary
-        case .negative:
-            .red
-        }
     }
 }
 
