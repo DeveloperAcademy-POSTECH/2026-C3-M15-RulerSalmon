@@ -31,9 +31,10 @@ struct PermissionView: View {
                 Spacer()
 
                 AcceptButton(labelText: "권한 허용하기"){
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
+                    onNext()
+//                    if let url = URL(string: UIApplication.openSettingsURLString) {
+//                            UIApplication.shared.open(url)
+//                        }
                 }
             }
             .padding(.top, 40)
