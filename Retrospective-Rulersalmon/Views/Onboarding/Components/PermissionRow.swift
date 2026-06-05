@@ -19,6 +19,7 @@ struct PermissionRow: View {
                 .frame(width: 56, height: 56)
                 .overlay(
                     Image(systemName: systemImageName)
+                        .font(.title2)
                         .foregroundStyle(Color.blue500))
                 .padding(.trailing, 16)
             
