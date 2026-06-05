@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct Retrospective_RulersalmonApp: App {
     var body: some Scene {
         WindowGroup {
-            UserInfoView()
+            //UserInfoView()
+            SentimentAnalysisView()
         }
+        .modelContainer(for: SentimentRecord.self)
     }
 }

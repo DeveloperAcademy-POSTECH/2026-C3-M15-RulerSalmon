@@ -1,16 +1,25 @@
 import SwiftUI
+import SwiftData
 
 struct SentimentAnalysisView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SentimentRecord.createdAt, order: .reverse) private var records: [SentimentRecord]
+
     @State private var transcript = """
     이번 프로젝트는 일정이 촉박해서 힘들었지만 팀원들이 적극적으로 도와줘서 끝까지 마무리할 수 있었다.
     소통은 이전보다 좋아졌고 리뷰 과정에서 배운 점도 많았다.
     다만 요구사항이 중간에 바뀌어서 혼란스러운 순간이 있었고 테스트 시간이 부족했던 점은 아쉽다.
     결과물은 생각보다 안정적으로 나와서 전반적으로는 만족스럽다.
     """
+    @State private var selectedDate = Date()
     @State private var result = RetrospectiveSentimentResult.empty
     @State private var debugMessage = "분석 대기 중"
+    @State private var saveMessage: String?
 
     private let analyzer = RetrospectiveSentimentAnalyzer()
+    private var statistics: SentimentSummary {
+        SentimentStatistics.summarize(records)
+    }
  
     var body: some View {
         NavigationStack {
@@ -20,6 +29,9 @@ struct SentimentAnalysisView: View {
                     debugSection
                     inputSection
                     scoreSection
+                    saveSection
+                    recordsSection
+                    statisticsSection
                     keywordSection
                     segmentSection
                 }
@@ -71,6 +83,13 @@ struct SentimentAnalysisView: View {
             Text("회고 전사문")
                 .font(.headline)
 
+            DatePicker(
+                "회고 날짜",
+                selection: $selectedDate,
+                displayedComponents: [.date]
+            )
+            .datePickerStyle(.compact)
+
             TextEditor(text: $transcript)
                 .frame(minHeight: 180)
                 .padding(8)
@@ -92,6 +111,56 @@ struct SentimentAnalysisView: View {
         }
     }
 
+    private var saveSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("저장")
+                .font(.headline)
+
+            Button {
+                saveRetrospective()
+            } label: {
+                Label("선택한 날짜로 회고 저장", systemImage: "tray.and.arrow.down")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+            if let saveMessage {
+                Text(saveMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var recordsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("저장된 회고")
+                    .font(.headline)
+                Spacer()
+                Text("\(records.count)개")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            if records.isEmpty {
+                Text("아직 저장된 회고가 없습니다.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(records) { record in
+                    SavedRecordRow(record: record) {
+                        deleteRecord(record)
+                    }
+                }
+            }
+        }
+    }
+    
     private var scoreSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("분석 결과")
@@ -125,6 +194,42 @@ struct SentimentAnalysisView: View {
         .padding(16)
         .background(.background, in: RoundedRectangle(cornerRadius: 8))
     }
+    
+    private var statisticsSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("분석 통계")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                
+                ScoreTile(
+                    title: "긍정",
+                    value: "\(formatPercent(statistics.positivePercentage))%",
+                    tint: .green
+                )
+                ScoreTile(
+                    title: "부정",
+                    value: "\(formatPercent(statistics.negativePercentage))%",
+                    tint: .red
+                )
+                ScoreTile(
+                    title: "만족도",
+                    value: "\(formatScore(statistics.satisfactionScore))/5",
+                    tint: .blue
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                RatioBar(
+                    positivePercentage: statistics.positivePercentage,
+                    negativePercentage: statistics.negativePercentage
+                )
+            }
+        }
+        .padding(16)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+    }
+
 
     private var keywordSection: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -159,12 +264,49 @@ struct SentimentAnalysisView: View {
         print("[SentimentAnalysisView] \(debugMessage)")
     }
 
+    private func saveRetrospective() {
+        let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTranscript.isEmpty else { return }
+
+        let analyzedResult = analyzer.analyze(trimmedTranscript)
+        result = analyzedResult
+
+        let record = SentimentRecord(
+            createdAt: selectedDate,
+            transcript: trimmedTranscript,
+            result: analyzedResult
+        )
+        modelContext.insert(record)
+
+        do {
+            try modelContext.save()
+            saveMessage = "\(formatDate(selectedDate)) 회고를 저장했습니다."
+        } catch {
+            saveMessage = "저장 실패: \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteRecord(_ record: SentimentRecord) {
+        modelContext.delete(record)
+
+        do {
+            try modelContext.save()
+            saveMessage = "저장된 회고를 삭제했습니다."
+        } catch {
+            saveMessage = "삭제 실패: \(error.localizedDescription)"
+        }
+    }
+
     private func formatPercent(_ value: Double) -> String {
         String(format: "%.0f", value)
     }
 
     private func formatScore(_ value: Double) -> String {
         String(format: "%.1f", value)
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        date.formatted(.dateTime.year().month().day())
     }
 }
 
@@ -256,6 +398,44 @@ private struct KeywordList: View {
     }
 }
 
+private struct SavedRecordRow: View {
+    let record: SentimentRecord
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(record.createdAt.formatted(.dateTime.year().month().day()))
+                    .font(.callout.weight(.semibold))
+                Spacer()
+                Text("\(String(format: "%.1f", record.satisfactionScore))/5")
+                    .font(.caption.monospacedDigit().weight(.bold))
+                    .foregroundStyle(.blue)
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("회고 삭제")
+            }
+
+            HStack(spacing: 12) {
+                Label("\(String(format: "%.0f", record.positivePercentage))%", systemImage: "plus.circle.fill")
+                    .foregroundStyle(.green)
+                Label("\(String(format: "%.0f", record.negativePercentage))%", systemImage: "minus.circle.fill")
+                    .foregroundStyle(.red)
+            }
+            .font(.caption.weight(.semibold))
+
+            Text(record.transcript)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(14)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
 private struct SegmentRow: View {
     let segment: SentimentSegment
 
@@ -312,4 +492,5 @@ private struct SegmentRow: View {
 
 #Preview {
     SentimentAnalysisView()
+        .modelContainer(for: SentimentRecord.self, inMemory: true)
 }

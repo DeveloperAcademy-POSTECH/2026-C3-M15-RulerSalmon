@@ -38,6 +38,8 @@ struct RetrospectiveSentimentResult {
     let positivePercentage: Double
     let negativePercentage: Double
     let satisfactionScore: Double
+    let positiveEvidence: Double
+    let negativeEvidence: Double
     let positiveKeywords: [SentimentKeyword]
     let negativeKeywords: [SentimentKeyword]
     let segments: [SentimentSegment]
@@ -46,6 +48,8 @@ struct RetrospectiveSentimentResult {
         positivePercentage: 0,
         negativePercentage: 0,
         satisfactionScore: 3,
+        positiveEvidence: 0,
+        negativeEvidence: 0,
         positiveKeywords: [],
         negativeKeywords: [],
         segments: []
@@ -102,6 +106,8 @@ struct RetrospectiveSentimentAnalyzer {
             positivePercentage: positivePercentage,
             negativePercentage: negativePercentage,
             satisfactionScore: satisfactionScore,
+            positiveEvidence: positiveEvidence,
+            negativeEvidence: negativeEvidence,
             positiveKeywords: aggregateKeywords(from: segments, labels: [.positive]),
             negativeKeywords: aggregateKeywords(from: segments, labels: [.negative]),
             segments: segments
