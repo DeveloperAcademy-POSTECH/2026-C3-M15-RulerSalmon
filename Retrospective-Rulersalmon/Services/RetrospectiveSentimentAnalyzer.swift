@@ -6,7 +6,6 @@ enum RetrospectiveSentimentLabel: String {
     case positive
     case neutral
     case negative
-    case mixed
 
     var title: String {
         switch self {
@@ -16,8 +15,6 @@ enum RetrospectiveSentimentLabel: String {
             "중립"
         case .negative:
             "부정"
-        case .mixed:
-            "혼합"
         }
     }
 }
@@ -108,8 +105,8 @@ struct RetrospectiveSentimentAnalyzer {
             negativePercentage: negativePercentage,
             satisfactionScore: satisfactionScore,
             labelCounts: Dictionary(grouping: segments, by: \.label).mapValues(\.count),
-            positiveKeywords: aggregateKeywords(from: segments, labels: [.positive, .mixed]),
-            negativeKeywords: aggregateKeywords(from: segments, labels: [.negative, .mixed]),
+            positiveKeywords: aggregateKeywords(from: segments, labels: [.positive]),
+            negativeKeywords: aggregateKeywords(from: segments, labels: [.negative]),
             segments: segments
         )
     }
@@ -124,8 +121,8 @@ struct RetrospectiveSentimentAnalyzer {
             text: text,
             label: label,
             score: score,
-            positiveKeywords: [.positive, .mixed].contains(label) ? keywords : [],
-            negativeKeywords: [.negative, .mixed].contains(label) ? keywords : []
+            positiveKeywords: label == .positive ? keywords : [],
+            negativeKeywords: label == .negative ? keywords : []
         )
     }
 

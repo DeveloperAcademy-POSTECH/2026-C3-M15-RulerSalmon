@@ -26,7 +26,7 @@ struct SentimentAnalysisView: View {
                 .padding(20)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("감정 분석 PoC")
+            .navigationTitle("감정 분석")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -124,7 +124,6 @@ struct SentimentAnalysisView: View {
                 HStack {
                     ForEach([
                         RetrospectiveSentimentLabel.positive,
-                        .mixed,
                         .neutral,
                         .negative
                     ], id: \.self) { label in
@@ -254,8 +253,6 @@ private struct LabelCountPill: View {
             .secondary
         case .negative:
             .red
-        case .mixed:
-            .orange
         }
     }
 }
@@ -344,8 +341,6 @@ private struct SegmentRow: View {
             .secondary
         case .negative:
             .red
-        case .mixed:
-            .orange
         }
     }
 }
