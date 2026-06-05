@@ -49,7 +49,7 @@ struct MentorSelectView: View {
                 
                 Spacer()
 
-                AcceptButton(labelText: "멘토 선택", action: onNext)
+                AcceptButton(labelText: "멘토 선택하기", action: onNext)
                     .disabled(selectedMentorID == nil)
             }
             .padding(.top,40)

@@ -31,7 +31,7 @@ struct UserInfoView: View {
                 )
                 
                 Spacer()
-                AcceptButton(labelText: "내 정보 저장", action: onNext)
+                AcceptButton(labelText: "정보 저장하기", action: onNext)
     
             }
             .padding(.top, 40)
