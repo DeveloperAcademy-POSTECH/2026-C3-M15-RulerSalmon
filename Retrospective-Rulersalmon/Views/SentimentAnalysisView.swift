@@ -20,7 +20,7 @@ struct SentimentAnalysisView: View {
     private var statistics: SentimentSummary {
         SentimentStatistics.summarize(records)
     }
- 
+    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -197,9 +197,9 @@ struct SentimentAnalysisView: View {
     
     private var statisticsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("분석 통계")
+            Text("전체 기간 분석 통계")
                 .font(.headline)
-
+            
             HStack(spacing: 12) {
                 
                 ScoreTile(
@@ -218,11 +218,69 @@ struct SentimentAnalysisView: View {
                     tint: .blue
                 )
             }
-
+            
             VStack(alignment: .leading, spacing: 10) {
                 RatioBar(
                     positivePercentage: statistics.positivePercentage,
                     negativePercentage: statistics.negativePercentage
+                )
+            }
+            
+            Text("주간 분석 통계")
+                .font(.headline)
+            
+            HStack(spacing: 12) {
+                
+                ScoreTile(
+                    title: "긍정",
+                    value: "\(formatPercent(filteredStatistics(in: .weekOfYear).positivePercentage))%",
+                    tint: .green
+                )
+                ScoreTile(
+                    title: "부정",
+                    value: "\(formatPercent(filteredStatistics(in: .weekOfYear).negativePercentage))%",
+                    tint: .red
+                )
+                ScoreTile(
+                    title: "만족도",
+                    value: "\(formatScore(filteredStatistics(in: .weekOfYear).satisfactionScore))/5",
+                    tint: .blue
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                RatioBar(
+                    positivePercentage: filteredStatistics(in: .weekOfYear).positivePercentage,
+                    negativePercentage: filteredStatistics(in: .weekOfYear).negativePercentage
+                )
+            }
+            
+            Text("월간 분석 통계")
+                .font(.headline)
+            
+            HStack(spacing: 12) {
+                
+                ScoreTile(
+                    title: "긍정",
+                    value: "\(formatPercent(filteredStatistics(in: .month).positivePercentage))%",
+                    tint: .green
+                )
+                ScoreTile(
+                    title: "부정",
+                    value: "\(formatPercent(filteredStatistics(in: .month).negativePercentage))%",
+                    tint: .red
+                )
+                ScoreTile(
+                    title: "만족도",
+                    value: "\(formatScore(filteredStatistics(in: .month).satisfactionScore))/5",
+                    tint: .blue
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                RatioBar(
+                    positivePercentage: filteredStatistics(in: .month).positivePercentage,
+                    negativePercentage: filteredStatistics(in: .month).negativePercentage
                 )
             }
         }
@@ -284,6 +342,21 @@ struct SentimentAnalysisView: View {
         } catch {
             saveMessage = "저장 실패: \(error.localizedDescription)"
         }
+    }
+    
+    private func filteredRecords(for granularity: Calendar.Component) -> [SentimentRecord] {
+        var calendar = Calendar(identifier: .gregorian)
+        
+        if granularity == .weekOfYear {
+            calendar.firstWeekday = 2
+        }
+        return records.filter {
+            calendar.isDate($0.createdAt, equalTo: Date(), toGranularity: granularity)
+        }
+    }
+    
+    private func filteredStatistics (in granularity: Calendar.Component) -> SentimentSummary {
+        SentimentStatistics.summarize(filteredRecords(for: granularity))
     }
 
     private func deleteRecord(_ record: SentimentRecord) {
