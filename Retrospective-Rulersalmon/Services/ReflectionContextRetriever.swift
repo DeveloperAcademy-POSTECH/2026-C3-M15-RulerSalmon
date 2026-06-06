@@ -13,11 +13,11 @@ struct ReflectionContextRetriever {
         entries: [ReflectionMemoryEntry],
         limit: Int = 3
     ) -> RetrievedReflectionContext {
-        let historicalEntries = query.purpose == .question && entries.count > 1 ? Array(entries.dropLast()) : entries
-        let queryTokens = normalizedTokens(from: query.rawText)
+        let queryTokens = normalizedTokens(from: [query.rawText, query.keywords.joined(separator: " ")].joined(separator: " "))
         let scored = scoreEntries(
-            historicalEntries,
+            entries,
             queryTokens: queryTokens,
+            keywords: Set(query.keywords.map { $0.lowercased() }),
             preferredPhrases: query.preferredPhrases,
             targetDimension: query.targetDimension,
             limit: limit
@@ -29,13 +29,20 @@ struct ReflectionContextRetriever {
     private func scoreEntries(
         _ entries: [ReflectionMemoryEntry],
         queryTokens: Set<String>,
+        keywords: Set<String>,
         preferredPhrases: [String],
         targetDimension: ReflectionDimension?,
         limit: Int
     ) -> [RetrievedReflectionItem] {
         entries
             .compactMap { entry in
-                let scored = score(entry: entry, queryTokens: queryTokens, preferredPhrases: preferredPhrases, targetDimension: targetDimension)
+                let scored = score(
+                    entry: entry,
+                    queryTokens: queryTokens,
+                    keywords: keywords,
+                    preferredPhrases: preferredPhrases,
+                    targetDimension: targetDimension
+                )
                 guard scored.score > 0 else { return nil }
                 return RetrievedReflectionItem(
                     entry: entry,
@@ -57,18 +64,30 @@ struct ReflectionContextRetriever {
     private func score(
         entry: ReflectionMemoryEntry,
         queryTokens: Set<String>,
+        keywords: Set<String>,
         preferredPhrases: [String],
         targetDimension: ReflectionDimension?
     ) -> (score: Double, matchedTerms: [String], reason: String) {
-        let entryTokens = normalizedTokens(from: [entry.text, entry.summary, entry.keywords.joined(separator: " ")].joined(separator: " "))
+        let entryTokens = normalizedTokens(from: [
+            entry.text,
+            entry.summary,
+            entry.topic ?? "",
+            entry.keywords.joined(separator: " ")
+        ].joined(separator: " "))
         let matchedTerms = Array(queryTokens.intersection(entryTokens)).sorted()
         let overlap = matchedTerms.count
+        let keywordOverlap = entry.keywords.map { $0.lowercased() }.filter { keywords.contains($0) }
 
         var score = Double(overlap) * 1.4
         var reasons: [String] = []
 
         if overlap > 0 {
             reasons.append("같은 표현이 겹침")
+        }
+
+        if !keywordOverlap.isEmpty {
+            score += Double(keywordOverlap.count) * 1.1
+            reasons.append("키워드 일치")
         }
 
         if let targetDimension, entry.dimensionHints.contains(targetDimension) {
@@ -90,12 +109,18 @@ struct ReflectionContextRetriever {
             reasons.append("근거 문장 보유")
         }
 
+        if entry.topic != nil {
+            score += 0.2
+        }
+
         let age = abs(entry.createdAt.timeIntervalSinceNow)
         let recencyBonus = max(0, 1.6 - min(age / 900, 1.6))
         score += recencyBonus
         if recencyBonus > 0.2 {
             reasons.append("최근 맥락")
         }
+
+        score += entry.importance * 0.8
 
         return (score, matchedTerms, reasons.joined(separator: ", "))
     }

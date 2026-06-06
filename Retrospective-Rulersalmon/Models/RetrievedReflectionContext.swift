@@ -31,6 +31,7 @@ struct RetrievedReflectionContext: Equatable {
             return """
             \(index + 1). 요약: \(entry.summary)
                원문: \(entry.text)
+               주제: \(entry.topic ?? "없음")
                차원: \(dimensions.isEmpty ? "없음" : dimensions)
                키워드: \(keywords.isEmpty ? "없음" : keywords)
                근거: \(evidence.isEmpty ? "없음" : evidence)

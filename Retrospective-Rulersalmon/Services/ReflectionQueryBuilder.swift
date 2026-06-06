@@ -8,47 +8,47 @@
 import Foundation
 
 struct ReflectionQueryBuilder {
-    func makeAnalysisQuery(currentText: String) -> ReflectionRetrievalQuery {
-        ReflectionRetrievalQuery(
+    func makeAnalysisQuery(
+        currentText: String,
+        firstPassResults: [FourLClassificationResult]
+    ) -> ReflectionRetrievalQuery {
+        let keywords = firstPassResults.flatMap { result in
+            [result.label, result.secondaryLabel].compactMap { $0 }
+        }
+
+        return ReflectionRetrievalQuery(
             purpose: .analysis,
-            rawText: currentText,
+            rawText: ([currentText] + firstPassResults.map(\.text)).joined(separator: " "),
             targetDimension: nil,
-            keywords: [],
-            preferredPhrases: [currentText]
+            keywords: keywords,
+            preferredPhrases: [currentText] + firstPassResults.map(\.text)
         )
     }
 
     func makeQuestionQuery(
-        state: ReflectionState,
-        analysis: ChunkAnalysis?,
-        turnFourLAnalysis: TurnFourLAnalysis,
-        policy: QuestionGenerationPolicy
+        currentText: String,
+        validation: ReflectionSecondPassValidation
     ) -> ReflectionRetrievalQuery {
-        let rawText = [
-            analysis?.cleanedText,
-            analysis?.summary,
-            state.lastUserChunk,
-            policy.focusText,
-            turnFourLAnalysis.strongestDimension?.description,
-            turnFourLAnalysis.weakestDimension?.description
+        let rawTextParts: [String?] = [
+            currentText,
+            validation.summary,
+            validation.topic,
+            validation.evidence.first
         ]
-        .compactMap { $0 }
-        .joined(separator: " ")
+        let rawText = rawTextParts.compactMap { $0 }.joined(separator: " ")
 
-        let focusKeywords = policy.focusText.map { [$0] } ?? []
-        let keywords = Array(Set((analysis?.keywords ?? []) + focusKeywords))
-        let preferredPhrases = [
-            policy.focusText,
-            analysis?.summary,
-            state.currentTopic,
-            state.lastUserChunk
+        let keywords = Array(Set(validation.keywords + validation.verifiedDimensions.map(\.rawValue)))
+        let preferredPhraseCandidates: [String?] = [
+            currentText,
+            validation.summary,
+            validation.evidence.first
         ]
-        .compactMap { $0 }
+        let preferredPhrases = preferredPhraseCandidates.compactMap { $0 }
 
         return ReflectionRetrievalQuery(
             purpose: .question,
             rawText: rawText,
-            targetDimension: policy.targetDimension,
+            targetDimension: validation.primaryDimension,
             keywords: keywords,
             preferredPhrases: preferredPhrases
         )
