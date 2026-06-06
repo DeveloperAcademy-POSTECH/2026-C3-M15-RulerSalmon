@@ -16,8 +16,6 @@ final class SentimentRecord {
     var positivePercentage: Double
     var negativePercentage: Double
     var satisfactionScore: Double
-    var positiveEvidence: Double
-    var negativeEvidence: Double
 
     init(
         id: UUID = UUID(),
@@ -31,7 +29,5 @@ final class SentimentRecord {
         self.positivePercentage = result.positivePercentage
         self.negativePercentage = result.negativePercentage
         self.satisfactionScore = result.satisfactionScore
-        self.positiveEvidence = result.positiveEvidence
-        self.negativeEvidence = result.negativeEvidence
     }
 }

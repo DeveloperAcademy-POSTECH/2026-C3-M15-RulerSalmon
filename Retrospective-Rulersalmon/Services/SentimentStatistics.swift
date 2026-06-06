@@ -20,23 +20,26 @@ struct SentimentSummary {
 
 struct SentimentStatistics {
     static func summarize(_ records: [SentimentRecord]) -> SentimentSummary {
-        
         guard !records.isEmpty else { return .empty }
         
-        let positiveEvidence = records.reduce(0) {
-            $0 + $1.positiveEvidence
-        }
-        let negativeEvidence = records.reduce(0) {
-            $0 + $1.negativeEvidence
-        }
-        let total = positiveEvidence + negativeEvidence
+        let count = records.count
         
-        guard total > 0 else { return .empty }
+        let positivePercentage = records.reduce(0) {
+            $0 + $1.positivePercentage
+        }
+        let negativePercentage = records.reduce(0) {
+            $0 + $1.negativePercentage
+        }
+        let satisfactionScore = records.reduce(0) {
+            $0 + $1.satisfactionScore
+        }
+        
+        guard count > 0 else { return .empty }
         
         return SentimentSummary(
-            positivePercentage: Double(positiveEvidence) / Double(total) * 100,
-            negativePercentage: Double(negativeEvidence) / Double(total) * 100,
-            satisfactionScore: 1 + (positiveEvidence / total * 4)
+            positivePercentage: Double(positivePercentage) / Double(count),
+            negativePercentage: Double(negativePercentage) / Double(count),
+            satisfactionScore: Double(satisfactionScore) / Double(count)
         )
     }
 }
