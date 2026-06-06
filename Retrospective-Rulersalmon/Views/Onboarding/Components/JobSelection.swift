@@ -12,7 +12,7 @@ struct JobSelection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("역할")
+            Text("직업")
                 .font(.subheadline)
                 .fontWeight(.bold)
                 .foregroundStyle(Color.gray600)
@@ -27,6 +27,8 @@ struct JobSelection: View {
                     }
                 }
             }
+            
+            Caption(caption: "회고 질문과 조언을 직업 맥락에 맞게 조정해요.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

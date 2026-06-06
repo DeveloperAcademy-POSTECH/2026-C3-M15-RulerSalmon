@@ -14,7 +14,7 @@ struct UserInfoCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
-            NicknameTextField(nickname: $nickname)
+            NicknameTextField(nickname: $nickname , title : "닉네임")
             JobSelection(selectedJob: $selectedJob)
             AgePicker(selectedAgeGroup: $selectedAgeGroup)
         }
