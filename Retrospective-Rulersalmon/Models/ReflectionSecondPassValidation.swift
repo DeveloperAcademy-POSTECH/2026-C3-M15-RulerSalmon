@@ -25,11 +25,42 @@ struct ReflectionRAGPipelineOutput: Equatable {
     let question: String
     let validation: ReflectionSecondPassValidation
     let firstPassResults: [FourLClassificationResult]
+    let completionDecision: ReflectionCompletionDecision
+    let isConversationClosed: Bool
 }
 
 struct ReflectionGeneratedTurn: Equatable {
     let validation: ReflectionSecondPassValidation
     let question: String
+}
+
+enum ReflectionCompletionState: String, Codable, Equatable {
+    case continueExploring
+    case readyToWrapUp
+    case askForClosure
+    case completed
+
+    var promptGuide: String {
+        switch self {
+        case .continueExploring:
+            return "아직 회고를 더 탐색해야 한다. 새로운 정보가 나오도록 구체적인 후속 질문을 만든다."
+        case .readyToWrapUp:
+            return "회고가 어느 정도 정리되었다. 마무리 방향으로 유도하되, 바로 종료를 확정하지는 않는다."
+        case .askForClosure:
+            return "회고를 마무리해도 될 정도로 충분히 정리되었다. 사용자에게 오늘 회고를 여기서 마무리할지 직접 물어본다."
+        case .completed:
+            return "회고는 이미 마무리되었다."
+        }
+    }
+}
+
+struct ReflectionCompletionDecision: Equatable {
+    let state: ReflectionCompletionState
+    let coveredDimensions: [ReflectionDimension]
+    let sessionEntryCount: Int
+    let newKeywordCount: Int
+    let averageConfidence: Double
+    let reason: String
 }
 
 #if canImport(FoundationModels)

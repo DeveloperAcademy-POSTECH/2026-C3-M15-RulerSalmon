@@ -33,7 +33,8 @@ final class ReflectionTurnGenerator {
         firstPassResults: [FourLClassificationResult],
         analysisContext: RetrievedReflectionContext,
         sessionContext: RetrievedReflectionContext,
-        recentQuestions: [String]
+        recentQuestions: [String],
+        completionState: ReflectionCompletionState
     ) async -> ReflectionGeneratedTurn {
         print("[RAG][FoundationModel] turn-generation request started")
 
@@ -46,7 +47,8 @@ final class ReflectionTurnGenerator {
                         firstPassResults: firstPassResults,
                         analysisContext: analysisContext,
                         sessionContext: sessionContext,
-                        recentQuestions: recentQuestions
+                        recentQuestions: recentQuestions,
+                        completionState: completionState
                     ),
                     generating: ReflectionGeneratedTurnPayload.self
                 )
@@ -55,7 +57,8 @@ final class ReflectionTurnGenerator {
                     response.content,
                     userText: userText,
                     firstPassResults: firstPassResults,
-                    recentQuestions: recentQuestions
+                    recentQuestions: recentQuestions,
+                    completionState: completionState
                 )
             } catch {
                 print("[RAG][FoundationModel] turn-generation failed: \(error.localizedDescription)")
@@ -67,7 +70,8 @@ final class ReflectionTurnGenerator {
         return fallbackTurn(
             userText: userText,
             firstPassResults: firstPassResults,
-            recentQuestions: recentQuestions
+            recentQuestions: recentQuestions,
+            completionState: completionState
         )
     }
 
@@ -76,7 +80,8 @@ final class ReflectionTurnGenerator {
         firstPassResults: [FourLClassificationResult],
         analysisContext: RetrievedReflectionContext,
         sessionContext: RetrievedReflectionContext,
-        recentQuestions: [String]
+        recentQuestions: [String],
+        completionState: ReflectionCompletionState
     ) -> String {
         let firstPassBlock = firstPassResults.map { result in
             let secondary = result.secondaryLabel.map { ", 보조=\($0)" } ?? ""
@@ -103,6 +108,7 @@ final class ReflectionTurnGenerator {
         - 최근에 했던 질문과 같은 표현이나 같은 초점을 반복하지 마라.
         - 이미 물은 질문을 다른 말로만 바꿔서 반복하지 마라.
         - 질문은 현재 발화에서 아직 더 구체화되지 않은 부분 하나만 파고들어라.
+        - 현재 종료 상태 지침을 따른다: \(completionState.promptGuide)
         - verifiedDimensions와 primaryDimension에는 liked, learned, lacked, longedFor만 사용한다.
         - question은 한국어 반말 한 문장으로만 작성한다.
 
@@ -129,7 +135,8 @@ final class ReflectionTurnGenerator {
         _ payload: ReflectionGeneratedTurnPayload,
         userText: String,
         firstPassResults: [FourLClassificationResult],
-        recentQuestions: [String]
+        recentQuestions: [String],
+        completionState: ReflectionCompletionState
     ) -> ReflectionGeneratedTurn {
         let fallbackDimensions = firstPassResults.compactMap { Self.mapLabelToDimension($0.label) }
         let dimensions = {
@@ -158,7 +165,8 @@ final class ReflectionTurnGenerator {
             resolvedQuestion = fallbackQuestion(
                 for: primaryDimension,
                 recentQuestions: recentQuestions,
-                userText: userText
+                userText: userText,
+                completionState: completionState
             )
         }
 
@@ -175,7 +183,8 @@ final class ReflectionTurnGenerator {
     private func fallbackTurn(
         userText: String,
         firstPassResults: [FourLClassificationResult],
-        recentQuestions: [String]
+        recentQuestions: [String],
+        completionState: ReflectionCompletionState
     ) -> ReflectionGeneratedTurn {
         let dimensions = firstPassResults.compactMap { Self.mapLabelToDimension($0.label) }
         let keywords = extractKeywords(from: userText)
@@ -197,7 +206,8 @@ final class ReflectionTurnGenerator {
             question: fallbackQuestion(
                 for: primaryDimension,
                 recentQuestions: recentQuestions,
-                userText: userText
+                userText: userText,
+                completionState: completionState
             )
         )
     }
@@ -238,8 +248,17 @@ final class ReflectionTurnGenerator {
     private func fallbackQuestion(
         for dimension: ReflectionDimension?,
         recentQuestions: [String],
-        userText: String
+        userText: String,
+        completionState: ReflectionCompletionState
     ) -> String {
+        if completionState == .askForClosure {
+            return "이 정도면 오늘 회고를 여기서 정리해도 괜찮을 것 같은데, 마무리할까?"
+        }
+
+        if completionState == .readyToWrapUp {
+            return "지금까지 이야기한 걸 보면 꽤 정리된 것 같은데, 이번 회고에서 제일 크게 남는 한 가지는 뭐야?"
+        }
+
         let candidates: [String]
         switch dimension {
         case .liked:
