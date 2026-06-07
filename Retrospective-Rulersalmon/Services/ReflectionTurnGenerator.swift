@@ -18,31 +18,45 @@ final class ReflectionTurnGenerator {
     필요한 정보만 짧게 정리하고, 질문은 자연스러운 한국어 반말 한 문장으로 만든다.
     질문은 평가하지 말고, 현재 발화와 현재 세션 맥락에만 이어져야 한다.
     """
+    @available(iOS 26.0, *)
+    private let session: LanguageModelSession
     #endif
+
+    init() {
+        #if canImport(FoundationModels)
+        self.session = LanguageModelSession(instructions: Self.instructions)
+        #endif
+    }
 
     func generateTurn(
         userText: String,
         firstPassResults: [FourLClassificationResult],
         analysisContext: RetrievedReflectionContext,
-        sessionContext: RetrievedReflectionContext
+        sessionContext: RetrievedReflectionContext,
+        recentQuestions: [String]
     ) async -> ReflectionGeneratedTurn {
         print("[RAG][FoundationModel] turn-generation request started")
 
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             do {
-                let session = LanguageModelSession(instructions: Self.instructions)
                 let response = try await session.respond(
                     to: prompt(
                         userText: userText,
                         firstPassResults: firstPassResults,
                         analysisContext: analysisContext,
-                        sessionContext: sessionContext
+                        sessionContext: sessionContext,
+                        recentQuestions: recentQuestions
                     ),
                     generating: ReflectionGeneratedTurnPayload.self
                 )
                 print("[RAG][FoundationModel] turn-generation response received")
-                return normalize(response.content, userText: userText, firstPassResults: firstPassResults)
+                return normalize(
+                    response.content,
+                    userText: userText,
+                    firstPassResults: firstPassResults,
+                    recentQuestions: recentQuestions
+                )
             } catch {
                 print("[RAG][FoundationModel] turn-generation failed: \(error.localizedDescription)")
             }
@@ -50,20 +64,31 @@ final class ReflectionTurnGenerator {
         #endif
 
         print("[RAG][FoundationModel] turn-generation fallback used")
-        return fallbackTurn(userText: userText, firstPassResults: firstPassResults)
+        return fallbackTurn(
+            userText: userText,
+            firstPassResults: firstPassResults,
+            recentQuestions: recentQuestions
+        )
     }
 
     private func prompt(
         userText: String,
         firstPassResults: [FourLClassificationResult],
         analysisContext: RetrievedReflectionContext,
-        sessionContext: RetrievedReflectionContext
+        sessionContext: RetrievedReflectionContext,
+        recentQuestions: [String]
     ) -> String {
         let firstPassBlock = firstPassResults.map { result in
             let secondary = result.secondaryLabel.map { ", 보조=\($0)" } ?? ""
             return "- 문장: \(result.text)\n  1차 분류: \(result.label), 신뢰도=\(String(format: "%.2f", result.confidence))\(secondary)"
         }
         .joined(separator: "\n")
+        let recentQuestionsBlock = recentQuestions.isEmpty
+            ? "없음"
+            : recentQuestions.enumerated().map { index, question in
+                "\(index + 1). \(question)"
+            }
+            .joined(separator: "\n")
 
         return """
         작업:
@@ -75,6 +100,9 @@ final class ReflectionTurnGenerator {
         - 1차 분류를 참고하되 맹신하지 마라.
         - 과거 전체 회고 문맥은 검토와 해석 보강에만 사용한다.
         - 질문은 과거 전체 회고 문맥에 기대지 말고 현재 발화와 현재 세션 맥락에만 이어져야 한다.
+        - 최근에 했던 질문과 같은 표현이나 같은 초점을 반복하지 마라.
+        - 이미 물은 질문을 다른 말로만 바꿔서 반복하지 마라.
+        - 질문은 현재 발화에서 아직 더 구체화되지 않은 부분 하나만 파고들어라.
         - verifiedDimensions와 primaryDimension에는 liked, learned, lacked, longedFor만 사용한다.
         - question은 한국어 반말 한 문장으로만 작성한다.
 
@@ -89,6 +117,9 @@ final class ReflectionTurnGenerator {
 
         질문 연결용 현재 세션 맥락:
         \(sessionContext.koreanPromptBlock())
+
+        최근에 이미 한 질문:
+        \(recentQuestionsBlock)
         """
     }
 
@@ -97,7 +128,8 @@ final class ReflectionTurnGenerator {
     private func normalize(
         _ payload: ReflectionGeneratedTurnPayload,
         userText: String,
-        firstPassResults: [FourLClassificationResult]
+        firstPassResults: [FourLClassificationResult],
+        recentQuestions: [String]
     ) -> ReflectionGeneratedTurn {
         let fallbackDimensions = firstPassResults.compactMap { Self.mapLabelToDimension($0.label) }
         let dimensions = {
@@ -119,10 +151,15 @@ final class ReflectionTurnGenerator {
         )
 
         let resolvedQuestion: String
-        if isUsableQuestion(question, summary: validation.summary) {
+        if isUsableQuestion(question, summary: validation.summary)
+            && !isRepeatedQuestion(question, recentQuestions: recentQuestions) {
             resolvedQuestion = question
         } else {
-            resolvedQuestion = fallbackQuestion(for: primaryDimension)
+            resolvedQuestion = fallbackQuestion(
+                for: primaryDimension,
+                recentQuestions: recentQuestions,
+                userText: userText
+            )
         }
 
         print("[RAG][FoundationModel] generated question=\(question)")
@@ -137,7 +174,8 @@ final class ReflectionTurnGenerator {
 
     private func fallbackTurn(
         userText: String,
-        firstPassResults: [FourLClassificationResult]
+        firstPassResults: [FourLClassificationResult],
+        recentQuestions: [String]
     ) -> ReflectionGeneratedTurn {
         let dimensions = firstPassResults.compactMap { Self.mapLabelToDimension($0.label) }
         let keywords = extractKeywords(from: userText)
@@ -156,11 +194,15 @@ final class ReflectionTurnGenerator {
 
         return ReflectionGeneratedTurn(
             validation: validation,
-            question: fallbackQuestion(for: primaryDimension)
+            question: fallbackQuestion(
+                for: primaryDimension,
+                recentQuestions: recentQuestions,
+                userText: userText
+            )
         )
     }
 
-    private static func mapDimension(from rawValue: String) -> ReflectionDimension? {
+    nonisolated private static func mapDimension(from rawValue: String) -> ReflectionDimension? {
         let normalized = rawValue
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "_", with: "")
@@ -176,7 +218,7 @@ final class ReflectionTurnGenerator {
         }
     }
 
-    private static func mapLabelToDimension(_ label: String) -> ReflectionDimension? {
+    nonisolated private static func mapLabelToDimension(_ label: String) -> ReflectionDimension? {
         switch label {
         case "Liked": return .liked
         case "Learned": return .learned
@@ -193,19 +235,52 @@ final class ReflectionTurnGenerator {
             .filter { $0.count >= 2 }
     }
 
-    private func fallbackQuestion(for dimension: ReflectionDimension?) -> String {
+    private func fallbackQuestion(
+        for dimension: ReflectionDimension?,
+        recentQuestions: [String],
+        userText: String
+    ) -> String {
+        let candidates: [String]
         switch dimension {
         case .liked:
-            return "그중에서 뭐가 제일 좋았어?"
+            candidates = [
+                "그중에서 제일 인상 깊었던 순간이 뭐였어?",
+                "그때 특히 좋다고 느낀 포인트는 뭐였어?",
+                "그 장면이 왜 좋게 남았는지 말해줄래?"
+            ]
         case .learned:
-            return "그 일을 겪으면서 새로 알게 된 게 뭐였어?"
+            candidates = [
+                "그 일을 겪으면서 새로 알게 된 게 뭐였어?",
+                "이번에 해보면서 배운 점이 있다면 뭐야?",
+                "다음에도 써먹을 수 있겠다 싶은 깨달음이 있었어?"
+            ]
         case .lacked:
-            return "그때 어디서 제일 막혔어?"
+            candidates = [
+                "그때 어디서 제일 막혔어?",
+                "가장 아쉽거나 부족하다고 느낀 부분은 뭐였어?",
+                "흐름이 꼬이기 시작한 지점이 어디였어?"
+            ]
         case .longedFor:
-            return "그럼 다음엔 뭘 먼저 바꿔보고 싶어?"
+            candidates = [
+                "그럼 다음엔 뭘 먼저 바꿔보고 싶어?",
+                "다시 한다면 가장 먼저 손대고 싶은 건 뭐야?",
+                "앞으로는 어떤 방향으로 풀어가고 싶어?"
+            ]
         case nil:
-            return "그때 제일 크게 남은 건 뭐였어?"
+            candidates = [
+                "그때 제일 크게 남은 건 뭐였어?",
+                "지금 돌아보면 가장 먼저 떠오르는 포인트가 뭐야?",
+                "그 이야기에서 조금 더 풀어보고 싶은 부분이 있어?"
+            ]
         }
+
+        let recentNormalized = Set(recentQuestions.map(normalizeQuestion))
+        if let fresh = candidates.first(where: { !recentNormalized.contains(normalizeQuestion($0)) }) {
+            return fresh
+        }
+
+        let offset = abs(userText.hashValue) % candidates.count
+        return candidates[offset]
     }
 
     private func isUsableQuestion(_ question: String, summary: String) -> Bool {
@@ -227,6 +302,21 @@ final class ReflectionTurnGenerator {
         ]
 
         return questionEndings.contains { lowered.hasSuffix($0) }
+    }
+
+    private func isRepeatedQuestion(_ question: String, recentQuestions: [String]) -> Bool {
+        let normalized = normalizeQuestion(question)
+        guard !normalized.isEmpty else { return true }
+        return recentQuestions.map(normalizeQuestion).contains(normalized)
+    }
+
+    private func normalizeQuestion(_ text: String) -> String {
+        text
+            .lowercased()
+            .replacingOccurrences(of: "?", with: "")
+            .replacingOccurrences(of: "？", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

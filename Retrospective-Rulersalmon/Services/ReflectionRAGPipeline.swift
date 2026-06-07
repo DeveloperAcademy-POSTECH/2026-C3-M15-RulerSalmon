@@ -16,6 +16,7 @@ final class ReflectionRAGPipeline {
     private let turnGenerator = ReflectionTurnGenerator()
     private let memoryBuilder = ReflectionMemoryBuilder()
     private let sessionID = UUID()
+    private var assistantQuestionHistory: [String] = []
 
     init(
         fourLService: FourLService? = nil,
@@ -59,7 +60,8 @@ final class ReflectionRAGPipeline {
             userText: userText,
             firstPassResults: firstPassResults,
             analysisContext: analysisContext,
-            sessionContext: sessionContext
+            sessionContext: sessionContext,
+            recentQuestions: Array(assistantQuestionHistory.suffix(3))
         )
         let validation = generatedTurn.validation
         debugPrintValidation(validation)
@@ -71,6 +73,7 @@ final class ReflectionRAGPipeline {
             createdAt: createdAt
         )
         memoryStore.append(memoryEntry)
+        assistantQuestionHistory.append(generatedTurn.question)
         debugPrintFourLCoverage(with: validation)
 
         return ReflectionRAGPipelineOutput(
