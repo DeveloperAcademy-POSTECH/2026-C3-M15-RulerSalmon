@@ -8,7 +8,7 @@
 import Foundation
 
 struct ReflectionQueryBuilder {
-    func makeAnalysisQuery(
+    func makeContextQuery(
         currentText: String,
         firstPassResults: [FourLClassificationResult]
     ) -> ReflectionRetrievalQuery {
@@ -17,40 +17,10 @@ struct ReflectionQueryBuilder {
         }
 
         return ReflectionRetrievalQuery(
-            purpose: .analysis,
             rawText: ([currentText] + firstPassResults.map(\.text)).joined(separator: " "),
             targetDimension: nil,
             keywords: keywords,
             preferredPhrases: [currentText] + firstPassResults.map(\.text)
-        )
-    }
-
-    func makeQuestionQuery(
-        currentText: String,
-        validation: ReflectionSecondPassValidation
-    ) -> ReflectionRetrievalQuery {
-        let rawTextParts: [String?] = [
-            currentText,
-            validation.summary,
-            validation.topic,
-            validation.evidence.first
-        ]
-        let rawText = rawTextParts.compactMap { $0 }.joined(separator: " ")
-
-        let keywords = Array(Set(validation.keywords + validation.verifiedDimensions.map(\.rawValue)))
-        let preferredPhraseCandidates: [String?] = [
-            currentText,
-            validation.summary,
-            validation.evidence.first
-        ]
-        let preferredPhrases = preferredPhraseCandidates.compactMap { $0 }
-
-        return ReflectionRetrievalQuery(
-            purpose: .question,
-            rawText: rawText,
-            targetDimension: validation.primaryDimension,
-            keywords: keywords,
-            preferredPhrases: preferredPhrases
         )
     }
 }

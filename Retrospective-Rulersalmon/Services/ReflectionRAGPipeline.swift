@@ -13,8 +13,7 @@ final class ReflectionRAGPipeline {
     private let memoryStore: ReflectionMemoryStore
     private let queryBuilder = ReflectionQueryBuilder()
     private let contextRetriever = ReflectionContextRetriever()
-    private let secondPassValidator = ReflectionSecondPassValidator()
-    private let questionGenerator = ReflectionQuestionGenerator()
+    private let turnGenerator = ReflectionTurnGenerator()
     private let memoryBuilder = ReflectionMemoryBuilder()
     private let sessionID = UUID()
 
@@ -43,36 +42,27 @@ final class ReflectionRAGPipeline {
         )
         debugPrintFirstPassResults(firstPassResults)
 
-        let analysisQuery = queryBuilder.makeAnalysisQuery(
+        let contextQuery = queryBuilder.makeContextQuery(
             currentText: userText,
             firstPassResults: firstPassResults
         )
         let analysisContext = contextRetriever.retrieve(
-            query: analysisQuery,
+            query: contextQuery,
             entries: memoryStore.allEntries()
         )
-
-        let validation = await secondPassValidator.validate(
-            userText: userText,
-            firstPassResults: firstPassResults,
-            analysisContext: analysisContext
-        )
-        debugPrintValidation(validation)
-
-        let questionQuery = queryBuilder.makeQuestionQuery(
-            currentText: userText,
-            validation: validation
-        )
-        let questionContext = contextRetriever.retrieve(
-            query: questionQuery,
+        let sessionContext = contextRetriever.retrieve(
+            query: contextQuery,
             entries: memoryStore.entries(in: sessionID)
         )
 
-        let question = await questionGenerator.generateQuestion(
+        let generatedTurn = await turnGenerator.generateTurn(
             userText: userText,
-            validation: validation,
-            questionContext: questionContext
+            firstPassResults: firstPassResults,
+            analysisContext: analysisContext,
+            sessionContext: sessionContext
         )
+        let validation = generatedTurn.validation
+        debugPrintValidation(validation)
 
         let memoryEntry = memoryBuilder.build(
             sessionID: sessionID,
@@ -84,7 +74,7 @@ final class ReflectionRAGPipeline {
         debugPrintFourLCoverage(with: validation)
 
         return ReflectionRAGPipelineOutput(
-            question: question,
+            question: generatedTurn.question,
             validation: validation,
             firstPassResults: firstPassResults
         )
