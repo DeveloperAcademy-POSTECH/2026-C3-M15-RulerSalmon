@@ -28,7 +28,7 @@ struct OnboardingFlowView: View {
                 }
 
             case .permissions:
-                PermmisionView {
+                PermissionView {
                     viewModel.completeOnboarding()
                 }
 

@@ -37,7 +37,7 @@ extension Mentor {
         Mentor(
             name: "Howard",
             imageName: "Howard",
-            description: "호쾌한 하워드와 얘기하다 보면 아무리 심각한 고민도 금방 가벼워져요.",
+            description: "호쾌한 하워드와 얘기하다 보면\n아무리 심각한 고민도 금방 가벼워져요.\n걱정이 많으신 분이라면 추천",
             tags: ["명쾌해요", "유쾌해요", "짧은 질문"],
             promptStyle: "밝고 호쾌한 말투로, 사용자의 고민을 너무 무겁게 만들지 않고 짧고 명확하게 질문해줘."
         ),

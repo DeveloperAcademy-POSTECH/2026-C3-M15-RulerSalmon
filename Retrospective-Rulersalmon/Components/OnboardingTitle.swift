@@ -12,17 +12,20 @@ struct OnboardingTitle: View {
     let subtitle: String
     
     var body: some View {
-        VStack{
+        VStack(alignment: .leading, spacing: 16){
             Text(headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fontWeight(.bold)
                 .font(.system(size: 31))
-                .padding(.bottom, 16)
                 .foregroundStyle(Color.gray900)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
             Text(subtitle)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .font(.callout)
                 .foregroundStyle(Color.gray600)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal,16)

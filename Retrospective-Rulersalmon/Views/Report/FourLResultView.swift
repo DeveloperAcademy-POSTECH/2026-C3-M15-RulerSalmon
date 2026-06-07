@@ -23,6 +23,7 @@ struct FourLResultView: View {
                 }
             }
             .pickerStyle(.segmented)
+            
             .padding(.horizontal)
 
             if viewModel.isRefining {

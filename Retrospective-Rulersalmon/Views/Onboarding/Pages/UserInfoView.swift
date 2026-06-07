@@ -19,8 +19,8 @@ struct UserInfoView: View {
                 .ignoresSafeArea(.all)
             VStack {
                 OnboardingTitle(
-                    headline: "더 나은 회고를 위해\n몇 가지만 알려주세요",
-                    subtitle: "답변은 추천 질문을\n개인화하는 데만 사용돼요."
+                    headline: "정보를 입력해 주세요",
+                    subtitle: "입력해 주신 정보는\n추천 질문 개인화에만 사용돼요."
                 )
                 .padding(.bottom, 24)
                 
@@ -31,7 +31,7 @@ struct UserInfoView: View {
                 )
                 
                 Spacer()
-                AcceptButton(labelText: "내 정보 저장", action: onNext)
+                AcceptButton(labelText: "정보 저장하기", action: onNext)
     
             }
             .padding(.top, 40)

@@ -49,6 +49,8 @@ struct AgePicker: View {
                 }
             }
             .buttonStyle(.plain)
+            
+            Caption(caption: "회고 질문과 조언을 직업 맥락에 맞게 조정해요.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
