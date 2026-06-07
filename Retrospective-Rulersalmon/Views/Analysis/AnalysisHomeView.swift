@@ -1,124 +1,289 @@
+//
+//  AnalysisHomeView.swift
+//
+//  Created by magic3ightball on 6/7/26.
+//
+
 import SwiftUI
 
 struct AnalysisHomeView: View {
     var body: some View {
         ZStack {
-            Color.gray50
+            Color.white
                 .ignoresSafeArea(.all)
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
-                    AnalysisHomeHeader()
-                    AnalysisHomeCardList()
+                LazyVStack(alignment: .leading, spacing: 32) {
+                    WeeklySummaryCard()
+                    InsightListSection()
+                    PastRetrospectiveSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, AnalysisHomeLayout.screenPadding)
                 .padding(.top, 32)
                 .padding(.bottom, 36)
             }
         }
-        .navigationTitle("분석")
+        .navigationTitle("회고 분석")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-private struct AnalysisHomeHeader: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("나의 회고 분석")
-                .font(.system(size: 28, weight: .heavy))
-                .foregroundStyle(Color.gray900)
-
-            Text("주간 흐름을 먼저 확인하거나, 월간 패턴으로 이어서 볼 수 있어요.")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(Color.gray600)
-                .lineSpacing(4)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 4)
-    }
+private enum AnalysisHomeLayout {
+    static let screenPadding: CGFloat = 16
+    static let cardPadding: CGFloat = 16
+    static let cardCornerRadius: CGFloat = 18
+    static let rowHorizontalPadding: CGFloat = 16
+    static let rowVerticalPadding: CGFloat = 12
 }
 
-private struct AnalysisHomeCardList: View {
+private struct WeeklySummaryCard: View {
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: AnalysisHomeLayout.cardPadding) {
+            HStack(alignment: .center, spacing: AnalysisHomeLayout.cardPadding) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("이번 주 만족도")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.gray600)
+
+                    Text("긍정적인 흐름이 컸어요")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(Color.gray900)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(alignment: .lastTextBaseline, spacing: 0) {
+                    Text("4.3")
+                        .font(.system(size: 26, weight: .heavy))
+                    Text("/5")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundStyle(Color.blue600)
+                .frame(width: 88, height: 64)
+                .background {
+                    RoundedRectangle(cornerRadius: 32)
+                        .fill(Color.blue50)
+                }
+            }
+
+            SentimentToneBar()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+
+            Divider()
+
             NavigationLink {
                 WeeklyAnalysisView()
             } label: {
-                AnalysisHomeCard(
-                    title: "주간 인사이트",
-                    description: "이번 주 만족도, 감정 흐름, 반복된 회고 포인트를 확인해요.",
-                    systemImageName: "calendar.badge.clock",
-                    tintColor: Color.blue500
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("주간 인사이트 화면으로 이동")
+                HStack {
+                    Text("기간별 회고 패턴 보기")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color.gray600)
 
-            NavigationLink {
-                MonthlyAnalysisView()
-            } label: {
-                AnalysisHomeCard(
-                    title: "월간 인사이트",
-                    description: "한 달 동안 자주 등장한 감정과 키워드, 만족도 변화를 살펴봐요.",
-                    systemImageName: "chart.line.uptrend.xyaxis",
-                    tintColor: Color.blue600
-                )
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.gray600)
+                }
+                .frame(height: 35)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityHint("월간 인사이트 화면으로 이동")
+            .accessibilityHint("기간별 인사이트 화면으로 이동")
+        }
+        .padding(AnalysisHomeLayout.cardPadding)
+        .background {
+            RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                .fill(Color.gray50)
         }
     }
 }
 
-private struct AnalysisHomeCard: View {
-    let title: String
-    let description: String
-    let systemImageName: String
-    let tintColor: Color
+private struct SentimentToneBar: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.gray200)
+
+                    Capsule()
+                        .fill(Color.blue600)
+                        .frame(width: geometry.size.width * 0.82)
+                }
+            }
+            .frame(height: 13)
+
+            HStack {
+                Text("긍정 82%")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.gray900)
+
+                Spacer()
+
+                Text("부정 18%")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.gray600)
+            }
+        }
+    }
+}
+
+private struct InsightListSection: View {
+    private let insights = [
+        InsightItem(
+            title: "반성 포인트",
+            count: "4회",
+            description: "시간 관리 관련 회고가 많지만 아직 개선 흐름이 약해요. 우선순위 정리가 필요해 보여요."
+        ),
+        InsightItem(
+            title: "강점 포인트",
+            count: "4회",
+            description: "팀 피드백을 빠르게 받아들이고 시도하는 점이 자주 보여요. 협업 적응력이 강점이에요."
+        )
+    ]
 
     var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: systemImageName)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(tintColor)
-                .frame(width: 54, height: 54)
-                .background {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(Color.blue50)
-                }
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("인사이트")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Color.gray900)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
+            VStack(spacing: 0) {
+                Divider()
+
+                ForEach(insights) { insight in
+                    InsightRow(item: insight)
+
+                    if insight.id != insights.last?.id {
+                        Divider()
+                    }
+                }
+
+                Divider()
+            }
+        }
+    }
+}
+
+private struct InsightItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let count: String
+    let description: String
+}
+
+private struct InsightRow: View {
+    let item: InsightItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(item.title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color.gray900)
+
+                Spacer()
+
+                Text(item.count)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.gray600)
+                    .padding(.horizontal, 18)
+                    .frame(height: 25)
+                    .background {
+                        Capsule()
+                            .fill(Color.gray50)
+                    }
+            }
+
+            Text(item.description)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.gray600)
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
+        .background(Color.white)
+    }
+}
+
+private struct PastRetrospectiveSection: View {
+    private let items = [
+        PastRetrospectiveItem(date: "5/19", title: "작게 회복한 하루"),
+        PastRetrospectiveItem(date: "5/18", title: "작게 회복한 하루"),
+        PastRetrospectiveItem(date: "5/17", title: "작게 회복한 하루"),
+        PastRetrospectiveItem(date: "5/16", title: "작게 회복한 하루"),
+        PastRetrospectiveItem(date: "5/15", title: "작게 회복한 하루"),
+        PastRetrospectiveItem(date: "5/14", title: "작게 회복한 하루")
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("지난 회고들")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Color.gray900)
 
-                Text(description)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.gray600)
-                    .lineSpacing(3)
-                    .multilineTextAlignment(.leading)
+                Spacer()
+
+                Text("지난 회고 보기 >")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color.gray300)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 0) {
+                Divider()
+                    .background(Color.black)
+
+                ForEach(items) { item in
+                    PastRetrospectiveRow(item: item)
+                }
+            }
+        }
+    }
+}
+
+private struct PastRetrospectiveItem: Identifiable {
+    let id = UUID()
+    let date: String
+    let title: String
+}
+
+private struct PastRetrospectiveRow: View {
+    let item: PastRetrospectiveItem
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Text(item.date)
+                .font(.system(size: 12))
+                .foregroundStyle(Color.blue600)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .frame(width: 30, height: 30)
+                .background {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.blue50)
+                }
+
+            Text(item.title)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Color.gray900)
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
+
+            Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Color.gray300)
-                .accessibilityHidden(true)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.gray900)
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            RoundedRectangle(cornerRadius: 22)
-                .fill(Color.white)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(Color.gray200, lineWidth: 1)
-        }
-        .shadow(color: Color.blue600.opacity(0.08), radius: 20, x: 0, y: 8)
-        .contentShape(RoundedRectangle(cornerRadius: 22))
+        .padding(.horizontal, AnalysisHomeLayout.rowHorizontalPadding)
+        .padding(.vertical, AnalysisHomeLayout.rowVerticalPadding)
+        .background(Color.white)
     }
 }
 
