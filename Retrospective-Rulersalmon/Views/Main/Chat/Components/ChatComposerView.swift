@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ChatComposerView: View {
     @Binding var text: String
+    @FocusState.Binding var isInputFocused: Bool
     let isResponding: Bool
     let bubbleShadowColor: Color
     let onSend: () -> Void
@@ -16,6 +17,7 @@ struct ChatComposerView: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             TextField("회고를 입력해주세요.", text: $text)
+                .focused($isInputFocused)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Color.gray900)
                 .padding(.horizontal, 20)
