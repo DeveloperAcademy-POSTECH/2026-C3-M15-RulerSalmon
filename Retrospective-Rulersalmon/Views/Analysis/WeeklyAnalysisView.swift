@@ -21,14 +21,60 @@ struct AnalysisView: View {
     let navigationTitle: String
 
     @State private var selectedTab: AnalysisTab
+    @State private var selectedWeek: Int
+    @State private var selectedMonth: Int
 
     private var selectedData: PeriodAnalysisData {
-        PeriodAnalysisMockData.data(for: selectedTab)
+        PeriodAnalysisMockData.data(
+            for: selectedTab,
+            week: selectedWeek,
+            month: selectedMonth
+        )
+    }
+
+    private var currentMonth: Int {
+        Calendar.current.component(.month, from: Date())
+    }
+
+    private var periodChipItems: [PeriodChipItem] {
+        switch selectedTab {
+        case .weekly:
+            return (1...5).map { week in
+                PeriodChipItem(id: week, title: "\(week)주", isEnabled: true)
+            }
+        case .monthly:
+            return (1...12).map { month in
+                PeriodChipItem(id: month, title: "\(month)월", isEnabled: month <= currentMonth)
+            }
+        }
+    }
+
+    private var selectedPeriodID: Binding<Int> {
+        Binding(
+            get: {
+                switch selectedTab {
+                case .weekly:
+                    return selectedWeek
+                case .monthly:
+                    return selectedMonth
+                }
+            },
+            set: { newValue in
+                switch selectedTab {
+                case .weekly:
+                    selectedWeek = newValue
+                case .monthly:
+                    selectedMonth = newValue
+                }
+            }
+        )
     }
 
     init(initialTab: AnalysisTab, navigationTitle: String) {
         self.navigationTitle = navigationTitle
         _selectedTab = State(initialValue: initialTab)
+        _selectedWeek = State(initialValue: 1)
+        _selectedMonth = State(initialValue: Calendar.current.component(.month, from: Date()))
     }
 
     var body: some View {
@@ -42,6 +88,14 @@ struct AnalysisView: View {
                     .padding(.top, 20)
                     .background(Color.white)
                     .zIndex(1)
+
+                PeriodChipTabBar(
+                    items: periodChipItems,
+                    selectedID: selectedPeriodID
+                )
+                .padding(.horizontal, PeriodAnalysisLayout.screenPadding)
+                .background(Color.white)
+                .zIndex(1)
 
                 ScrollView(showsIndicators: false) {
                     PeriodAnalysisContent(data: selectedData)
@@ -103,6 +157,82 @@ private struct AnalysisSegmentedControl: View {
     }
 }
 
+private struct PeriodChipItem: Identifiable {
+    let id: Int
+    let title: String
+    let isEnabled: Bool
+}
+
+private struct PeriodChipTabBar: View {
+    let items: [PeriodChipItem]
+    @Binding var selectedID: Int
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(items) { item in
+                    PeriodChipButton(
+                        item: item,
+                        isSelected: selectedID == item.id
+                    ) {
+                        guard item.isEnabled else { return }
+                        selectedID = item.id
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+}
+
+private struct PeriodChipButton: View {
+    let item: PeriodChipItem
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(item.title)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(textColor)
+                .padding(.horizontal, 13)
+                .frame(height: 36)
+                .background {
+                    Capsule()
+                        .fill(backgroundColor)
+                }
+                .overlay {
+                    Capsule()
+                        .stroke(borderColor, lineWidth: isSelected ? 1.5 : 0)
+                }
+        }
+        .buttonStyle(.plain)
+        .disabled(!item.isEnabled)
+        .accessibilityLabel(item.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var textColor: Color {
+        if !item.isEnabled {
+            return Color.gray300
+        }
+
+        return isSelected ? Color.blue600 : Color.gray600
+    }
+
+    private var backgroundColor: Color {
+        if !item.isEnabled {
+            return Color.gray50.opacity(0.6)
+        }
+
+        return isSelected ? Color.blue50 : Color.gray50
+    }
+
+    private var borderColor: Color {
+        isSelected ? Color.blue500 : Color.clear
+    }
+}
+
 private struct PeriodAnalysisContent: View {
     let data: PeriodAnalysisData
 
@@ -116,7 +246,7 @@ private struct PeriodAnalysisContent: View {
 }
 
 private enum PeriodAnalysisMockData {
-    static func data(for tab: AnalysisTab) -> PeriodAnalysisData {
+    static func data(for tab: AnalysisTab, week: Int, month: Int) -> PeriodAnalysisData {
         switch tab {
         case .weekly:
             return weekly
