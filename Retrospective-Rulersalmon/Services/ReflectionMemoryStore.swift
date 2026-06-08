@@ -7,6 +7,7 @@
 
 import Foundation
 
+@MainActor
 final class ReflectionMemoryStore {
     private var entries: [ReflectionMemoryEntry] = []
 
@@ -20,5 +21,9 @@ final class ReflectionMemoryStore {
 
     func entries(in sessionID: UUID) -> [ReflectionMemoryEntry] {
         entries.filter { $0.sessionID == sessionID }
+    }
+
+    func clearEntries(in sessionID: UUID) {
+        entries.removeAll { $0.sessionID == sessionID }
     }
 }

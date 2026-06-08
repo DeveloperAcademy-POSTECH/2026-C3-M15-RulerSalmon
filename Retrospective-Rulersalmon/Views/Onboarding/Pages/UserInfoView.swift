@@ -11,6 +11,8 @@ struct UserInfoView: View {
     @Binding var nickname: String
     @Binding var selectedJob: Job
     @Binding var selectedAgeGroup: AgeGroup
+    let validationMessage: String?
+    let isNextEnabled: Bool
     let onNext: () -> Void
     
     var body: some View {
@@ -29,9 +31,17 @@ struct UserInfoView: View {
                     selectedJob: $selectedJob,
                     selectedAgeGroup: $selectedAgeGroup
                 )
+
+                if let validationMessage {
+                    Text(validationMessage)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.red)
+                        .padding(.top, 12)
+                }
                 
                 Spacer()
                 AcceptButton(labelText: "정보 저장하기", action: onNext)
+                    .disabled(!isNextEnabled)
     
             }
             .padding(.top, 40)
@@ -47,6 +57,8 @@ struct UserInfoView_Previews: PreviewProvider {
             nickname: .constant(""),
             selectedJob: .constant(.student),
             selectedAgeGroup: .constant(.twenties),
+            validationMessage: nil,
+            isNextEnabled: false,
             onNext: {}
         )
     }
