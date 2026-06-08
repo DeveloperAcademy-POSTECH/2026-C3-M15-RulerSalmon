@@ -21,6 +21,7 @@ final class ReflectionTurnGenerator {
     @available(iOS 26.0, *)
     private let session: LanguageModelSession
     #endif
+    private var hasWarmedUp = false
 
     init() {
         #if canImport(FoundationModels)
@@ -73,6 +74,31 @@ final class ReflectionTurnGenerator {
             recentQuestions: recentQuestions,
             completionState: completionState
         )
+    }
+
+    func warmUpIfNeeded() async {
+        guard !hasWarmedUp else {
+            print("[RAG][FoundationModel] warm-up already completed")
+            return
+        }
+
+        print("[RAG][FoundationModel] warm-up started")
+
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            do {
+                let warmUpSession = LanguageModelSession(instructions: "간단한 준비 확인만 수행한다.")
+                _ = try await warmUpSession.respond(to: "준비가 되었으면 ok 한 단어로만 답해.")
+                hasWarmedUp = true
+                print("[RAG][FoundationModel] warm-up completed")
+                return
+            } catch {
+                print("[RAG][FoundationModel] warm-up failed: \(error.localizedDescription)")
+            }
+        }
+        #endif
+
+        print("[RAG][FoundationModel] warm-up skipped")
     }
 
     private func prompt(

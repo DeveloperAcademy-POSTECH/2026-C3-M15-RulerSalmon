@@ -143,6 +143,10 @@ final class ReflectionRAGPipeline {
         )
     }
 
+    func warmUpFoundationModelIfNeeded() async {
+        await turnGenerator.warmUpIfNeeded()
+    }
+
     private func debugPrintFirstPassResults(_ results: [FourLClassificationResult]) {
         if results.isEmpty {
             print("[RAG][FourL][FirstPass] no sentence chunks classified")

@@ -77,6 +77,9 @@ struct ReflectionChatView: View {
             isInputFocused = false
         }
         .toolbar(.hidden, for: .navigationBar)
+        .task {
+            viewModel.prepareFoundationModelIfNeeded()
+        }
         .alert("안내", isPresented: Binding(
             get: { viewModel.alertMessage != nil },
             set: { if !$0 { viewModel.alertMessage = nil } }

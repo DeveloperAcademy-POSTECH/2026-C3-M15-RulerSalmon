@@ -23,6 +23,7 @@ final class ReflectionChatViewModel: ObservableObject {
     @Published var scrollTargetID: String?
 
     private let ragPipeline: ReflectionRAGPipeline
+    private var hasRequestedWarmUp = false
 
     init(ragPipeline: ReflectionRAGPipeline) {
         self.ragPipeline = ragPipeline
@@ -30,6 +31,15 @@ final class ReflectionChatViewModel: ObservableObject {
 
     convenience init() {
         self.init(ragPipeline: ReflectionRAGPipeline())
+    }
+
+    func prepareFoundationModelIfNeeded() {
+        guard !hasRequestedWarmUp else { return }
+        hasRequestedWarmUp = true
+
+        Task {
+            await ragPipeline.warmUpFoundationModelIfNeeded()
+        }
     }
 
     func sendMessage() {
