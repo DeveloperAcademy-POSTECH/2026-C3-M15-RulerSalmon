@@ -17,13 +17,18 @@ struct OnboardingFlowView: View {
                 UserInfoView(
                     nickname: $viewModel.nickname,
                     selectedJob: $viewModel.selectedJob,
-                    selectedAgeGroup: $viewModel.selectedAgeGroup
+                    selectedAgeGroup: $viewModel.selectedAgeGroup,
+                    validationMessage: viewModel.validationMessage,
+                    isNextEnabled: viewModel.canProceedFromUserInfo
                 ) {
                     viewModel.goToMentorSelection()
                 }
 
             case .mentorSelection:
-                MentorSelectView(selectedMentorID: $viewModel.selectedMentorID) {
+                MentorSelectView(
+                    selectedMentorID: $viewModel.selectedMentorID,
+                    validationMessage: viewModel.validationMessage
+                ) {
                     viewModel.goToPermissions()
                 }
 

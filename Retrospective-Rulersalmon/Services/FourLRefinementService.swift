@@ -53,7 +53,7 @@ final class FourLRefinementService {
         - End each Korean sentence with a soft reflective tone such as "~했어요", "~느꼈어요", "~알게 되었어요", or "~해보고 싶어요".
         - Each item should be at most 1 to 2 sentences.
         - Keep the sentences short and reflective rather than overly explanatory.
-        
+
         출력 형식:
         [
           {"id":"원래 id","refinedText":"정돈된 문장"}

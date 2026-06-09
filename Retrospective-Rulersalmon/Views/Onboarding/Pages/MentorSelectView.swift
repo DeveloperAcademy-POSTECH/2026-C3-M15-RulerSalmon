@@ -9,7 +9,7 @@ import SwiftUI
 
 struct MentorSelectView: View {
     @Binding var selectedMentorID: Mentor.ID?
-    
+    let validationMessage: String?
     let onNext: () -> Void
     
     private let mentors = Mentor.sampleMentors
@@ -46,6 +46,12 @@ struct MentorSelectView: View {
                 .frame(height: 500)
                 
                 PageIndicator(pageCount: mentors.count, selectedIndex: selectedIndex)
+
+                if let validationMessage {
+                    Text(validationMessage)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.red)
+                }
                 
                 Spacer()
 
@@ -84,6 +90,6 @@ struct PageIndicator: View {
 
 struct MentorSelectView_Previews: PreviewProvider {
     static var previews: some View {
-        MentorSelectView(selectedMentorID: .constant(Mentor.sampleMentors.first?.id), onNext: {})
+        MentorSelectView(selectedMentorID: .constant(Mentor.sampleMentors.first?.id), validationMessage: nil, onNext: {})
     }
 }

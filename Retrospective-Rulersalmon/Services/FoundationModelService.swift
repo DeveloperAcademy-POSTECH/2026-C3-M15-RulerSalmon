@@ -23,9 +23,18 @@ final class FoundationModelService: FoundationModelServicing {
     사용자의 회고에 맞게 간단한 질문으로 자연스러운 한국어 답변을 한다.
     """
 
-    init(instructions: String? = nil) {
+    init(instructions: String? = nil, useDefaultInstructions: Bool = false) {
         #if canImport(FoundationModels)
-        session = LanguageModelSession(instructions: instructions ?? Self.defaultInstructions)
+        let resolvedInstructions: String
+        if let instructions {
+            resolvedInstructions = instructions
+        } else if useDefaultInstructions {
+            resolvedInstructions = Self.defaultInstructions
+        } else {
+            resolvedInstructions = ""
+        }
+
+        session = LanguageModelSession(instructions: resolvedInstructions)
         #endif
     }
 

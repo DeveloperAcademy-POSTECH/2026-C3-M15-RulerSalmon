@@ -6,10 +6,10 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct ReflectionChatView: View {
     @StateObject private var viewModel: ReflectionChatViewModel
+    @FocusState private var isInputFocused: Bool
 
     private let bubbleShadowColor = Color(
         red: 23.0 / 255.0,
@@ -65,6 +65,7 @@ struct ReflectionChatView: View {
 
                 ChatComposerView(
                     text: $viewModel.inputText,
+                    isInputFocused: $isInputFocused,
                     isResponding: viewModel.isResponding,
                     bubbleShadowColor: bubbleShadowColor,
                     onSend: viewModel.sendMessage
@@ -73,9 +74,12 @@ struct ReflectionChatView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            dismissKeyboard()
+            isInputFocused = false
         }
         .toolbar(.hidden, for: .navigationBar)
+        .task {
+            viewModel.prepareFoundationModelIfNeeded()
+        }
         .alert("안내", isPresented: Binding(
             get: { viewModel.alertMessage != nil },
             set: { if !$0 { viewModel.alertMessage = nil } }
@@ -94,15 +98,6 @@ struct ReflectionChatView: View {
                 proxy.scrollTo(target, anchor: .bottom)
             }
         }
-    }
-
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder),
-            to: nil,
-            from: nil,
-            for: nil
-        )
     }
 }
 
