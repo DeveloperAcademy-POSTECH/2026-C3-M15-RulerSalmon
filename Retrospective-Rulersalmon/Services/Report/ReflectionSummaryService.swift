@@ -122,7 +122,7 @@ final class ReflectionSummaryService {
                 .map { normalizedActionItem($0) }
                 .filter { !$0.isEmpty }
                 .filter { $0.hasSuffix("하기") }
-                .filter { $0.count <= 24 }
+                .filter { $0.count <= 18 }
                 .filter { !isGenericActionItem($0) }
         )
         .prefix(3)
