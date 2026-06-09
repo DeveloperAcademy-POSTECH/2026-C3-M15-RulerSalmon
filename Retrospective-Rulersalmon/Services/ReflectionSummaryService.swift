@@ -25,10 +25,9 @@ final class ReflectionSummaryService {
         refinedTexts: [UUID: String]
     ) async -> ReflectionSummaryResult? {
         do {
-            let response = try await foundationModelService.respond(to: makePrompt(
-                results: results,
-                refinedTexts: refinedTexts
-            ))
+            let response = try await foundationModelService.respond(
+                to: makePrompt(results: results, refinedTexts: refinedTexts)
+            )
             return parseSummary(from: response)
         } catch {
             return nil
@@ -45,10 +44,7 @@ final class ReflectionSummaryService {
                 refinedTexts[result.id] ?? result.text
             }
 
-        let payload = SummaryPromptPayload(
-            longedForItems: longedForItems
-        )
-
+        let payload = SummaryPromptPayload(longedForItems: longedForItems)
         let payloadText = encodedJSONString(payload)
 
         return """
@@ -71,10 +67,6 @@ final class ReflectionSummaryService {
         - Do not add explanations after action items.
         - Do not include numbering inside the JSON strings.
         - Generate up to exactly 3 action items when enough information exists.
-        - Prefer action items in this style:
-          "온보딩 뷰와 홈뷰 완성"
-          "결과 화면 디자인 개선"
-          "Action Item 기준 회의 진행"
         - If there is not enough information for an action item, use fewer than 3 items.
         - Output only a JSON object.
         - Do not include explanations, Markdown, or code blocks.
