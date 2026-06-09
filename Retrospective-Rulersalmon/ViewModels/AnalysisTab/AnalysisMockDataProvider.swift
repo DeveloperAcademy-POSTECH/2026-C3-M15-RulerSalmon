@@ -31,7 +31,14 @@ struct AnalysisMockDataProvider: AnalysisDataProviding {
     private let monthly = MonthlyAnalysisData(
         monthlyScore: "4.1",
         monthlyTitle: "안정적인 한 달이었어요",
-        strengthKeywords: [
+        weeklyStrengthKeywords: [
+            StrengthKeyword(title: "뿌듯함", count: 6),
+            StrengthKeyword(title: "안도감", count: 5),
+            StrengthKeyword(title: "아쉬움", count: 4),
+            StrengthKeyword(title: "집중", count: 3),
+            StrengthKeyword(title: "기대감", count: 2)
+        ],
+        monthlyStrengthKeywords: [
             StrengthKeyword(title: "성장", count: 24),
             StrengthKeyword(title: "감사", count: 18),
             StrengthKeyword(title: "도전", count: 16),

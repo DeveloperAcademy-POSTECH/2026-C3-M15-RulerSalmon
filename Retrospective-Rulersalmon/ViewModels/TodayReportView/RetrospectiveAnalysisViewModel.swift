@@ -117,6 +117,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
             transcript: summaryResult.refinedReflection,
             fourLEntries: fourLEntries,
             keywords: summaryResult.coreKeywords,
+            emotionKeywords: summaryResult.emotionKeywords,
             actionItems: summaryResult.actionItems
         )
     }

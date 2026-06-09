@@ -12,6 +12,7 @@ struct RetrospectiveReport {
     let transcript: String
     let fourLEntries: [FourLEntry]
     let keywords: [String]
+    let emotionKeywords: [String]
     let actionItems: [String]
 }
 
@@ -56,6 +57,7 @@ extension RetrospectiveReport {
             )
         ],
         keywords: ["집중", "회복", "산책", "작은시도"],
+        emotionKeywords: ["뿌듯함", "긴장", "안도"],
         actionItems: [
             "오전 첫 30분은 알림을 끄고 가장 작은 일 하나만 시작하기",
             "점심 이후 10분 산책을 캘린더에 먼저 넣어두기"

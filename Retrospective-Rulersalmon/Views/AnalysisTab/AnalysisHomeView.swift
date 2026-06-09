@@ -5,9 +5,21 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AnalysisHomeView: View {
     @StateObject private var viewModel = AnalysisHomeViewModel()
+
+    @Query(sort: \StoredReflectionReport.createdAt, order: .reverse)
+    private var storedReports: [StoredReflectionReport]
+
+    private var availableRange: PeriodRange {
+        viewModel.availableRange(from: storedReports)
+    }
+
+    private var emotionKeywordStatistics: [StrengthKeyword] {
+        viewModel.emotionKeywords(from: storedReports)
+    }
 
     var body: some View {
         ZStack {
@@ -29,9 +41,9 @@ struct AnalysisHomeView: View {
                         title: viewModel.selectedData.monthlyTitle
                     )
 
-                    SatisfactionTrendSection(data: viewModel.selectedData)
+                    SatisfactionTrendSection(data: viewModel.selectedData, selectedMode: $viewModel.selectedMode)
                     SentimentRatioSection()
-                    StrengthKeywordSection(keywords: viewModel.selectedData.strengthKeywords)
+                    StrengthKeywordSection(keywords: emotionKeywordStatistics)
                     InsightListSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,13 +53,13 @@ struct AnalysisHomeView: View {
             }
         }
         .onAppear {
-            viewModel.normalizeSelectedPeriod()
+            viewModel.normalizeSelectedPeriod(for: storedReports)
         }
         .sheet(isPresented: $viewModel.isPeriodSheetPresented) {
             PeriodSelectionSheet(
                 selectedYear: $viewModel.selectedYear,
                 selectedMonth: $viewModel.selectedMonth,
-                availableRange: viewModel.availableRange,
+                availableRange: availableRange,
                 isPresented: $viewModel.isPeriodSheetPresented
             )
             .presentationDetents([.height(300)])
@@ -115,10 +127,10 @@ private struct MonthlySatisfactionSummaryCard: View {
 private struct SatisfactionTrendSection: View {
     let data: MonthlyAnalysisData
 
-    @State private var selectedChartMode: SatisfactionChartMode = .weekly
+    @Binding var selectedMode: SatisfactionChartMode
 
     private var selectedPoints: [SatisfactionPoint] {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return data.weeklySatisfactionPoints
         case .monthly:
@@ -127,7 +139,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var xAxisLabels: [SatisfactionAxisLabel] {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return [
                 SatisfactionAxisLabel(index: 0, title: "6.2"),
@@ -150,7 +162,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var chartRange: String {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return "6.2 ~ 6.8"
         case .monthly:
@@ -159,7 +171,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var summaryTitle: String {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return "최근 7일은 후반으로 갈수록 만족도가 올랐어요"
         case .monthly:
@@ -168,7 +180,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var summaryDescription: String {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return "오늘에 가까워질수록 긍정 흐름이 커졌고, 6월 전체 상승 흐름의 시작점으로 보여요."
         case .monthly:
@@ -190,13 +202,13 @@ private struct SatisfactionTrendSection: View {
                     .foregroundStyle(Color.gray600)
             }
 
-            SatisfactionChartModeSegmentedControl(selectedMode: $selectedChartMode)
+            SatisfactionChartModeSegmentedControl(selectedMode: $selectedMode)
 
             SatisfactionLineChart(
                 points: selectedPoints,
                 xAxisLabels: xAxisLabels,
-                showsPointMarkers: selectedChartMode == .weekly,
-                highlightsLastPoint: selectedChartMode == .monthly
+                showsPointMarkers: selectedMode == .weekly,
+                highlightsLastPoint: selectedMode == .monthly
             )
             .frame(height: AnalysisHomeLayout.chartHeight)
             .padding(.top, 14)
@@ -224,20 +236,6 @@ private struct SatisfactionTrendSection: View {
                 RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
                     .fill(Color.gray50)
             }
-        }
-    }
-}
-
-private enum SatisfactionChartMode: CaseIterable {
-    case weekly
-    case monthly
-
-    var title: String {
-        switch self {
-        case .weekly:
-            return "주간"
-        case .monthly:
-            return "월간"
         }
     }
 }
@@ -287,15 +285,22 @@ private struct StrengthKeywordSection: View {
                 .foregroundStyle(Color.gray900)
 
             VStack(spacing: 8) {
-                ForEach(keywords) { keyword in
-                    StrengthKeywordRow(
-                        keyword: keyword,
-                        progress: CGFloat(keyword.count) / maxCount
-                    )
+                if keywords.isEmpty {
+                    Text("아직 누적된 감정 키워드가 없어요.")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.gray600)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    ForEach(keywords) { keyword in
+                        StrengthKeywordRow(
+                            keyword: keyword,
+                            progress: CGFloat(keyword.count) / maxCount
+                        )
+                    }
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 34)
+            .padding(.vertical, keywords.isEmpty ? 28 : 34)
             .background {
                 RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
                     .fill(Color.white)

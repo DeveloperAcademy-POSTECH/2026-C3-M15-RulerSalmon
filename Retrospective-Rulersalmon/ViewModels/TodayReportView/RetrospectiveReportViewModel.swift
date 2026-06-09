@@ -22,6 +22,16 @@ final class RetrospectiveReportViewModel: ObservableObject {
 
     init(report: RetrospectiveReport) {
         self.report = report
+        AppDataStore.shared.saveReport(
+            StoredReflectionReport(
+                todaySummary: report.summary,
+                refinedReflection: report.transcript,
+                fourLItemsRaw: report.fourLEntries.map { "\($0.title):\($0.content)" }.joined(separator: "|"),
+                coreKeywordsRaw: report.keywords.joined(separator: "|"),
+                emotionKeywordsRaw: report.emotionKeywords.joined(separator: "|"),
+                actionItemsRaw: report.actionItems.joined(separator: "|")
+            )
+        )
     }
 
     var summary: String {

@@ -34,9 +34,14 @@ struct PeriodRange {
 struct MonthlyAnalysisData {
     let monthlyScore: String
     let monthlyTitle: String
-    let strengthKeywords: [StrengthKeyword]
+    let weeklyStrengthKeywords: [StrengthKeyword]
+    let monthlyStrengthKeywords: [StrengthKeyword]
     let weeklySatisfactionPoints: [SatisfactionPoint]
     let monthlySatisfactionPoints: [SatisfactionPoint]
+
+    var strengthKeywords: [StrengthKeyword] {
+        monthlyStrengthKeywords
+    }
 }
 
 struct StrengthKeyword: Identifiable {
@@ -54,4 +59,16 @@ struct SatisfactionAxisLabel: Identifiable {
     let id = UUID()
     let index: Int
     let title: String
+}
+
+enum SatisfactionChartMode: CaseIterable {
+    case weekly
+    case monthly
+
+    var title: String {
+        switch self {
+        case .weekly: return "주간"
+        case .monthly: return "월간"
+        }
+    }
 }
