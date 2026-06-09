@@ -76,3 +76,35 @@ struct ChatComposerView: View {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+private struct ChatComposerPreviewContainer: View {
+    @State private var text = "오늘 회고를 조금 더 정리해보고 싶어."
+    @FocusState private var isInputFocused: Bool
+
+    var body: some View {
+        ZStack {
+            Color.gray50
+                .ignoresSafeArea()
+
+            VStack {
+                Spacer()
+
+                ChatComposerView(
+                    text: $text,
+                    isInputFocused: $isInputFocused,
+                    isResponding: false,
+                    bubbleShadowColor: Color.black.opacity(0.08),
+                    onSend: { },
+                    onFinish: { }
+                )
+            }
+        }
+    }
+}
+
+struct ChatComposerView_Previews: PreviewProvider {
+    static var previews: some View {
+        ChatComposerPreviewContainer()
+            .previewDisplayName("Chat Composer")
+    }
+}
