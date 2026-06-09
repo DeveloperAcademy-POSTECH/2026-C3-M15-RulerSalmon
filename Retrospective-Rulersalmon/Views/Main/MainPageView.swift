@@ -10,14 +10,15 @@ import SwiftUI
 struct MainPageView: View {
     @StateObject private var viewModel: MainPageViewModel
 
-    init(viewModel: MainPageViewModel = MainPageViewModel()) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    @MainActor
+    init(viewModel: MainPageViewModel? = nil) {
+        _viewModel = StateObject(wrappedValue: viewModel ?? MainPageViewModel())
     }
 
     var body: some View {
         TabView {
             NavigationStack {
-                MainHomeView(content: viewModel.content)
+                MainHomeView(content: viewModel.content, chatView: viewModel.makeChatView())
             }
             .tabItem {
                 Label("홈", systemImage: "house.fill")
@@ -31,11 +32,15 @@ struct MainPageView: View {
             }
         }
         .tint(Color.blue500)
+        .task {
+            viewModel.reload()
+        }
     }
 }
 
 private struct MainHomeView: View {
     let content: MainPageContent
+    let chatView: ReflectionChatView
 
     var body: some View {
         ZStack {
@@ -48,7 +53,7 @@ private struct MainHomeView: View {
                         userName: content.userName,
                         encouragementMessage: content.encouragementMessage
                     )
-                    TodayMentorCard(content: content)
+                    TodayMentorCard(content: content, chatView: chatView)
                     RetrospectiveListView(items: content.retrospectives)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -104,6 +109,7 @@ private struct MainHeaderView: View {
 
 private struct TodayMentorCard: View {
     let content: MainPageContent
+    let chatView: ReflectionChatView
 
     var body: some View {
         VStack(spacing: 16) {
@@ -148,7 +154,7 @@ private struct TodayMentorCard: View {
             MainPrimaryNavigationButton(
                 title: "회고 시작",
                 systemImageName: "phone.fill",
-                destination: ReflectionChatView()
+                destination: chatView
             )
         }
         .frame(maxWidth: .infinity)

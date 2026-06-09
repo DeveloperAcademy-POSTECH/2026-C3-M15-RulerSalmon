@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct Retrospective_RulersalmonApp: App {
     var body: some Scene {
         WindowGroup {
             OnboardingFlowView()
+                .modelContainer(AppDataStore.shared.container)
         }
     }
 }

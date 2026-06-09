@@ -16,14 +16,19 @@ final class ReflectionRAGPipeline {
     private let turnGenerator = ReflectionTurnGenerator()
     private let completionEvaluator = ReflectionCompletionEvaluator()
     private let memoryBuilder = ReflectionMemoryBuilder()
-    private let sessionID = UUID()
+    private let dataStore: AppDataStore
+    private let sessionID: UUID
+    private let mentor: Mentor?
     private var assistantQuestionHistory: [String] = []
     private var previousCompletionState: ReflectionCompletionState = .continueExploring
     private var isConversationClosed = false
 
     init(
         fourLService: FourLService? = nil,
-        memoryStore: ReflectionMemoryStore = ReflectionMemoryStore()
+        memoryStore: ReflectionMemoryStore? = nil,
+        dataStore: AppDataStore? = nil,
+        sessionID: UUID = UUID(),
+        mentor: Mentor? = nil
     ) {
         if let fourLService {
             self.fourLService = fourLService
@@ -32,7 +37,11 @@ final class ReflectionRAGPipeline {
         } else {
             self.fourLService = FourLService.emptyFallback
         }
-        self.memoryStore = memoryStore
+        self.dataStore = dataStore ?? .shared
+        self.memoryStore = memoryStore ?? ReflectionMemoryStore()
+        self.sessionID = sessionID
+        self.mentor = mentor
+        self.dataStore.createReflectionSessionIfNeeded(id: sessionID, mentorName: mentor?.name)
     }
 
     func handleUserInput(_ userText: String) async -> ReflectionRAGPipelineOutput {
@@ -73,6 +82,13 @@ final class ReflectionRAGPipeline {
             assistantQuestionHistory.append(closingMessage)
             previousCompletionState = .completed
             isConversationClosed = true
+            memoryStore.clearEntries(in: sessionID)
+            dataStore.updateReflectionSession(
+                id: sessionID,
+                firstUserMessage: nil,
+                latestSummary: validation.summary,
+                isClosed: true
+            )
             print("[RAG][Completion] conversation closed by user confirmation")
 
             return ReflectionRAGPipelineOutput(
@@ -95,16 +111,17 @@ final class ReflectionRAGPipeline {
             currentText: userText,
             firstPassResults: firstPassResults
         )
+        let currentSessionEntries = memoryStore.entries(in: sessionID)
         let analysisContext = contextRetriever.retrieve(
             query: contextQuery,
-            entries: memoryStore.allEntries()
+            entries: currentSessionEntries
         )
         let sessionContext = contextRetriever.retrieve(
             query: contextQuery,
-            entries: memoryStore.entries(in: sessionID)
+            entries: currentSessionEntries
         )
         let completionDecision = completionEvaluator.evaluate(
-            entries: memoryStore.entries(in: sessionID),
+            entries: currentSessionEntries,
             candidateDimensions: firstPassResults.compactMap { mapLabelToDimension($0.label) },
             candidateKeywords: contextQuery.keywords + extractKeywords(from: userText),
             candidateConfidence: firstPassResults.first?.confidence ?? 0.45,
@@ -132,6 +149,12 @@ final class ReflectionRAGPipeline {
         memoryStore.append(memoryEntry)
         assistantQuestionHistory.append(generatedTurn.question)
         previousCompletionState = completionDecision.state
+        dataStore.updateReflectionSession(
+            id: sessionID,
+            firstUserMessage: userText,
+            latestSummary: validation.summary,
+            isClosed: false
+        )
         debugPrintFourLCoverage(with: validation)
 
         return ReflectionRAGPipelineOutput(
