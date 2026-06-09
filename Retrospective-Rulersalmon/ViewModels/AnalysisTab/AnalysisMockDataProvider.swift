@@ -32,6 +32,8 @@ struct AnalysisMockDataProvider: AnalysisDataProviding {
     private let monthly = MonthlyAnalysisData(
         monthlyScore: "4.1",
         monthlyTitle: "안정적인 한 달이었어요",
+        monthlyPositivePercentage: 82,
+        monthlyNegativePercentage: 18,
         weeklyEmotionKeywords: [
             EmotionKeyword(title: "뿌듯함", count: 6),
             EmotionKeyword(title: "안도감", count: 5),

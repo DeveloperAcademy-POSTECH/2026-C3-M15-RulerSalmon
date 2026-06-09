@@ -37,6 +37,8 @@ struct AnalysisSwiftDataProvider: AnalysisDataProviding {
         return MonthlyAnalysisData(
             monthlyScore: String(format: "%.1f", summary.satisfactionScore),
             monthlyTitle: title(for: summary.satisfactionScore, isEmpty: monthlyRecords.isEmpty),
+            monthlyPositivePercentage: summary.positivePercentage,
+            monthlyNegativePercentage: summary.negativePercentage,
             weeklyEmotionKeywords: [],
             monthlyEmotionKeywords: [],
             weeklySatisfactionPoints: weeklySatisfactionPoints(from: weeklyRecords),
