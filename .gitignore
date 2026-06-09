@@ -1,5 +1,6 @@
 *.DS_Store
 /prompt.md
+plan.md
 
 # Generated audio outputs
 *.wav
@@ -11,6 +12,14 @@
 # Xcode derived data
 /.derivedData/
 /.derivedData-ios/
+/.derivedData-temp/
+/.swift-module-cache/
+
+# Xcode user-local state
+**/xcuserdata/
+**/*.xcuserstate
+*.xcbkptlist
+*.xcschememanagement.plist
 
 # Xcode user-local state
 **/xcuserdata/
@@ -19,3 +28,44 @@
 xcuserdata/
 *.xccheckout
 *.xcscmblueprint
+
+# Python caches and virtual environments
+__pycache__/
+**/__pycache__/
+*.pyc
+.venv/
+**/.venv/
+.venv-*/
+**/.venv-*/
+
+# Generated audio outputs
+*.wav
+
+# SwiftPM build output
+.build/
+**/.build/
+
+# Local TTS experiments
+/piper/
+/tts-prompt.md
+
+# Piper ONNX voice local data and generated artifacts
+/Piper-ONNX-Voice-Model/input/
+/Piper-ONNX-Voice-Model/dataset/wav/
+/Piper-ONNX-Voice-Model/dataset/*.csv
+/Piper-ONNX-Voice-Model/output/
+/Piper-ONNX-Voice-Model/.DS_Store
+/Piper-ONNX-Voice-Model/**/.DS_Store
+
+# MeloTTS local data, upstream clone, and generated artifacts
+/melotts-ios-poc/input/
+/melotts-ios-poc/dataset/wav/
+/melotts-ios-poc/dataset/*.csv
+/melotts-ios-poc/dataset/*.list
+/melotts-ios-poc/dataset/*.json
+/melotts-ios-poc/output/
+/melotts-ios-poc/third_party/
+/melotts-ios-poc/training/checkpoints/
+/melotts-ios-poc/training/logs/
+/melotts-ios-poc/.DS_Store
+/melotts-ios-poc/**/.DS_Store

@@ -2,7 +2,7 @@
 //  AgePickerView.swift
 //  Retrospective-Rulersalmon
 //
-//  Created by Codex on 6/1/26.
+//  Created by DevPaul on 6/1/26.
 //
 
 import SwiftUI
@@ -49,12 +49,16 @@ struct AgePicker: View {
                 }
             }
             .buttonStyle(.plain)
+            
+            Caption(caption: "회고 질문과 조언을 직업 맥락에 맞게 조정해요.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-#Preview {
-    AgePicker(selectedAgeGroup: .constant(.twenties))
-        .padding()
+struct AgePicker_Previews: PreviewProvider {
+    static var previews: some View {
+        AgePicker(selectedAgeGroup: .constant(.twenties))
+            .padding()
+    }
 }

@@ -6,7 +6,6 @@
 //
 
 import Foundation
-
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -36,15 +35,23 @@ final class FoundationModelService: FoundationModelServicing {
     #if canImport(FoundationModels) && !targetEnvironment(simulator)
     private let session: LanguageModelSession
     #endif
+    private static let defaultInstructions = """
+    너는 30대 한국의 회고 전문가이다.
+    사용자의 회고에 맞게 간단한 질문으로 자연스러운 한국어 답변을 한다.
+    """
 
-    init() {
+    init(instructions: String? = nil, useDefaultInstructions: Bool = false) {
         #if canImport(FoundationModels) && !targetEnvironment(simulator)
-        let instructions = """
-        You are a concise, helpful Korean assistant.
-        Reply naturally in Korean.
-        Keep answers short unless the user asks for detail.
-        """
-        session = LanguageModelSession(instructions: instructions)
+        let resolvedInstructions: String
+        if let instructions {
+            resolvedInstructions = instructions
+        } else if useDefaultInstructions {
+            resolvedInstructions = Self.defaultInstructions
+        } else {
+            resolvedInstructions = ""
+        }
+
+        session = LanguageModelSession(instructions: resolvedInstructions)
         #endif
     }
 

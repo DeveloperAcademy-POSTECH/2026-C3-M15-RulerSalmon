@@ -19,6 +19,7 @@ struct PermissionRow: View {
                 .frame(width: 56, height: 56)
                 .overlay(
                     Image(systemName: systemImageName)
+                        .font(.title2)
                         .foregroundStyle(Color.blue500))
                 .padding(.trailing, 16)
             
@@ -56,10 +57,12 @@ struct PermissionRow: View {
     }
 }
 
-#Preview {
-    PermissionRow(
-        permissionTitle: "마이크",
-        permissionDescription: "회의 내용을 요약하고 다음 할 일을 정리해요.",
-        systemImageName: "mic.fill"
-    )
+struct PermissionRow_Previews: PreviewProvider {
+    static var previews: some View {
+        PermissionRow(
+            permissionTitle: "마이크",
+            permissionDescription: "회의 내용을 요약하고 다음 할 일을 정리해요.",
+            systemImageName: "mic.fill"
+        )
+    }
 }

@@ -12,9 +12,10 @@ import SwiftData
 struct Retrospective_RulersalmonApp: App {
     var body: some Scene {
         WindowGroup {
-            //UserInfoView()
-            SentimentAnalysisView()
+            NavigationStack {
+                OnboardingFlowView()
+                    .modelContainer(AppDataStore.shared.container)
+            }
         }
-        .modelContainer(for: [SentimentRecord.self, ReflectionInsightRecord.self])
     }
 }
