@@ -29,6 +29,10 @@ struct SentenceChunkerService {
             }
     }
 
+    func semanticChunks(from messages: [ChatMessage]) async -> [SentenceChunk] {
+        chunks(from: messages)
+    }
+
     private func splitIntoSentences(_ text: String) -> [String] {
         let separators = CharacterSet(charactersIn: ".!?。！？\n")
 

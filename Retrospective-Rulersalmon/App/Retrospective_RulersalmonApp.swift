@@ -11,7 +11,9 @@ import SwiftUI
 struct Retrospective_RulersalmonApp: App {
     var body: some Scene {
         WindowGroup {
-            OnboardingFlowView()
+            NavigationStack {
+                ReflectionChatView()
+            }
         }
     }
 }

@@ -17,7 +17,7 @@ final class FourLResultViewModel: ObservableObject {
     @Published var isRefining = false
     @Published var isGeneratingSummary = false
 
-    private let messages: [ChatMessage]
+    private var messages: [ChatMessage]
     private let fourLService: FourLService
     private let refinementService: FourLRefinementService
     private let summaryService: ReflectionSummaryService
@@ -46,27 +46,40 @@ final class FourLResultViewModel: ObservableObject {
 
     func generateResults() {
         guard results.isEmpty, errorMessage == nil else { return }
+        runAnalysis()
+    }
 
-        results = fourLService.classify(messages: messages)
+    func generateResults(with messages: [ChatMessage]) {
+        self.messages = messages
+        results = []
+        refinedTexts = [:]
         summaryResult = nil
-        refineResults()
+        runAnalysis()
+    }
+
+    private func runAnalysis() {
+        guard errorMessage == nil else { return }
+
+        Task {
+            results = await fourLService.classify(messages: messages)
+            summaryResult = nil
+            await refineResults()
+        }
     }
 
     func topResultsByFourL(limit: Int = 2) -> [String: [FourLClassificationResult]] {
         fourLService.topResultsByFourL(from: results, limit: limit)
     }
 
-    private func refineResults() {
+    private func refineResults() async {
         isRefining = true
 
-        Task {
-            let refinedTexts = await refinementService.refine(results: results)
+        let refinedTexts = await refinementService.refine(results: results)
 
-            self.refinedTexts = refinedTexts
-            self.isRefining = false
+        self.refinedTexts = refinedTexts
+        self.isRefining = false
 
-            await generateSummary(refinedTexts: refinedTexts)
-        }
+        await generateSummary(refinedTexts: refinedTexts)
     }
 
     private func generateSummary(refinedTexts: [UUID: String]) async {
