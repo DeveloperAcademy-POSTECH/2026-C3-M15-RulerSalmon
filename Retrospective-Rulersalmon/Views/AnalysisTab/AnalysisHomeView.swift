@@ -17,7 +17,7 @@ struct AnalysisHomeView: View {
         viewModel.availableRange(from: storedReports)
     }
 
-    private var emotionKeywordStatistics: [StrengthKeyword] {
+    private var emotionKeywordStatistics: [EmotionKeyword] {
         viewModel.emotionKeywords(from: storedReports)
     }
 
@@ -43,7 +43,7 @@ struct AnalysisHomeView: View {
 
                     SatisfactionTrendSection(data: viewModel.selectedData, selectedMode: $viewModel.selectedMode)
                     SentimentRatioSection()
-                    StrengthKeywordSection(keywords: emotionKeywordStatistics)
+                    EmotionKeywordSection(keywords: emotionKeywordStatistics)
                     InsightListSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -271,8 +271,8 @@ private struct SatisfactionChartModeSegmentedControl: View {
     }
 }
 
-private struct StrengthKeywordSection: View {
-    let keywords: [StrengthKeyword]
+private struct EmotionKeywordSection: View {
+    let keywords: [EmotionKeyword]
 
     private var maxCount: CGFloat {
         CGFloat(keywords.map(\.count).max() ?? 1)
@@ -280,7 +280,7 @@ private struct StrengthKeywordSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("감정 키워드")
+            Text("감정 키워드 top5")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
@@ -292,7 +292,7 @@ private struct StrengthKeywordSection: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     ForEach(keywords) { keyword in
-                        StrengthKeywordRow(
+                        EmotionRow(
                             keyword: keyword,
                             progress: CGFloat(keyword.count) / maxCount
                         )
@@ -314,8 +314,8 @@ private struct StrengthKeywordSection: View {
     }
 }
 
-private struct StrengthKeywordRow: View {
-    let keyword: StrengthKeyword
+private struct EmotionRow: View {
+    let keyword: EmotionKeyword
     let progress: CGFloat
 
     var body: some View {

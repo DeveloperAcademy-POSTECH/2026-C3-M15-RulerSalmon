@@ -42,7 +42,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         reportAvailableRange(from: reports) ?? availableRange
     }
 
-    func emotionKeywords(from reports: [StoredReflectionReport]) -> [StrengthKeyword] {
+    func emotionKeywords(from reports: [StoredReflectionReport]) -> [EmotionKeyword] {
         let selectedReports: [StoredReflectionReport]
 
         switch selectedMode {
@@ -104,7 +104,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         return reports.filter { $0.createdAt >= cutoff }
     }
 
-    private func topEmotionKeywords(from reports: [StoredReflectionReport], limit: Int = 5) -> [StrengthKeyword] {
+    private func topEmotionKeywords(from reports: [StoredReflectionReport], limit: Int = 5) -> [EmotionKeyword] {
         var counts: [String: Int] = [:]
 
         reports
@@ -122,7 +122,7 @@ final class AnalysisHomeViewModel: ObservableObject {
                 return lhs.value > rhs.value
             }
             .prefix(limit)
-            .map { StrengthKeyword(title: $0.key, count: $0.value) }
+            .map { EmotionKeyword(title: $0.key, count: $0.value) }
     }
 
     private func reportAvailableRange(

@@ -34,17 +34,17 @@ struct PeriodRange {
 struct MonthlyAnalysisData {
     let monthlyScore: String
     let monthlyTitle: String
-    let weeklyStrengthKeywords: [StrengthKeyword]
-    let monthlyStrengthKeywords: [StrengthKeyword]
+    let weeklyEmotionKeywords: [EmotionKeyword]
+    let monthlyEmotionKeywords: [EmotionKeyword]
     let weeklySatisfactionPoints: [SatisfactionPoint]
     let monthlySatisfactionPoints: [SatisfactionPoint]
 
-    var strengthKeywords: [StrengthKeyword] {
-        monthlyStrengthKeywords
+    var EmotionKeywords: [EmotionKeyword] {
+        monthlyEmotionKeywords
     }
 }
 
-struct StrengthKeyword: Identifiable {
+struct EmotionKeyword: Identifiable {
     let id = UUID()
     let title: String
     let count: Int
