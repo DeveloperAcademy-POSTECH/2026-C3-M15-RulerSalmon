@@ -11,6 +11,7 @@ import Foundation
 final class AnalysisHomeViewModel: ObservableObject {
     @Published var selectedYear: Int
     @Published var selectedMonth: Int
+    @Published var selectedMode: SatisfactionChartMode = .weekly
     @Published var isPeriodSheetPresented = false
 
     private let dataProvider: AnalysisDataProviding
@@ -29,7 +30,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         let calendar = Calendar.current
         self.selectedYear = calendar.component(.year, from: selectedDate)
         self.selectedMonth = calendar.component(.month, from: selectedDate)
-        self.dataProvider = dataProvider
+        self.dataProvider = dataProvider ?? AnalysisMockDataProvider()
         normalizeSelectedPeriod()
     }
 
@@ -44,16 +45,121 @@ final class AnalysisHomeViewModel: ObservableObject {
         dataProvider.availableRange
     }
 
+    func availableRange(from reports: [StoredReflectionReport]) -> PeriodRange {
+        reportAvailableRange(from: reports) ?? availableRange
+    }
+
+    func emotionKeywords(from reports: [StoredReflectionReport]) -> [EmotionKeyword] {
+        let selectedReports: [StoredReflectionReport]
+
+        switch selectedMode {
+        case .weekly:
+            selectedReports = reportsWithinDays(from: reports, days: 7)
+        case .monthly:
+            selectedReports = reportsInMonth(
+                from: reports,
+                year: selectedYear,
+                month: selectedMonth
+            )
+        }
+
+        return topEmotionKeywords(from: selectedReports)
+    }
+
     func showPeriodSheet() {
         isPeriodSheetPresented = true
     }
 
     func normalizeSelectedPeriod() {
-        guard !availableRange.contains(year: selectedYear, month: selectedMonth) else {
+        normalizeSelectedPeriod(with: availableRange)
+    }
+
+    func normalizeSelectedPeriod(for reports: [StoredReflectionReport]) {
+        normalizeSelectedPeriod(with: availableRange(from: reports))
+    }
+
+    private func normalizeSelectedPeriod(with range: PeriodRange) {
+        guard !range.contains(year: selectedYear, month: selectedMonth) else {
             return
         }
 
-        selectedYear = availableRange.end.year
-        selectedMonth = availableRange.end.month
+        selectedYear = range.end.year
+        selectedMonth = range.end.month
+    }
+
+    private func reportsInMonth(
+        from reports: [StoredReflectionReport],
+        year: Int,
+        month: Int,
+        calendar: Calendar = .current
+    ) -> [StoredReflectionReport] {
+        reports.filter { report in
+            let components = calendar.dateComponents([.year, .month], from: report.createdAt)
+            return components.year == year && components.month == month
+        }
+    }
+
+    private func reportsWithinDays(
+        from reports: [StoredReflectionReport],
+        days: Int,
+        calendar: Calendar = .current
+    ) -> [StoredReflectionReport] {
+        guard let cutoff = calendar.date(byAdding: .day, value: -days, to: Date()) else {
+            return []
+        }
+
+        return reports.filter { $0.createdAt >= cutoff }
+    }
+
+    private func topEmotionKeywords(from reports: [StoredReflectionReport], limit: Int = 5) -> [EmotionKeyword] {
+        var counts: [String: Int] = [:]
+
+        reports
+            .flatMap { splitKeywords($0.emotionKeywordsRaw) }
+            .forEach { keyword in
+                counts[keyword, default: 0] += 1
+            }
+
+        return counts
+            .sorted { lhs, rhs in
+                if lhs.value == rhs.value {
+                    return lhs.key < rhs.key
+                }
+
+                return lhs.value > rhs.value
+            }
+            .prefix(limit)
+            .map { EmotionKeyword(title: $0.key, count: $0.value) }
+    }
+
+    private func reportAvailableRange(
+        from reports: [StoredReflectionReport],
+        calendar: Calendar = .current
+    ) -> PeriodRange? {
+        let yearMonths = reports.map { report in
+            let components = calendar.dateComponents([.year, .month], from: report.createdAt)
+            return YearMonth(
+                year: components.year ?? calendar.component(.year, from: Date()),
+                month: components.month ?? calendar.component(.month, from: Date())
+            )
+        }
+
+        guard let start = yearMonths.min(by: { lhs, rhs in yearMonthValue(lhs) < yearMonthValue(rhs) }),
+              let end = yearMonths.max(by: { lhs, rhs in yearMonthValue(lhs) < yearMonthValue(rhs) }) else {
+            return nil
+        }
+
+        return PeriodRange(start: start, end: end)
+    }
+
+    private func splitKeywords(_ rawValue: String) -> [String] {
+        rawValue
+            .split(separator: "|")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func yearMonthValue(_ yearMonth: YearMonth) -> Int {
+        yearMonth.year * 100 + yearMonth.month
     }
 }

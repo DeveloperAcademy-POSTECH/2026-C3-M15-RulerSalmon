@@ -6,20 +6,13 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct RetrospectiveAnalysisView: View {
-    @Environment(\.modelContext) private var modelContext
-
-    @StateObject private var viewModel: FourLResultViewModel
-    @State private var completedReport: RetrospectiveReport?
-    @State private var isShowingReport = false
-    @State private var didSaveSentimentRecord = false
+    @StateObject private var viewModel: RetrospectiveAnalysisViewModel
     private let onExitToMain: (() -> Void)?
-    private let sentimentAnalyzer = RetrospectiveSentimentAnalyzer()
 
     init(messages: [ChatMessage], onExitToMain: (() -> Void)? = nil) {
-        _viewModel = StateObject(wrappedValue: FourLResultViewModel(messages: messages))
+        _viewModel = StateObject(wrappedValue: RetrospectiveAnalysisViewModel(messages: messages))
         self.onExitToMain = onExitToMain
     }
 
@@ -35,146 +28,19 @@ struct RetrospectiveAnalysisView: View {
                     description: Text(errorMessage)
                 )
             } else {
-                RetrospectiveProcessingView(progress: .constant(progress))
+                RetrospectiveProcessingView(progress: .constant(viewModel.progress))
             }
         }
         .task {
             viewModel.generateResults()
         }
-        .onChange(of: isReportReady) { _, newValue in
-            guard newValue, let report else { return }
-            saveSentimentRecordIfNeeded()
-            completedReport = report
-            isShowingReport = true
-        }
-        .navigationDestination(isPresented: $isShowingReport) {
-            if let completedReport {
+        .navigationDestination(isPresented: $viewModel.isShowingReport) {
+            if let completedReport = viewModel.completedReport {
                 RetrospectiveReportView(
                     report: completedReport,
                     onClose: onExitToMain
                 )
             }
-        }
-    }
-
-    private var isReportReady: Bool {
-        report != nil
-    }
-
-    private var report: RetrospectiveReport? {
-        guard let summaryResult = viewModel.summaryResult,
-              !viewModel.isRefining,
-              !viewModel.isGeneratingSummary else {
-            return nil
-        }
-
-        return RetrospectiveReport(
-            summary: summaryResult.todaySummary,
-            transcript: summaryResult.refinedReflection,
-            fourLEntries: fourLEntries,
-            keywords: summaryResult.coreKeywords,
-            actionItems: summaryResult.actionItems
-        )
-    }
-
-    private var progress: Double {
-        if viewModel.isGeneratingSummary {
-            return 0.88
-        }
-
-        if viewModel.isRefining {
-            return 0.64
-        }
-
-        if !viewModel.results.isEmpty {
-            return 0.42
-        }
-
-        return 0.18
-    }
-
-    private func saveSentimentRecordIfNeeded() {
-        guard !didSaveSentimentRecord else { return }
-
-        let transcript = viewModel.userReflectionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !transcript.isEmpty else { return }
-
-        let result = sentimentAnalyzer.analyze(transcript)
-        let record = SentimentRecord(
-            createdAt: viewModel.lastUserMessageDate,
-            transcript: transcript,
-            result: result
-        )
-
-        modelContext.insert(record)
-
-        do {
-            try modelContext.save()
-            didSaveSentimentRecord = true
-        } catch {
-            print("[RetrospectiveAnalysisView] SentimentRecord save failed: \(error)")
-        }
-    }
-
-    private var fourLEntries: [FourLEntry] {
-        let order = ["Liked", "Longed for", "Lacked", "Learned"]
-        let groupedResults = viewModel.topResultsByFourL()
-
-        return order.map { label in
-            let result = groupedResults[label]?.first
-            let content = result.flatMap { viewModel.refinedTexts[$0.id] } ?? result?.text ?? emptyMessage(for: label)
-
-            return FourLEntry(
-                title: label,
-                icon: icon(for: label),
-                tintColor: tintColor(for: label),
-                content: content
-            )
-        }
-    }
-
-    private func emptyMessage(for label: String) -> String {
-        switch label {
-        case "Liked":
-            return "오늘은 좋았던 점이 뚜렷하게 기록되지 않았어요."
-        case "Longed for":
-            return "오늘은 더 바랐던 점이 뚜렷하게 기록되지 않았어요."
-        case "Lacked":
-            return "오늘은 아쉬웠던 점이 뚜렷하게 기록되지 않았어요."
-        case "Learned":
-            return "오늘은 새롭게 배운 점이 뚜렷하게 기록되지 않았어요."
-        default:
-            return "해당 회고 문장이 기록되지 않았어요."
-        }
-    }
-
-    private func icon(for label: String) -> String {
-        switch label {
-        case "Liked":
-            return "😀"
-        case "Longed for":
-            return "☘️"
-        case "Lacked":
-            return "📉"
-        case "Learned":
-            return "📘"
-        default:
-            return "•"
-        }
-    }
-
-    private func tintColor(for label: String) -> Color {
-        switch label {
-        case "Liked":
-            return Color.yellow.opacity(0.18)
-        case "Longed for":
-            return Color.green.opacity(0.12)
-        case "Lacked":
-            return Color.blue50
-        case "Learned":
-            return Color.purple.opacity(0.12)
-        default:
-            return Color.gray50
         }
     }
 }

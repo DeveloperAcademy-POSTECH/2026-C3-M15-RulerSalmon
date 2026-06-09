@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct RetrospectiveReportView: View {
-    let report: RetrospectiveReport
+    @StateObject private var viewModel: RetrospectiveReportViewModel
     private let onClose: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
 
     init(report: RetrospectiveReport = .mock, onClose: (() -> Void)? = nil) {
-        self.report = report
+        _viewModel = StateObject(wrappedValue: RetrospectiveReportViewModel(report: report))
         self.onClose = onClose
     }
 
@@ -24,7 +24,7 @@ struct RetrospectiveReportView: View {
                 .ignoresSafeArea(.all)
 
             VStack(spacing: 0) {
-                ReportNavigationBar(title: "오늘의 회고") {
+                ReportNavigationBar(title: viewModel.navigationTitle) {
                     if let onClose {
                         onClose()
                     } else {
@@ -34,10 +34,19 @@ struct RetrospectiveReportView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 22) {
-                        SummaryCard(report: report)
-                        FourLCard(entries: report.fourLEntries)
-                        KeywordSection(keywords: report.keywords)
-                        ActionItemCard(items: report.actionItems)
+                        SummaryCard(
+                            title: viewModel.summaryTitle,
+                            summary: viewModel.summary,
+                            transcript: viewModel.transcript,
+                            transcriptLinkTitle: viewModel.transcriptLinkTitle
+                        )
+                        FourLCard(title: viewModel.fourLTitle, entries: viewModel.fourLEntries)
+                        KeywordSection(title: viewModel.keywordTitle, keywords: viewModel.keywords)
+                        ActionItemCard(
+                            title: viewModel.actionItemTitle,
+                            items: viewModel.actionItems,
+                            emptyMessage: viewModel.emptyActionItemMessage
+                        )
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, ReportLayout.screenPadding)
@@ -95,12 +104,15 @@ private struct ReportNavigationBar: View {
 }
 
 private struct SummaryCard: View {
-    let report: RetrospectiveReport
+    let title: String
+    let summary: String
+    let transcript: String
+    let transcriptLinkTitle: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("오늘 회고 요약")
+                Text(title)
                     .font(.system(size: 25, weight: .bold))
                     .foregroundStyle(Color.blue500)
                     .lineLimit(1)
@@ -109,16 +121,16 @@ private struct SummaryCard: View {
                 Spacer(minLength: 12)
 
                 NavigationLink {
-                    TranscriptPlaceholderView(transcript: report.transcript)
+                    TranscriptPlaceholderView(transcript: transcript)
                 } label: {
-                    Text("전사문 보기 >")
+                    Text(transcriptLinkTitle)
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(Color.blue500)
                 }
                 .buttonStyle(.plain)
             }
 
-            Text(report.summary)
+            Text(summary)
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Color.blue500)
                 .lineSpacing(5)
@@ -135,11 +147,12 @@ private struct SummaryCard: View {
 }
 
 private struct FourLCard: View {
+    let title: String
     let entries: [FourLEntry]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("오늘의 4L 회고")
+            Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
@@ -196,11 +209,12 @@ private struct FourLEntryRow: View {
 }
 
 private struct KeywordSection: View {
+    let title: String
     let keywords: [String]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("핵심 키워드")
+            Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
@@ -224,17 +238,26 @@ private struct KeywordSection: View {
 }
 
 private struct ActionItemCard: View {
+    let title: String
     let items: [String]
+    let emptyMessage: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("내일의 Action Item")
+            Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
-            VStack(spacing: 12) {
-                ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                    ActionItemRow(number: index + 1, text: item)
+            if items.isEmpty {
+                Text(emptyMessage)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.gray600)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        ActionItemRow(number: index + 1, text: item)
+                    }
                 }
             }
         }
@@ -377,62 +400,6 @@ private struct FlowRow {
 private struct FlowItem {
     let subview: LayoutSubviews.Element
     let size: CGSize
-}
-
-struct RetrospectiveReport {
-    let summary: String
-    let transcript: String
-    let fourLEntries: [FourLEntry]
-    let keywords: [String]
-    let actionItems: [String]
-}
-
-struct FourLEntry: Identifiable {
-    let id = UUID()
-    let title: String
-    let icon: String
-    let tintColor: Color
-    let content: String
-}
-
-extension RetrospectiveReport {
-    static let mock = RetrospectiveReport(
-        summary: "긴장했던 회의를 안정적으로 끝냈고, 그 과정에서 준비와 호흡이 도움이 됐다는 점을 확인했어요.",
-        transcript: """
-        오늘 회의는 처음에는 긴장됐지만, 준비했던 내용을 차근차근 말하면서 안정적으로 마무리할 수 있었어요. 피드백을 받는 과정에서 내가 더 보완해야 할 부분도 보였고, 다음에는 작은 시도부터 해보고 싶어요.
-        """,
-        fourLEntries: [
-            FourLEntry(
-                title: "Liked",
-                icon: "😀",
-                tintColor: Color.blue50,
-                content: "길을 지나가는데 떡꼬치 냄새가 너무 좋아서 행복했어요. 이렇게 글을 두 줄 이상 쓰면 어떻게 되는지 한번 볼까요?"
-            ),
-            FourLEntry(
-                title: "Longed for",
-                icon: "☘️",
-                tintColor: Color.green.opacity(0.12),
-                content: "떡꼬치가 너무 먹고 싶었어요..."
-            ),
-            FourLEntry(
-                title: "Lacked",
-                icon: "📉",
-                tintColor: Color.yellow.opacity(0.18),
-                content: "떡꼬치를 사먹고 싶었는데 500원이 부족했어요."
-            ),
-            FourLEntry(
-                title: "Learned",
-                icon: "📉",
-                tintColor: Color.purple.opacity(0.12),
-                content: "떡꼬치를 먹으려면 1500원이 아니라 2000원이 필요하다는 사실을 배웠어요."
-            )
-        ],
-        keywords: ["집중", "회복", "산책", "작은시도"],
-        actionItems: [
-            "오전 첫 30분은 알림을 끄고 가장 작은 일 하나만 시작하기",
-            "점심 이후 10분 산책을 캘린더에 먼저 넣어두기"
-        ]
-    )
 }
 
 struct RetrospectiveReportView_Previews: PreviewProvider {

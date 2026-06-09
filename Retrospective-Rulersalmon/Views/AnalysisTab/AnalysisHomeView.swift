@@ -5,9 +5,21 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AnalysisHomeView: View {
     @StateObject private var viewModel = AnalysisHomeViewModel()
+
+    @Query(sort: \StoredReflectionReport.createdAt, order: .reverse)
+    private var storedReports: [StoredReflectionReport]
+
+    private var availableRange: PeriodRange {
+        viewModel.availableRange(from: storedReports)
+    }
+
+    private var emotionKeywordStatistics: [EmotionKeyword] {
+        viewModel.emotionKeywords(from: storedReports)
+    }
 
     var body: some View {
         ZStack {
@@ -32,10 +44,11 @@ struct AnalysisHomeView: View {
                     SatisfactionTrendSection(
                         data: viewModel.selectedData,
                         year: viewModel.selectedYear,
-                        month: viewModel.selectedMonth
+                        month: viewModel.selectedMonth,
+                        selectedMode: $viewModel.selectedMode
                     )
                     SentimentRatioSection()
-                    StrengthKeywordSection(keywords: viewModel.selectedData.strengthKeywords)
+                    EmotionKeywordSection(keywords: emotionKeywordStatistics)
                     InsightListSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -45,13 +58,13 @@ struct AnalysisHomeView: View {
             }
         }
         .onAppear {
-            viewModel.normalizeSelectedPeriod()
+            viewModel.normalizeSelectedPeriod(for: storedReports)
         }
         .sheet(isPresented: $viewModel.isPeriodSheetPresented) {
             PeriodSelectionSheet(
                 selectedYear: $viewModel.selectedYear,
                 selectedMonth: $viewModel.selectedMonth,
-                availableRange: viewModel.availableRange,
+                availableRange: availableRange,
                 isPresented: $viewModel.isPeriodSheetPresented
             )
             .presentationDetents([.height(300)])
@@ -121,10 +134,10 @@ private struct SatisfactionTrendSection: View {
     let year: Int
     let month: Int
 
-    @State private var selectedChartMode: SatisfactionChartMode = .weekly
+    @Binding var selectedMode: SatisfactionChartMode
 
     private var selectedPoints: [SatisfactionPoint] {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return data.weeklySatisfactionPoints
         case .monthly:
@@ -133,7 +146,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var xAxisLabels: [SatisfactionAxisLabel] {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return weeklyAxisLabels
         case .monthly:
@@ -142,7 +155,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var chartRange: String {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return weeklyChartRange
         case .monthly:
@@ -209,7 +222,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var summaryTitle: String {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return "이번 주 만족도 흐름을 확인해요"
         case .monthly:
@@ -218,7 +231,7 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var summaryDescription: String {
-        switch selectedChartMode {
+        switch selectedMode {
         case .weekly:
             return "오늘에 가까워질수록 긍정 흐름이 커졌고, 6월 전체 상승 흐름의 시작점으로 보여요."
         case .monthly:
@@ -240,13 +253,13 @@ private struct SatisfactionTrendSection: View {
                     .foregroundStyle(Color.gray600)
             }
 
-            SatisfactionChartModeSegmentedControl(selectedMode: $selectedChartMode)
+            SatisfactionChartModeSegmentedControl(selectedMode: $selectedMode)
 
             SatisfactionLineChart(
                 points: selectedPoints,
                 xAxisLabels: xAxisLabels,
-                showsPointMarkers: selectedChartMode == .weekly,
-                highlightsLastPoint: selectedChartMode == .monthly
+                showsPointMarkers: selectedMode == .weekly,
+                highlightsLastPoint: selectedMode == .monthly
             )
             .frame(height: AnalysisHomeLayout.chartHeight)
             .padding(.top, 14)
@@ -274,20 +287,6 @@ private struct SatisfactionTrendSection: View {
                 RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
                     .fill(Color.gray50)
             }
-        }
-    }
-}
-
-private enum SatisfactionChartMode: CaseIterable {
-    case weekly
-    case monthly
-
-    var title: String {
-        switch self {
-        case .weekly:
-            return "주간"
-        case .monthly:
-            return "월간"
         }
     }
 }
@@ -323,8 +322,8 @@ private struct SatisfactionChartModeSegmentedControl: View {
     }
 }
 
-private struct StrengthKeywordSection: View {
-    let keywords: [StrengthKeyword]
+private struct EmotionKeywordSection: View {
+    let keywords: [EmotionKeyword]
 
     private var maxCount: CGFloat {
         CGFloat(keywords.map(\.count).max() ?? 1)
@@ -332,20 +331,27 @@ private struct StrengthKeywordSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("감정 키워드")
+            Text("감정 키워드 top5")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
             VStack(spacing: 8) {
-                ForEach(keywords) { keyword in
-                    StrengthKeywordRow(
-                        keyword: keyword,
-                        progress: CGFloat(keyword.count) / maxCount
-                    )
+                if keywords.isEmpty {
+                    Text("아직 누적된 감정 키워드가 없어요.")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.gray600)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    ForEach(keywords) { keyword in
+                        EmotionRow(
+                            keyword: keyword,
+                            progress: CGFloat(keyword.count) / maxCount
+                        )
+                    }
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 34)
+            .padding(.vertical, keywords.isEmpty ? 28 : 34)
             .background {
                 RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
                     .fill(Color.white)
@@ -359,8 +365,8 @@ private struct StrengthKeywordSection: View {
     }
 }
 
-private struct StrengthKeywordRow: View {
-    let keyword: StrengthKeyword
+private struct EmotionRow: View {
+    let keyword: EmotionKeyword
     let progress: CGFloat
 
     var body: some View {
