@@ -7,20 +7,7 @@
 import SwiftUI
 
 struct AnalysisHomeView: View {
-    @State private var selectedYear = Calendar.current.component(.year, from: Date())
-    @State private var selectedMonth = Calendar.current.component(.month, from: Date())
-    @State private var isPeriodSheetPresented = false
-
-    private var selectedData: MonthlyAnalysisData {
-        MonthlyAnalysisMockData.data(
-            year: selectedYear,
-            month: selectedMonth
-        )
-    }
-
-    private var availableRange: PeriodRange {
-        MonthlyAnalysisMockData.availableRange
-    }
+    @StateObject private var viewModel = AnalysisHomeViewModel()
 
     var body: some View {
         ZStack {
@@ -30,21 +17,21 @@ struct AnalysisHomeView: View {
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 32) {
                     PeriodSelectorButton(
-                        year: selectedYear,
-                        month: selectedMonth
+                        year: viewModel.selectedYear,
+                        month: viewModel.selectedMonth
                     ) {
-                        isPeriodSheetPresented = true
+                        viewModel.showPeriodSheet()
                     }
 
                     MonthlySatisfactionSummaryCard(
-                        month: selectedMonth,
-                        score: selectedData.monthlyScore,
-                        title: selectedData.monthlyTitle
+                        month: viewModel.selectedMonth,
+                        score: viewModel.selectedData.monthlyScore,
+                        title: viewModel.selectedData.monthlyTitle
                     )
 
-                    SatisfactionTrendSection(data: selectedData)
+                    SatisfactionTrendSection(data: viewModel.selectedData)
                     SentimentRatioSection()
-                    StrengthKeywordSection(keywords: selectedData.strengthKeywords)
+                    StrengthKeywordSection(keywords: viewModel.selectedData.strengthKeywords)
                     InsightListSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -54,14 +41,14 @@ struct AnalysisHomeView: View {
             }
         }
         .onAppear {
-            normalizeSelectedPeriod()
+            viewModel.normalizeSelectedPeriod()
         }
-        .sheet(isPresented: $isPeriodSheetPresented) {
+        .sheet(isPresented: $viewModel.isPeriodSheetPresented) {
             PeriodSelectionSheet(
-                selectedYear: $selectedYear,
-                selectedMonth: $selectedMonth,
-                availableRange: availableRange,
-                isPresented: $isPeriodSheetPresented
+                selectedYear: $viewModel.selectedYear,
+                selectedMonth: $viewModel.selectedMonth,
+                availableRange: viewModel.availableRange,
+                isPresented: $viewModel.isPeriodSheetPresented
             )
             .presentationDetents([.height(300)])
         }
@@ -76,15 +63,6 @@ struct AnalysisHomeView: View {
         }
         .toolbarBackground(Color.white, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-    }
-
-    private func normalizeSelectedPeriod() {
-        guard !availableRange.contains(year: selectedYear, month: selectedMonth) else {
-            return
-        }
-
-        selectedYear = availableRange.end.year
-        selectedMonth = availableRange.end.month
     }
 }
 
@@ -473,30 +451,6 @@ private struct InsightCard: View {
     }
 }
 
-private struct YearMonth {
-    let year: Int
-    let month: Int
-}
-
-private struct PeriodRange {
-    let start: YearMonth
-    let end: YearMonth
-
-    func contains(year: Int, month: Int) -> Bool {
-        let targetValue = year * 100 + month
-        return targetValue >= start.year * 100 + start.month
-            && targetValue <= end.year * 100 + end.month
-    }
-
-    func canMove(to year: Int) -> Bool {
-        year >= start.year && year <= end.year
-    }
-
-    func isMonthEnabled(year: Int, month: Int) -> Bool {
-        contains(year: year, month: month)
-    }
-}
-
 private struct PeriodSelectorButton: View {
     let year: Int
     let month: Int
@@ -646,102 +600,6 @@ private struct PeriodSelectionSheet: View {
 
         return isSelected ? Color.blue600 : Color.gray600
     }
-}
-
-private enum MonthlyAnalysisMockData {
-    static var availableRange: PeriodRange {
-        let currentDate = Date()
-        let calendar = Calendar.current
-        let currentYear = calendar.component(.year, from: currentDate)
-        let currentMonth = calendar.component(.month, from: currentDate)
-
-        return PeriodRange(
-            start: YearMonth(year: 2026, month: 1),
-            end: YearMonth(year: currentYear, month: currentMonth)
-        )
-    }
-
-    static func data(year: Int, month: Int) -> MonthlyAnalysisData {
-        monthly
-    }
-
-    private static let monthly = MonthlyAnalysisData(
-        monthlyScore: "4.1",
-        monthlyTitle: "안정적인 한 달이었어요",
-        strengthKeywords: [
-            StrengthKeyword(title: "성장", count: 24),
-            StrengthKeyword(title: "감사", count: 18),
-            StrengthKeyword(title: "도전", count: 16),
-            StrengthKeyword(title: "설렘", count: 14),
-            StrengthKeyword(title: "불안", count: 9)
-        ],
-        weeklySatisfactionPoints: [
-            SatisfactionPoint(value: 3.4),
-            SatisfactionPoint(value: 3.7),
-            SatisfactionPoint(value: 4.0),
-            SatisfactionPoint(value: 3.8),
-            SatisfactionPoint(value: 4.1),
-            SatisfactionPoint(value: 4.3),
-            SatisfactionPoint(value: 4.5)
-        ],
-        monthlySatisfactionPoints: [
-            SatisfactionPoint(value: 3.6),
-            SatisfactionPoint(value: 3.8),
-            SatisfactionPoint(value: nil),
-            SatisfactionPoint(value: 4.1),
-            SatisfactionPoint(value: 3.9),
-            SatisfactionPoint(value: 4.3),
-            SatisfactionPoint(value: 4.0),
-            SatisfactionPoint(value: nil),
-            SatisfactionPoint(value: 3.7),
-            SatisfactionPoint(value: 3.8),
-            SatisfactionPoint(value: 4.2),
-            SatisfactionPoint(value: 4.4),
-            SatisfactionPoint(value: 4.1),
-            SatisfactionPoint(value: nil),
-            SatisfactionPoint(value: 3.9),
-            SatisfactionPoint(value: 4.0),
-            SatisfactionPoint(value: 4.2),
-            SatisfactionPoint(value: 4.3),
-            SatisfactionPoint(value: nil),
-            SatisfactionPoint(value: 4.1),
-            SatisfactionPoint(value: 4.4),
-            SatisfactionPoint(value: 4.2),
-            SatisfactionPoint(value: 4.5),
-            SatisfactionPoint(value: nil),
-            SatisfactionPoint(value: 4.0),
-            SatisfactionPoint(value: 4.1),
-            SatisfactionPoint(value: 4.3),
-            SatisfactionPoint(value: 4.4),
-            SatisfactionPoint(value: 4.2),
-            SatisfactionPoint(value: 4.3)
-        ]
-    )
-}
-
-private struct MonthlyAnalysisData {
-    let monthlyScore: String
-    let monthlyTitle: String
-    let strengthKeywords: [StrengthKeyword]
-    let weeklySatisfactionPoints: [SatisfactionPoint]
-    let monthlySatisfactionPoints: [SatisfactionPoint]
-}
-
-private struct StrengthKeyword: Identifiable {
-    let id = UUID()
-    let title: String
-    let count: Int
-}
-
-private struct SatisfactionPoint: Identifiable {
-    let id = UUID()
-    let value: CGFloat?
-}
-
-private struct SatisfactionAxisLabel: Identifiable {
-    let id = UUID()
-    let index: Int
-    let title: String
 }
 
 private struct SatisfactionLineChart: View {
@@ -896,68 +754,6 @@ private struct SatisfactionLineChart: View {
 
     private func plotMaxY(in size: CGSize) -> CGFloat {
         chartTopInset + plotHeight(in: size)
-    }
-}
-
-private struct FlowLayout: Layout {
-    let spacing: CGFloat
-    let lineSpacing: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        var currentX: CGFloat = 0
-        var currentLineHeight: CGFloat = 0
-        var totalHeight: CGFloat = 0
-        var widestLine: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            let needsNewLine = currentX > 0 && currentX + spacing + size.width > maxWidth
-
-            if needsNewLine {
-                widestLine = max(widestLine, currentX)
-                totalHeight += currentLineHeight + lineSpacing
-                currentX = 0
-                currentLineHeight = 0
-            }
-
-            if currentX > 0 {
-                currentX += spacing
-            }
-
-            currentX += size.width
-            currentLineHeight = max(currentLineHeight, size.height)
-        }
-
-        widestLine = max(widestLine, currentX)
-        totalHeight += currentLineHeight
-
-        return CGSize(width: maxWidth.isFinite ? maxWidth : widestLine, height: totalHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var currentX = bounds.minX
-        var currentY = bounds.minY
-        var currentLineHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            let needsNewLine = currentX > bounds.minX && currentX + spacing + size.width > bounds.maxX
-
-            if needsNewLine {
-                currentX = bounds.minX
-                currentY += currentLineHeight + lineSpacing
-                currentLineHeight = 0
-            }
-
-            subview.place(
-                at: CGPoint(x: currentX, y: currentY),
-                proposal: ProposedViewSize(size)
-            )
-
-            currentX += size.width + spacing
-            currentLineHeight = max(currentLineHeight, size.height)
-        }
     }
 }
 
