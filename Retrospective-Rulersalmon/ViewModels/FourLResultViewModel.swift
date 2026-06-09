@@ -71,20 +71,6 @@ final class FourLResultViewModel: ObservableObject {
         fourLService.topResultsByFourL(from: results, limit: limit)
     }
 
-    var userReflectionText: String {
-        messages
-            .filter { $0.role == .user }
-            .map(\.text)
-            .joined(separator: "\n")
-    }
-
-    var lastUserMessageDate: Date {
-        messages
-            .filter { $0.role == .user }
-            .map(\.date)
-            .max() ?? Date()
-    }
-
     private func refineResults() async {
         isRefining = true
 

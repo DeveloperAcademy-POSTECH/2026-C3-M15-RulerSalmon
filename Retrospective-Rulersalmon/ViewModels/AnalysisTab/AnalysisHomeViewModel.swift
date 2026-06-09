@@ -15,16 +15,9 @@ final class AnalysisHomeViewModel: ObservableObject {
 
     private let dataProvider: AnalysisDataProviding
 
-    convenience init(selectedDate: Date = Date()) {
-        self.init(
-            selectedDate: selectedDate,
-            dataProvider: AnalysisSwiftDataProvider()
-        )
-    }
-
     init(
         selectedDate: Date = Date(),
-        dataProvider: AnalysisDataProviding
+        dataProvider: AnalysisDataProviding = AnalysisMockDataProvider()
     ) {
         let calendar = Calendar.current
         self.selectedYear = calendar.component(.year, from: selectedDate)

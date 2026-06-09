@@ -19,8 +19,7 @@ final class AppDataStore {
             container = try ModelContainer(
                 for: StoredUserProfile.self,
                 StoredReflectionSession.self,
-                StoredReflectionMemoryRecord.self,
-                SentimentRecord.self
+                StoredReflectionMemoryRecord.self
             )
             logStorageLocation()
         } catch {
@@ -161,32 +160,6 @@ final class AppDataStore {
             mentorGreeting: mentorGreeting(for: mentorName),
             retrospectives: retrospectives
         )
-    }
-
-    func sentimentRecords(year: Int, month: Int) -> [SentimentRecord] {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-
-        let components = DateComponents(year: year, month: month)
-        guard
-            let startDate = calendar.date(from: components),
-            let endDate = calendar.date(byAdding: .month, value: 1, to: startDate)
-        else { return [] }
-
-        return sentimentRecords(startDate: startDate, endDate: endDate)
-    }
-
-    func sentimentRecords(startDate: Date, endDate: Date) -> [SentimentRecord] {
-        let predicate = #Predicate<SentimentRecord> { record in
-            record.createdAt >= startDate && record.createdAt < endDate
-        }
-
-        let descriptor = FetchDescriptor<SentimentRecord>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\.createdAt)]
-        )
-
-        return (try? context.fetch(descriptor)) ?? []
     }
 
     private func recentRetrospectiveItems(limit: Int) -> [RetrospectiveItem] {
