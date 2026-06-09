@@ -7,6 +7,21 @@
 import SwiftUI
 
 struct AnalysisHomeView: View {
+    @State private var selectedYear = Calendar.current.component(.year, from: Date())
+    @State private var selectedMonth = Calendar.current.component(.month, from: Date())
+    @State private var isPeriodSheetPresented = false
+
+    private var selectedData: MonthlyAnalysisData {
+        MonthlyAnalysisMockData.data(
+            year: selectedYear,
+            month: selectedMonth
+        )
+    }
+
+    private var availableRange: PeriodRange {
+        MonthlyAnalysisMockData.availableRange
+    }
+
     var body: some View {
         ZStack {
             Color.white
@@ -14,18 +29,62 @@ struct AnalysisHomeView: View {
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 32) {
-                    WeeklySummaryCard()
+                    PeriodSelectorButton(
+                        year: selectedYear,
+                        month: selectedMonth
+                    ) {
+                        isPeriodSheetPresented = true
+                    }
+
+                    MonthlySatisfactionSummaryCard(
+                        month: selectedMonth,
+                        score: selectedData.monthlyScore,
+                        title: selectedData.monthlyTitle
+                    )
+
+                    SatisfactionTrendSection(data: selectedData)
+                    SentimentRatioSection()
+                    StrengthKeywordSection(keywords: selectedData.strengthKeywords)
                     InsightListSection()
-                    PastRetrospectiveSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, AnalysisHomeLayout.screenPadding)
-                .padding(.top, 32)
+                .padding(.top, 16)
                 .padding(.bottom, 36)
             }
         }
-        .navigationTitle("회고 분석")
+        .onAppear {
+            normalizeSelectedPeriod()
+        }
+        .sheet(isPresented: $isPeriodSheetPresented) {
+            PeriodSelectionSheet(
+                selectedYear: $selectedYear,
+                selectedMonth: $selectedMonth,
+                availableRange: availableRange,
+                isPresented: $isPeriodSheetPresented
+            )
+            .presentationDetents([.height(300)])
+        }
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("회고 분석")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(Color.gray900)
+            }
+        }
+        .toolbarBackground(Color.white, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+    }
+
+    private func normalizeSelectedPeriod() {
+        guard !availableRange.contains(year: selectedYear, month: selectedMonth) else {
+            return
+        }
+
+        selectedYear = availableRange.end.year
+        selectedMonth = availableRange.end.month
     }
 }
 
@@ -33,101 +92,322 @@ private enum AnalysisHomeLayout {
     static let screenPadding: CGFloat = 16
     static let cardPadding: CGFloat = 16
     static let cardCornerRadius: CGFloat = 18
-    static let rowHorizontalPadding: CGFloat = 16
-    static let rowVerticalPadding: CGFloat = 12
+    static let chartHeight: CGFloat = 152
 }
 
-private struct WeeklySummaryCard: View {
+private struct MonthlySatisfactionSummaryCard: View {
+    let month: Int
+    let score: String
+    let title: String
+
     var body: some View {
-        VStack(spacing: AnalysisHomeLayout.cardPadding) {
-            HStack(alignment: .center, spacing: AnalysisHomeLayout.cardPadding) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("이번 주 만족도")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.gray600)
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("\(month)월 만족도")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.gray600)
 
-                    Text("긍정적인 흐름이 컸어요")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Color.gray900)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                HStack(alignment: .lastTextBaseline, spacing: 0) {
-                    Text("4.3")
-                        .font(.system(size: 26, weight: .heavy))
-                    Text("/5")
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                .foregroundStyle(Color.blue600)
-                .frame(width: 88, height: 64)
-                .background {
-                    RoundedRectangle(cornerRadius: 32)
-                        .fill(Color.blue50)
-                }
+                Text(title)
+                    .font(.system(size: 23, weight: .bold))
+                    .foregroundStyle(Color.gray900)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            SentimentToneBar()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
+            HStack(alignment: .lastTextBaseline, spacing: 0) {
+                Text(score)
+                    .font(.system(size: 26, weight: .heavy))
+                    .foregroundStyle(Color.blue500)
 
-            Divider()
-
-            NavigationLink {
-                WeeklyAnalysisView()
-            } label: {
-                HStack {
-                    Text("기간별 회고 패턴 보기")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Color.gray600)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.gray600)
-                }
-                .frame(height: 35)
-                .contentShape(Rectangle())
+                Text("/5")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.gray600)
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("기간별 인사이트 화면으로 이동")
+            .layoutPriority(1)
         }
         .padding(AnalysisHomeLayout.cardPadding)
         .background {
             RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
-                .fill(Color.gray50)
+                .fill(Color.blue50)
         }
     }
 }
 
-private struct SentimentToneBar: View {
+private struct SatisfactionTrendSection: View {
+    let data: MonthlyAnalysisData
+
+    @State private var selectedChartMode: SatisfactionChartMode = .weekly
+
+    private var selectedPoints: [SatisfactionPoint] {
+        switch selectedChartMode {
+        case .weekly:
+            return data.weeklySatisfactionPoints
+        case .monthly:
+            return data.monthlySatisfactionPoints
+        }
+    }
+
+    private var xAxisLabels: [SatisfactionAxisLabel] {
+        switch selectedChartMode {
+        case .weekly:
+            return [
+                SatisfactionAxisLabel(index: 0, title: "6.2"),
+                SatisfactionAxisLabel(index: 1, title: "6.3"),
+                SatisfactionAxisLabel(index: 2, title: "6.4"),
+                SatisfactionAxisLabel(index: 3, title: "6.5"),
+                SatisfactionAxisLabel(index: 4, title: "6.6"),
+                SatisfactionAxisLabel(index: 5, title: "6.7"),
+                SatisfactionAxisLabel(index: 6, title: "6.8")
+            ]
+        case .monthly:
+            return [
+                SatisfactionAxisLabel(index: 0, title: "1일"),
+                SatisfactionAxisLabel(index: 7, title: "8일"),
+                SatisfactionAxisLabel(index: 14, title: "15일"),
+                SatisfactionAxisLabel(index: 21, title: "22일"),
+                SatisfactionAxisLabel(index: 29, title: "30일")
+            ]
+        }
+    }
+
+    private var chartRange: String {
+        switch selectedChartMode {
+        case .weekly:
+            return "6.2 ~ 6.8"
+        case .monthly:
+            return "2026년 6월"
+        }
+    }
+
+    private var summaryTitle: String {
+        switch selectedChartMode {
+        case .weekly:
+            return "최근 7일은 후반으로 갈수록 만족도가 올랐어요"
+        case .monthly:
+            return "6월은 후반부로 갈수록 더 안정적이었어요"
+        }
+    }
+
+    private var summaryDescription: String {
+        switch selectedChartMode {
+        case .weekly:
+            return "오늘에 가까워질수록 긍정 흐름이 커졌고, 6월 전체 상승 흐름의 시작점으로 보여요."
+        case .monthly:
+            return "일별 변동은 있었지만 전체 흐름은 완만하게 좋아졌고, 마지막 구간의 만족도가 높게 유지됐어요."
+        }
+    }
+
     var body: some View {
-        VStack(spacing: 8) {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.gray200)
-
-                    Capsule()
-                        .fill(Color.blue600)
-                        .frame(width: geometry.size.width * 0.82)
-                }
-            }
-            .frame(height: 13)
-
-            HStack {
-                Text("긍정 82%")
-                    .font(.system(size: 13, weight: .semibold))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("만족도 흐름")
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Color.gray900)
 
                 Spacer()
 
-                Text("부정 18%")
-                    .font(.system(size: 13, weight: .semibold))
+                Text(chartRange)
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color.gray600)
             }
+
+            SatisfactionChartModeSegmentedControl(selectedMode: $selectedChartMode)
+
+            SatisfactionLineChart(
+                points: selectedPoints,
+                xAxisLabels: xAxisLabels,
+                showsPointMarkers: selectedChartMode == .weekly,
+                highlightsLastPoint: selectedChartMode == .monthly
+            )
+            .frame(height: AnalysisHomeLayout.chartHeight)
+            .padding(.top, 14)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.gray200)
+                    .frame(height: 1)
+            }
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text(summaryTitle)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.gray900)
+                    .lineSpacing(2)
+
+                Text(summaryDescription)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.gray600)
+                    .lineSpacing(3)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, AnalysisHomeLayout.cardPadding)
+            .padding(.vertical, 14)
+            .background {
+                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                    .fill(Color.gray50)
+            }
+        }
+    }
+}
+
+private enum SatisfactionChartMode: CaseIterable {
+    case weekly
+    case monthly
+
+    var title: String {
+        switch self {
+        case .weekly:
+            return "주간"
+        case .monthly:
+            return "월간"
+        }
+    }
+}
+
+private struct SatisfactionChartModeSegmentedControl: View {
+    @Binding var selectedMode: SatisfactionChartMode
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(SatisfactionChartMode.allCases, id: \.self) { mode in
+                Button {
+                    selectedMode = mode
+                } label: {
+                    Text(mode.title)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(selectedMode == mode ? Color.gray900 : Color.gray600)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 32)
+                        .background {
+                            Capsule()
+                                .fill(selectedMode == mode ? Color.white : Color.clear)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selectedMode == mode ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background {
+            Capsule()
+                .fill(Color.gray200)
+        }
+    }
+}
+
+private struct StrengthKeywordSection: View {
+    let keywords: [StrengthKeyword]
+
+    private var maxCount: CGFloat {
+        CGFloat(keywords.map(\.count).max() ?? 1)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("강점 키워드")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Color.gray900)
+
+            VStack(spacing: 8) {
+                ForEach(keywords) { keyword in
+                    StrengthKeywordRow(
+                        keyword: keyword,
+                        progress: CGFloat(keyword.count) / maxCount
+                    )
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 34)
+            .background {
+                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                    .fill(Color.white)
+                    .shadow(color: Color.gray900.opacity(0.05), radius: 18, x: 0, y: 8)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                    .stroke(Color.gray300, lineWidth: 1)
+            }
+        }
+    }
+}
+
+private struct StrengthKeywordRow: View {
+    let keyword: StrengthKeyword
+    let progress: CGFloat
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(keyword.title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.gray900)
+                .frame(width: 70, alignment: .leading)
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.gray200)
+                        .frame(height: 6)
+
+                    Capsule()
+                        .fill(Color.blue500)
+                        .frame(width: geometry.size.width * progress, height: 6)
+                }
+                .frame(maxHeight: .infinity)
+            }
+            .frame(height: 18)
+
+            Text("\(keyword.count)")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.gray600)
+                .frame(width: 46, alignment: .trailing)
+        }
+        .frame(height: 18)
+    }
+}
+
+private struct SentimentRatioSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("감정 비율")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Color.gray900)
+
+            VStack(spacing: 10) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.gray200)
+
+                        Capsule()
+                            .fill(Color.blue500)
+                            .frame(width: geometry.size.width * 0.82)
+                    }
+                }
+                .frame(height: 10)
+
+                HStack {
+                    Text("긍정 82%")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.blue500)
+
+                    Spacer()
+
+                    Text("부정 18%")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.gray600)
+                }
+            }
+            .padding(AnalysisHomeLayout.cardPadding)
+            .background {
+                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                    .fill(Color.white)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                    .stroke(Color.gray300, lineWidth: 1)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("긍정 82퍼센트, 부정 18퍼센트")
         }
     }
 }
@@ -135,14 +415,12 @@ private struct SentimentToneBar: View {
 private struct InsightListSection: View {
     private let insights = [
         InsightItem(
-            title: "반성 포인트",
-            count: "4회",
-            description: "시간 관리 관련 회고가 많지만 아직 개선 흐름이 약해요. 우선순위 정리가 필요해 보여요."
+            title: "강점 포인트",
+            description: "이번 달에는 성장과 감사 키워드가 자주 나타났어요. 월간 흐름에서는 후반부가 가장 안정적으로 보였어요."
         ),
         InsightItem(
-            title: "강점 포인트",
-            count: "4회",
-            description: "팀 피드백을 빠르게 받아들이고 시도하는 점이 자주 보여요. 협업 적응력이 강점이에요."
+            title: "반성 포인트",
+            description: "시간 관리 회고는 월간 누적에서 계속 반복되고 있어요. 다음 달에는 우선순위를 먼저 정하는 방식이 좋아 보여요."
         )
     ]
 
@@ -152,18 +430,10 @@ private struct InsightListSection: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
-            VStack(spacing: 0) {
-                Divider()
-
+            VStack(spacing: 10) {
                 ForEach(insights) { insight in
-                    InsightRow(item: insight)
-
-                    if insight.id != insights.last?.id {
-                        Divider()
-                    }
+                    InsightCard(item: insight)
                 }
-
-                Divider()
             }
         }
     }
@@ -172,118 +442,522 @@ private struct InsightListSection: View {
 private struct InsightItem: Identifiable {
     let id = UUID()
     let title: String
-    let count: String
     let description: String
 }
 
-private struct InsightRow: View {
+private struct InsightCard: View {
     let item: InsightItem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(item.title)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color.gray900)
-
-                Spacer()
-
-                Text(item.count)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.gray600)
-                    .padding(.horizontal, 18)
-                    .frame(height: 25)
-                    .background {
-                        Capsule()
-                            .fill(Color.gray50)
-                    }
-            }
+            Text(item.title)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Color.gray900)
 
             Text(item.description)
-                .font(.system(size: 14))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Color.gray600)
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 12)
-        .background(Color.white)
+        .padding(AnalysisHomeLayout.cardPadding)
+        .background {
+            RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                .fill(Color.white)
+                .shadow(color: Color.gray900.opacity(0.05), radius: 18, x: 0, y: 8)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                .stroke(Color.gray300, lineWidth: 1)
+        }
     }
 }
 
-private struct PastRetrospectiveSection: View {
-    private let items = [
-        PastRetrospectiveItem(date: "5/19", title: "작게 회복한 하루"),
-        PastRetrospectiveItem(date: "5/18", title: "작게 회복한 하루"),
-        PastRetrospectiveItem(date: "5/17", title: "작게 회복한 하루"),
-        PastRetrospectiveItem(date: "5/16", title: "작게 회복한 하루"),
-        PastRetrospectiveItem(date: "5/15", title: "작게 회복한 하루"),
-        PastRetrospectiveItem(date: "5/14", title: "작게 회복한 하루")
-    ]
+private struct YearMonth {
+    let year: Int
+    let month: Int
+}
+
+private struct PeriodRange {
+    let start: YearMonth
+    let end: YearMonth
+
+    func contains(year: Int, month: Int) -> Bool {
+        let targetValue = year * 100 + month
+        return targetValue >= start.year * 100 + start.month
+            && targetValue <= end.year * 100 + end.month
+    }
+
+    func canMove(to year: Int) -> Bool {
+        year >= start.year && year <= end.year
+    }
+
+    func isMonthEnabled(year: Int, month: Int) -> Bool {
+        contains(year: year, month: month)
+    }
+}
+
+private struct PeriodSelectorButton: View {
+    let year: Int
+    let month: Int
+    let action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("지난 회고들")
-                    .font(.system(size: 18, weight: .bold))
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("\(String(year))년 \(month)월")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color.gray900)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.gray600)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 36)
+            .background {
+                Capsule()
+                    .fill(Color.gray50)
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel("\(year)년 \(month)월 기간 선택")
+    }
+}
+
+private struct PeriodSelectionSheet: View {
+    @Binding var selectedYear: Int
+    @Binding var selectedMonth: Int
+    let availableRange: PeriodRange
+    @Binding var isPresented: Bool
+
+    @State private var displayedYear: Int
+
+    init(
+        selectedYear: Binding<Int>,
+        selectedMonth: Binding<Int>,
+        availableRange: PeriodRange,
+        isPresented: Binding<Bool>
+    ) {
+        _selectedYear = selectedYear
+        _selectedMonth = selectedMonth
+        self.availableRange = availableRange
+        _isPresented = isPresented
+        _displayedYear = State(initialValue: selectedYear.wrappedValue)
+    }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Capsule()
+                .fill(Color.gray300)
+                .frame(width: 42, height: 4)
+                .padding(.top, 8)
+
+            HStack {
+                Text("기간 선택")
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(Color.gray900)
 
                 Spacer()
 
-                Text("지난 회고 보기 >")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Color.gray300)
+                Button("완료") {
+                    isPresented = false
+                }
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Color.blue600)
+                .buttonStyle(.plain)
             }
 
-            VStack(spacing: 0) {
-                Divider()
-                    .background(Color.black)
+            HStack {
+                yearButton(systemName: "chevron.left", year: displayedYear - 1)
 
-                ForEach(items) { item in
-                    PastRetrospectiveRow(item: item)
+                Text("\(String(displayedYear))년")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.gray900)
+                    .frame(maxWidth: .infinity)
+
+                yearButton(systemName: "chevron.right", year: displayedYear + 1)
+            }
+            .frame(height: 38)
+            .background {
+                Capsule()
+                    .fill(Color.gray50)
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                ForEach(1...12, id: \.self) { month in
+                    monthButton(month)
                 }
             }
         }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 18)
+    }
+
+    private func yearButton(systemName: String, year: Int) -> some View {
+        Button {
+            guard availableRange.canMove(to: year) else { return }
+            displayedYear = year
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(availableRange.canMove(to: year) ? Color.gray600 : Color.gray300)
+                .frame(width: 38, height: 38)
+        }
+        .buttonStyle(.plain)
+        .disabled(!availableRange.canMove(to: year))
+    }
+
+    private func monthButton(_ month: Int) -> some View {
+        let isEnabled = availableRange.isMonthEnabled(year: displayedYear, month: month)
+        let isSelected = selectedYear == displayedYear && selectedMonth == month
+
+        return Button {
+            guard isEnabled else { return }
+            selectedYear = displayedYear
+            selectedMonth = month
+            isPresented = false
+        } label: {
+            Text("\(month)월")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(monthTextColor(isEnabled: isEnabled, isSelected: isSelected))
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background {
+                    Capsule()
+                        .fill(isSelected ? Color.blue50 : Color.gray50)
+                }
+                .overlay {
+                    Capsule()
+                        .stroke(isSelected ? Color.blue500 : Color.clear, lineWidth: 1.5)
+                }
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityLabel("\(displayedYear)년 \(month)월")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func monthTextColor(isEnabled: Bool, isSelected: Bool) -> Color {
+        if !isEnabled {
+            return Color.gray300
+        }
+
+        return isSelected ? Color.blue600 : Color.gray600
     }
 }
 
-private struct PastRetrospectiveItem: Identifiable {
+private enum MonthlyAnalysisMockData {
+    static var availableRange: PeriodRange {
+        let currentDate = Date()
+        let calendar = Calendar.current
+        let currentYear = calendar.component(.year, from: currentDate)
+        let currentMonth = calendar.component(.month, from: currentDate)
+
+        return PeriodRange(
+            start: YearMonth(year: 2026, month: 1),
+            end: YearMonth(year: currentYear, month: currentMonth)
+        )
+    }
+
+    static func data(year: Int, month: Int) -> MonthlyAnalysisData {
+        monthly
+    }
+
+    private static let monthly = MonthlyAnalysisData(
+        monthlyScore: "4.1",
+        monthlyTitle: "안정적인 한 달이었어요",
+        strengthKeywords: [
+            StrengthKeyword(title: "성장", count: 24),
+            StrengthKeyword(title: "감사", count: 18),
+            StrengthKeyword(title: "도전", count: 16),
+            StrengthKeyword(title: "설렘", count: 14),
+            StrengthKeyword(title: "불안", count: 9)
+        ],
+        weeklySatisfactionPoints: [
+            SatisfactionPoint(value: 3.4),
+            SatisfactionPoint(value: 3.7),
+            SatisfactionPoint(value: 4.0),
+            SatisfactionPoint(value: 3.8),
+            SatisfactionPoint(value: 4.1),
+            SatisfactionPoint(value: 4.3),
+            SatisfactionPoint(value: 4.5)
+        ],
+        monthlySatisfactionPoints: [
+            SatisfactionPoint(value: 3.6),
+            SatisfactionPoint(value: 3.8),
+            SatisfactionPoint(value: nil),
+            SatisfactionPoint(value: 4.1),
+            SatisfactionPoint(value: 3.9),
+            SatisfactionPoint(value: 4.3),
+            SatisfactionPoint(value: 4.0),
+            SatisfactionPoint(value: nil),
+            SatisfactionPoint(value: 3.7),
+            SatisfactionPoint(value: 3.8),
+            SatisfactionPoint(value: 4.2),
+            SatisfactionPoint(value: 4.4),
+            SatisfactionPoint(value: 4.1),
+            SatisfactionPoint(value: nil),
+            SatisfactionPoint(value: 3.9),
+            SatisfactionPoint(value: 4.0),
+            SatisfactionPoint(value: 4.2),
+            SatisfactionPoint(value: 4.3),
+            SatisfactionPoint(value: nil),
+            SatisfactionPoint(value: 4.1),
+            SatisfactionPoint(value: 4.4),
+            SatisfactionPoint(value: 4.2),
+            SatisfactionPoint(value: 4.5),
+            SatisfactionPoint(value: nil),
+            SatisfactionPoint(value: 4.0),
+            SatisfactionPoint(value: 4.1),
+            SatisfactionPoint(value: 4.3),
+            SatisfactionPoint(value: 4.4),
+            SatisfactionPoint(value: 4.2),
+            SatisfactionPoint(value: 4.3)
+        ]
+    )
+}
+
+private struct MonthlyAnalysisData {
+    let monthlyScore: String
+    let monthlyTitle: String
+    let strengthKeywords: [StrengthKeyword]
+    let weeklySatisfactionPoints: [SatisfactionPoint]
+    let monthlySatisfactionPoints: [SatisfactionPoint]
+}
+
+private struct StrengthKeyword: Identifiable {
     let id = UUID()
-    let date: String
+    let title: String
+    let count: Int
+}
+
+private struct SatisfactionPoint: Identifiable {
+    let id = UUID()
+    let value: CGFloat?
+}
+
+private struct SatisfactionAxisLabel: Identifiable {
+    let id = UUID()
+    let index: Int
     let title: String
 }
 
-private struct PastRetrospectiveRow: View {
-    let item: PastRetrospectiveItem
+private struct SatisfactionLineChart: View {
+    let points: [SatisfactionPoint]
+    let xAxisLabels: [SatisfactionAxisLabel]
+    let showsPointMarkers: Bool
+    let highlightsLastPoint: Bool
 
     var body: some View {
-        HStack(spacing: 16) {
-            Text(item.date)
-                .font(.system(size: 12))
-                .foregroundStyle(Color.blue600)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .frame(width: 30, height: 30)
-                .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.blue50)
-                }
-
-            Text(item.title)
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(Color.gray900)
-                .lineLimit(1)
-                .minimumScaleFactor(0.86)
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.gray900)
+        GeometryReader { geometry in
+            Canvas { context, size in
+                drawHorizontalGrid(in: &context, size: size)
+                drawLine(in: &context, size: size)
+                drawPointMarkers(in: &context, size: size)
+                drawAxisLabels(in: &context, size: size)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .padding(.horizontal, AnalysisHomeLayout.rowHorizontalPadding)
-        .padding(.vertical, AnalysisHomeLayout.rowVerticalPadding)
-        .background(Color.white)
+    }
+
+    private func drawHorizontalGrid(in context: inout GraphicsContext, size: CGSize) {
+        for value in [5, 3, 1] {
+            let y = chartY(for: CGFloat(value), in: size)
+            var path = Path()
+            path.move(to: CGPoint(x: chartLeftInset, y: y))
+            path.addLine(to: CGPoint(x: plotMaxX(in: size), y: y))
+            context.stroke(path, with: .color(Color.gray200), style: StrokeStyle(lineWidth: 1))
+        }
+    }
+
+    private func drawLine(in context: inout GraphicsContext, size: CGSize) {
+        let validPoints = points.enumerated().compactMap { index, point -> (Int, CGFloat)? in
+            guard let value = point.value else { return nil }
+            return (index, value)
+        }
+
+        guard validPoints.count > 1 else { return }
+
+        for pair in zip(validPoints, validPoints.dropFirst()) {
+            let previous = pair.0
+            let current = pair.1
+
+            guard current.0 == previous.0 + 1 else { continue }
+
+            var path = Path()
+            path.move(to: chartPoint(index: previous.0, value: previous.1, in: size))
+            path.addLine(to: chartPoint(index: current.0, value: current.1, in: size))
+            context.stroke(
+                path,
+                with: .color(Color.blue500),
+                style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
+            )
+        }
+    }
+
+    private func drawPointMarkers(in context: inout GraphicsContext, size: CGSize) {
+        for (index, point) in points.enumerated() {
+            guard let value = point.value else { continue }
+            let isLastPoint = index == points.indices.last
+
+            guard showsPointMarkers || (highlightsLastPoint && isLastPoint) else {
+                continue
+            }
+
+            let center = chartPoint(index: index, value: value, in: size)
+            let radius: CGFloat = 3.2
+            let rect = CGRect(
+                x: center.x - radius,
+                y: center.y - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+            context.fill(Path(ellipseIn: rect), with: .color(Color.blue500))
+        }
+    }
+
+    private func drawAxisLabels(in context: inout GraphicsContext, size: CGSize) {
+        for value in [5, 3, 1] {
+            let text = context.resolve(
+                Text("\(value)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.gray600)
+            )
+            context.draw(
+                text,
+                at: CGPoint(x: plotMaxX(in: size) + 12, y: chartY(for: CGFloat(value), in: size)),
+                anchor: .leading
+            )
+        }
+
+        for label in xAxisLabels {
+            let text = context.resolve(
+                Text(label.title)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.gray600)
+            )
+            context.draw(
+                text,
+                at: CGPoint(x: chartX(for: label.index, in: size), y: size.height - 6),
+                anchor: .bottom
+            )
+        }
+    }
+
+    private func chartPoint(index: Int, value: CGFloat, in size: CGSize) -> CGPoint {
+        CGPoint(
+            x: chartX(for: index, in: size),
+            y: chartY(for: value, in: size)
+        )
+    }
+
+    private func chartX(for index: Int, in size: CGSize) -> CGFloat {
+        guard points.count > 1 else {
+            return chartLeftInset + plotWidth(in: size) / 2
+        }
+
+        return chartLeftInset + CGFloat(index) / CGFloat(points.count - 1) * plotWidth(in: size)
+    }
+
+    private func chartY(for value: CGFloat, in size: CGSize) -> CGFloat {
+        let normalizedValue = min(max(value / 5, 0), 1)
+        return plotMaxY(in: size) - (normalizedValue * plotHeight(in: size))
+    }
+
+    private var chartLeftInset: CGFloat {
+        30
+    }
+
+    private var chartRightInset: CGFloat {
+        42
+    }
+
+    private var chartTopInset: CGFloat {
+        6
+    }
+
+    private var chartBottomInset: CGFloat {
+        22
+    }
+
+    private func plotWidth(in size: CGSize) -> CGFloat {
+        max(size.width - chartLeftInset - chartRightInset, 1)
+    }
+
+    private func plotHeight(in size: CGSize) -> CGFloat {
+        max(size.height - chartTopInset - chartBottomInset, 1)
+    }
+
+    private func plotMaxX(in size: CGSize) -> CGFloat {
+        chartLeftInset + plotWidth(in: size)
+    }
+
+    private func plotMaxY(in size: CGSize) -> CGFloat {
+        chartTopInset + plotHeight(in: size)
+    }
+}
+
+private struct FlowLayout: Layout {
+    let spacing: CGFloat
+    let lineSpacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var currentX: CGFloat = 0
+        var currentLineHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var widestLine: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let needsNewLine = currentX > 0 && currentX + spacing + size.width > maxWidth
+
+            if needsNewLine {
+                widestLine = max(widestLine, currentX)
+                totalHeight += currentLineHeight + lineSpacing
+                currentX = 0
+                currentLineHeight = 0
+            }
+
+            if currentX > 0 {
+                currentX += spacing
+            }
+
+            currentX += size.width
+            currentLineHeight = max(currentLineHeight, size.height)
+        }
+
+        widestLine = max(widestLine, currentX)
+        totalHeight += currentLineHeight
+
+        return CGSize(width: maxWidth.isFinite ? maxWidth : widestLine, height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var currentX = bounds.minX
+        var currentY = bounds.minY
+        var currentLineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let needsNewLine = currentX > bounds.minX && currentX + spacing + size.width > bounds.maxX
+
+            if needsNewLine {
+                currentX = bounds.minX
+                currentY += currentLineHeight + lineSpacing
+                currentLineHeight = 0
+            }
+
+            subview.place(
+                at: CGPoint(x: currentX, y: currentY),
+                proposal: ProposedViewSize(size)
+            )
+
+            currentX += size.width + spacing
+            currentLineHeight = max(currentLineHeight, size.height)
+        }
     }
 }
 
