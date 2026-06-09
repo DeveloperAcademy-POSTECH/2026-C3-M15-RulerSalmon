@@ -13,7 +13,8 @@ struct Retrospective_RulersalmonApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationStack {
-                ReflectionChatView()
+                OnboardingFlowView()
+                    .modelContainer(AppDataStore.shared.container)
             }
         }
     }

@@ -44,15 +44,22 @@ final class ReflectionSummaryService {
             let emotionKeywordOutput = try await reflectionModelService.generateEmotionKeywords(
                 userOnlyText: userOnlyText
             )
-            let actionItemOutput = try await reflectionModelService.generateActionItems(
-                longedForText: longedForText,
-                lackedText: lackedText
-            )
+            let actionItems: [String]
+            if longedForText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                lackedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                actionItems = []
+            } else {
+                let actionItemOutput = try await reflectionModelService.generateActionItems(
+                    longedForText: longedForText,
+                    lackedText: lackedText
+                )
+                actionItems = cleanedActionItems(actionItemOutput.actionItems)
+            }
 
             return ReflectionSummaryResult(
                 refinedReflection: refinementOutput.refinedReflection.trimmingCharacters(in: .whitespacesAndNewlines),
-                todaySummary: cleaned(summaryOutput.todaySummaryLines).prefix(3).joined(separator: "\n"),
-                actionItems: cleanedActionItems(actionItemOutput.actionItems),
+                todaySummary: summaryOutput.todaySummary.trimmingCharacters(in: .whitespacesAndNewlines),
+                actionItems: actionItems,
                 coreKeywords: cleanedKeywords(coreKeywordOutput.coreKeywords),
                 emotionKeywords: cleanedKeywords(emotionKeywordOutput.emotionKeywords)
             )
@@ -102,6 +109,8 @@ final class ReflectionSummaryService {
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
                 .filter { wordCount($0) <= 2 }
+                .filter { $0.count <= 10 }
+                .filter { !containsLongEnglish($0) }
         )
         .prefix(5)
         .map { $0 }
@@ -113,7 +122,8 @@ final class ReflectionSummaryService {
                 .map { normalizedActionItem($0) }
                 .filter { !$0.isEmpty }
                 .filter { $0.hasSuffix("하기") }
-                .filter { $0.count <= 28 }
+                .filter { $0.count <= 18 }
+                .filter { !isGenericActionItem($0) }
         )
         .prefix(3)
         .map { $0 }
@@ -129,6 +139,27 @@ final class ReflectionSummaryService {
         }
 
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+
+    private func containsLongEnglish(_ text: String) -> Bool {
+        text.range(of: #"[A-Za-z]{6,}"#, options: .regularExpression) != nil
+    }
+
+    private func isGenericActionItem(_ text: String) -> Bool {
+        let genericItems: Set<String> = [
+            "앱 사용하기",
+            "일정 확인하기",
+            "업무량 관리하기",
+            "업무 우선순위 정하기",
+            "우선순위 정하기",
+            "시간 관리하기",
+            "목표 세우기",
+            "열심히 하기",
+            "계획 세우기"
+        ]
+
+        return genericItems.contains(text)
     }
 
     private func unique(_ items: [String]) -> [String] {
