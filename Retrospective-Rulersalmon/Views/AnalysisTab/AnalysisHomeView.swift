@@ -47,7 +47,10 @@ struct AnalysisHomeView: View {
                         month: viewModel.selectedMonth,
                         selectedMode: $viewModel.selectedMode
                     )
-                    SentimentRatioSection()
+                    SentimentRatioSection(
+                        positivePercentage: viewModel.selectedData.monthlyPositivePercentage,
+                        negativePercentage: viewModel.selectedData.monthlyNegativePercentage
+                    )
                     EmotionKeywordSection(keywords: emotionKeywordStatistics)
                     InsightListSection()
                 }
@@ -400,6 +403,29 @@ private struct EmotionRow: View {
 }
 
 private struct SentimentRatioSection: View {
+    let positivePercentage: Double
+    let negativePercentage: Double
+
+    private var clampedPositivePercentage: Double {
+        max(0, min(positivePercentage, 100))
+    }
+
+    private var clampedNegativePercentage: Double {
+        max(0, min(negativePercentage, 100))
+    }
+
+    private var positiveRatio: CGFloat {
+        CGFloat(clampedPositivePercentage / 100)
+    }
+
+    private var positiveText: String {
+        String(format: "%.0f", clampedPositivePercentage)
+    }
+
+    private var negativeText: String {
+        String(format: "%.0f", clampedNegativePercentage)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("감정 비율")
@@ -414,19 +440,19 @@ private struct SentimentRatioSection: View {
 
                         Capsule()
                             .fill(Color.blue500)
-                            .frame(width: geometry.size.width * 0.82)
+                            .frame(width: geometry.size.width * positiveRatio)
                     }
                 }
                 .frame(height: 10)
 
                 HStack {
-                    Text("긍정 82%")
+                    Text("긍정 \(positiveText)%")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Color.blue500)
 
                     Spacer()
 
-                    Text("부정 18%")
+                    Text("부정 \(negativeText)%")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Color.gray600)
                 }
@@ -441,7 +467,7 @@ private struct SentimentRatioSection: View {
                     .stroke(Color.gray300, lineWidth: 1)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("긍정 82퍼센트, 부정 18퍼센트")
+            .accessibilityLabel("긍정 \(positiveText)퍼센트, 부정 \(negativeText)퍼센트")
         }
     }
 }
