@@ -8,6 +8,11 @@ struct TokenizedInput {
 }
 
 struct HowRUTokenizer {
+    private static let vocabSubdirectories = [
+        "MLModels/SentimentAnalysis",
+        "Resources/MLModels/SentimentAnalysis"
+    ]
+
     private let vocab: [String: Int32]
     private let unknownToken = "[UNK]"
     private let clsToken = "[CLS]"
@@ -144,10 +149,8 @@ struct HowRUTokenizer {
     }
 
     private static func loadVocab(resourceName: String) -> [String: Int32] {
-        guard
-            let url = Bundle.main.url(forResource: resourceName, withExtension: "txt"),
-            let contents = try? String(contentsOf: url, encoding: .utf8)
-        else {
+        guard let url = vocabURL(resourceName: resourceName),
+              let contents = try? String(contentsOf: url, encoding: .utf8) else {
             return [:]
         }
 
@@ -158,6 +161,20 @@ struct HowRUTokenizer {
         }
 
         return vocab
+    }
+
+    private static func vocabURL(resourceName: String) -> URL? {
+        for subdirectory in vocabSubdirectories {
+            if let url = Bundle.main.url(
+                forResource: resourceName,
+                withExtension: "txt",
+                subdirectory: subdirectory
+            ) {
+                return url
+            }
+        }
+
+        return Bundle.main.url(forResource: resourceName, withExtension: "txt")
     }
 
     private func isControl(_ scalar: UnicodeScalar) -> Bool {
