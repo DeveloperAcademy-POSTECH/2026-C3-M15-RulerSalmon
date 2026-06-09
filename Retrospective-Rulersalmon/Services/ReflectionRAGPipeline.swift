@@ -100,7 +100,7 @@ final class ReflectionRAGPipeline {
             )
         }
 
-        let firstPassResults = fourLService.classify(
+        let firstPassResults = await fourLService.classify(
             text: userText,
             messageId: UUID(),
             date: createdAt
