@@ -13,6 +13,7 @@ struct ChatComposerView: View {
     let isResponding: Bool
     let bubbleShadowColor: Color
     let onSend: () -> Void
+    let onFinish: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -37,6 +38,33 @@ struct ChatComposerView: View {
             .disabled(trimmedText.isEmpty || isResponding)
             .opacity(trimmedText.isEmpty || isResponding ? 0.5 : 1)
             .shadow(color: bubbleShadowColor, radius: 28, x: 0, y: 10)
+
+            Button(action: onFinish) {
+                Image(systemName: "power")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(Color.gray900)
+                    .frame(width: 48, height: 48)
+                    .background(Color.white)
+                    .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(Color.gray200, lineWidth: 1)
+                    }
+            }
+            .disabled(isResponding)
+            .opacity(isResponding ? 0.5 : 1)
+            .shadow(color: bubbleShadowColor, radius: 28, x: 0, y: 10)
+            .overlay(alignment: .topTrailing) {
+                Text("회고 종료하기")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Color.gray900)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.96))
+                    .clipShape(Capsule())
+                    .shadow(color: bubbleShadowColor, radius: 18, x: 0, y: 8)
+                    .offset(x: 2, y: -48)
+            }
         }
         .padding(.horizontal, 22)
         .padding(.top, 14)

@@ -58,6 +58,19 @@ final class ReflectionChatViewModel: ObservableObject {
         }
     }
 
+    func finishReflection() -> [ChatMessage] {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !text.isEmpty {
+            inputText = ""
+            let userMessage = ChatMessage(role: .user, text: text)
+            messages.append(userMessage)
+            scrollTargetID = userMessage.id.uuidString
+        }
+
+        return messages
+    }
+
     private func processUserMessage(_ text: String) async {
         defer { isResponding = false }
         scrollTargetID = ScrollAnchor.responding.rawValue
