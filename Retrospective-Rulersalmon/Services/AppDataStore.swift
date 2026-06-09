@@ -161,6 +161,41 @@ final class AppDataStore {
             retrospectives: retrospectives
         )
     }
+    
+    func sentimentRecords(year: Int, month: Int) -> [SentimentRecord] {
+        var calender = Calendar(identifier: .gregorian)
+        calender.timeZone = .current
+        
+        let components = DateComponents(year: year, month: month)
+        guard
+            let startDate = calender.date(from: components),
+            let endDate = calender.date(byAdding: .month, value: 1, to: startDate)
+        else { return [] }
+        
+        let predicate = #Predicate<SentimentRecord> { record in
+            record.createdAt >= startDate && record.createdAt < endDate
+        }
+        
+        let descriptor = FetchDescriptor<SentimentRecord>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.createdAt)]
+        )
+        
+        return(try? context.fetch(descriptor)) ?? []
+    }
+
+    func sentimentRecords(startDate: Date, endDate: Date) -> [SentimentRecord] {
+        let predicate = #Predicate<SentimentRecord> { record in
+            record.createdAt >= startDate && record.createdAt < endDate
+        }
+
+        let descriptor = FetchDescriptor<SentimentRecord>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.createdAt)]
+        )
+
+        return (try? context.fetch(descriptor)) ?? []
+    }
 
     private func recentRetrospectiveItems(limit: Int) -> [RetrospectiveItem] {
         let descriptor = FetchDescriptor<StoredReflectionSession>(
