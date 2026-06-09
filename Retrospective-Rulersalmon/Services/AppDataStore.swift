@@ -19,7 +19,10 @@ final class AppDataStore {
             container = try ModelContainer(
                 for: StoredUserProfile.self,
                 StoredReflectionSession.self,
-                StoredReflectionMemoryRecord.self
+                StoredReflectionMemoryRecord.self,
+                StoredReflectionReport.self,
+                SentimentRecord.self,
+                ReflectionInsightRecord.self
             )
             logStorageLocation()
         } catch {
@@ -144,6 +147,40 @@ final class AppDataStore {
         return records.map(\.asEntry)
     }
 
+    // MARK: 분석결과
+
+    func saveReport(_ report: StoredReflectionReport) {
+        if let existing = reflectionReport(for: report.id) {
+            context.delete(existing)
+        }
+        context.insert(report)
+        saveContext(reason: "saveReport")
+    }
+
+    func allReports() -> [StoredReflectionReport] {
+        let descriptor = FetchDescriptor<StoredReflectionReport>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func deleteReport(id: UUID) {
+        guard let report = reflectionReport(for: id) else { return }
+        context.delete(report)
+        saveContext(reason: "deleteReport")
+    }
+
+    private func reflectionReport(for id: UUID) -> StoredReflectionReport? {
+        let predicate = #Predicate<StoredReflectionReport> { $0.id == id }
+        let descriptor = FetchDescriptor<StoredReflectionReport>(predicate: predicate)
+        return try? context.fetch(descriptor).first
+    }
+
+    func saveSentimentRecord(_ record: SentimentRecord) {
+        context.insert(record)
+        saveContext(reason: "saveSentimentRecord")
+    }
+
     func makeMainPageContent() -> MainPageContent {
         let profile = loadCurrentProfile()
         let mentorName = profile?.mentorName ?? Mentor.sampleMentors.first?.name ?? "Mentor"
@@ -163,13 +200,13 @@ final class AppDataStore {
     }
     
     func sentimentRecords(year: Int, month: Int) -> [SentimentRecord] {
-        var calender = Calendar(identifier: .gregorian)
-        calender.timeZone = .current
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
         
         let components = DateComponents(year: year, month: month)
         guard
-            let startDate = calender.date(from: components),
-            let endDate = calender.date(byAdding: .month, value: 1, to: startDate)
+            let startDate = calendar.date(from: components),
+            let endDate = calendar.date(byAdding: .month, value: 1, to: startDate)
         else { return [] }
         
         let predicate = #Predicate<SentimentRecord> { record in
@@ -181,7 +218,7 @@ final class AppDataStore {
             sortBy: [SortDescriptor(\.createdAt)]
         )
         
-        return(try? context.fetch(descriptor)) ?? []
+        return (try? context.fetch(descriptor)) ?? []
     }
 
     func sentimentRecords(startDate: Date, endDate: Date) -> [SentimentRecord] {
@@ -386,5 +423,38 @@ private extension String {
     var nonEmpty: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+//분석 결과
+@Model
+final class StoredReflectionReport {
+    @Attribute(.unique) var id: UUID
+    var createdAt: Date
+    var todaySummary: String
+    var refinedReflection: String
+    var fourLItemsRaw: String
+    var coreKeywordsRaw: String
+    var emotionKeywordsRaw: String
+    var actionItemsRaw: String
+
+    init(
+        id: UUID = UUID(),
+        createdAt: Date = .now,
+        todaySummary: String,
+        refinedReflection: String,
+        fourLItemsRaw: String,
+        coreKeywordsRaw: String,
+        emotionKeywordsRaw: String,
+        actionItemsRaw: String
+    ) {
+        self.id = id
+        self.createdAt = createdAt
+        self.todaySummary = todaySummary
+        self.refinedReflection = refinedReflection
+        self.fourLItemsRaw = fourLItemsRaw
+        self.coreKeywordsRaw = coreKeywordsRaw
+        self.emotionKeywordsRaw = emotionKeywordsRaw
+        self.actionItemsRaw = actionItemsRaw
     }
 }
