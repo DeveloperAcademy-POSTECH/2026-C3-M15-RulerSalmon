@@ -9,21 +9,26 @@ import SwiftUI
 
 struct RetrospectiveAnalysisView: View {
     @StateObject private var viewModel: FourLResultViewModel
+    @State private var completedReport: RetrospectiveReport?
+    @State private var isShowingReport = false
+    private let onExitToMain: (() -> Void)?
 
-    init(messages: [ChatMessage]) {
+    init(messages: [ChatMessage], onExitToMain: (() -> Void)? = nil) {
         _viewModel = StateObject(wrappedValue: FourLResultViewModel(messages: messages))
+        self.onExitToMain = onExitToMain
     }
 
     var body: some View {
-        Group {
+        ZStack {
+            Color.gray50
+                .ignoresSafeArea(.all)
+
             if let errorMessage = viewModel.errorMessage {
                 ContentUnavailableView(
                     "회고 분석 실패",
                     systemImage: "exclamationmark.triangle",
                     description: Text(errorMessage)
                 )
-            } else if let report = report {
-                RetrospectiveReportView(report: report)
             } else {
                 RetrospectiveProcessingView(progress: .constant(progress))
             }
@@ -31,6 +36,23 @@ struct RetrospectiveAnalysisView: View {
         .task {
             viewModel.generateResults()
         }
+        .onChange(of: isReportReady) { _, newValue in
+            guard newValue, let report else { return }
+            completedReport = report
+            isShowingReport = true
+        }
+        .navigationDestination(isPresented: $isShowingReport) {
+            if let completedReport {
+                RetrospectiveReportView(
+                    report: completedReport,
+                    onClose: onExitToMain
+                )
+            }
+        }
+    }
+
+    private var isReportReady: Bool {
+        report != nil
     }
 
     private var report: RetrospectiveReport? {

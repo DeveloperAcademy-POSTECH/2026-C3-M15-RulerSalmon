@@ -27,11 +27,14 @@ final class MainPageViewModel: ObservableObject {
         Mentor.sampleMentors.first(where: { $0.name == content.mentorName }) ?? Mentor.sampleMentors.first!
     }
 
-    func makeChatView() -> ReflectionChatView {
+    func makeChatView(onExitToMain: (() -> Void)? = nil) -> ReflectionChatView {
         let pipeline = ReflectionRAGPipeline(
             sessionID: UUID(),
             mentor: selectedMentor
         )
-        return ReflectionChatView(viewModel: ReflectionChatViewModel(ragPipeline: pipeline))
+        return ReflectionChatView(
+            viewModel: ReflectionChatViewModel(ragPipeline: pipeline),
+            onExitToMain: onExitToMain
+        )
     }
 }

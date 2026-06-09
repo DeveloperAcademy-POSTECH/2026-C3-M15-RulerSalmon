@@ -9,11 +9,13 @@ import SwiftUI
 
 struct RetrospectiveReportView: View {
     let report: RetrospectiveReport
+    private let onClose: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
 
-    init(report: RetrospectiveReport = .mock) {
+    init(report: RetrospectiveReport = .mock, onClose: (() -> Void)? = nil) {
         self.report = report
+        self.onClose = onClose
     }
 
     var body: some View {
@@ -23,7 +25,11 @@ struct RetrospectiveReportView: View {
 
             VStack(spacing: 0) {
                 ReportNavigationBar(title: "오늘의 회고") {
-                    dismiss()
+                    if let onClose {
+                        onClose()
+                    } else {
+                        dismiss()
+                    }
                 }
 
                 ScrollView(showsIndicators: false) {
