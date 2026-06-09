@@ -6,6 +6,7 @@
 
 import Foundation
 
+@MainActor
 protocol AnalysisDataProviding {
     var availableRange: PeriodRange { get }
     func data(year: Int, month: Int) -> MonthlyAnalysisData
