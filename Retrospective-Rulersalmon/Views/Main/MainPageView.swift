@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MainPageView: View {
     @StateObject private var viewModel: MainPageViewModel
+    @State private var selectedTab: MainPageTab = .home
 
     @MainActor
     init(viewModel: MainPageViewModel? = nil) {
@@ -16,17 +17,19 @@ struct MainPageView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 MainHomeView(content: viewModel.content, chatView: viewModel.makeChatView())
             }
+            .tag(MainPageTab.home)
             .tabItem {
                 Label("홈", systemImage: "house.fill")
             }
 
             NavigationStack {
-                AnalysisPlaceholderView()
+                AnalysisHomeView()
             }
+            .tag(MainPageTab.analysis)
             .tabItem {
                 Label("분석", systemImage: "chart.bar.fill")
             }
@@ -36,6 +39,11 @@ struct MainPageView: View {
             viewModel.reload()
         }
     }
+}
+
+private enum MainPageTab: Hashable {
+    case home
+    case analysis
 }
 
 private struct MainHomeView: View {
@@ -307,20 +315,6 @@ private struct RetrospectiveRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("회고 상세 화면으로 이동")
-    }
-}
-
-private struct AnalysisPlaceholderView: View {
-    var body: some View {
-        ZStack {
-            Color.gray50
-                .ignoresSafeArea(.all)
-
-            Text("분석")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(Color.gray900)
-        }
-        .navigationTitle("분석")
     }
 }
 
