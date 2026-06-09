@@ -55,17 +55,32 @@ struct RetrospectiveSentimentResult {
 struct RetrospectiveSentimentAnalyzer {
     private let model: HowRUInt8?
     private let tokenizer: HowRUTokenizer
+    private let modelLoadStatus: String
+    private let usesLexicalFallback: Bool
     private let maxTokenLength = 128
 
     var debugStatus: String {
-        "model: \(model == nil ? "not loaded" : "loaded"), vocab: \(tokenizer.isReady ? "loaded" : "not loaded")"
+        let modelStatus = usesLexicalFallback ? "lexical fallback" : modelLoadStatus
+        return "model: \(modelStatus), vocab: \(tokenizer.isReady ? "loaded" : "not loaded")"
     }
 
     init() {
         let configuration = MLModelConfiguration()
-        configuration.computeUnits = .all
+        configuration.computeUnits = .cpuOnly
 
-        model = try? HowRUInt8(configuration: configuration)
+        do {
+            model = try HowRUInt8(configuration: configuration)
+            modelLoadStatus = "loaded"
+            usesLexicalFallback = false
+        } catch {
+            model = nil
+            modelLoadStatus = "load failed: \(error.localizedDescription)"
+            usesLexicalFallback = true
+            #if DEBUG
+            print("[RetrospectiveSentimentAnalyzer] HowRUInt8 load failed: \(String(describing: error))")
+            #endif
+        }
+
         tokenizer = HowRUTokenizer()
     }
 
@@ -125,13 +140,13 @@ struct RetrospectiveSentimentAnalyzer {
 
     private func predictedScore(for text: String) -> Double {
         guard let model else {
-            debugLog("HowRUInt8 failed to load.")
-            return 0
+            debugLog("HowRUInt8 is unavailable. \(modelLoadStatus)")
+            return lexicalFallbackScore(for: text)
         }
 
         guard let tokenized = tokenizer.encode(text, maxLength: maxTokenLength) else {
             debugLog("HowRUTokenizer failed to encode text. Check that vocab.txt is included in the app target.")
-            return 0
+            return lexicalFallbackScore(for: text)
         }
 
         do {
@@ -143,13 +158,89 @@ struct RetrospectiveSentimentAnalyzer {
             let score = output.emotion_score[0].doubleValue
             guard score.isFinite else {
                 debugLog("HowRUInt8 returned a non-finite score: \(score). Re-export the CoreML model with INT8 precision.")
-                return 0
+                return lexicalFallbackScore(for: text)
             }
             return score
         } catch {
             debugLog("HowRUInt8 prediction failed: \(error.localizedDescription)")
-            return 0
+            return lexicalFallbackScore(for: text)
         }
+    }
+
+    private func lexicalFallbackScore(for text: String) -> Double {
+        let normalizedText = text
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "")
+
+        let positiveMarkers: [(String, Double)] = [
+            ("좋", 0.3), ("도움", 0.35), ("성공", 0.45), ("완료", 0.35),
+            ("마무리", 0.3), ("만족", 0.45), ("배웠", 0.35), ("학습", 0.25),
+            ("성장", 0.35), ("깨달", 0.3), ("알게", 0.25), ("해냈", 0.45),
+            ("잘", 0.3), ("안정", 0.35), ("고마", 0.35), ("감사", 0.35),
+            ("집중", 0.25), ("개선", 0.3), ("즐거", 0.4), ("행복", 0.45),
+            ("기뻤", 0.4), ("뿌듯", 0.45), ("편했", 0.3), ("재밌", 0.35),
+            ("괜찮", 0.3), ("수월", 0.35), ("해결", 0.4), ("칭찬", 0.35),
+            ("자신", 0.3), ("기대", 0.25), ("효율", 0.3), ("성취", 0.45),
+            ("늘었", 0.25), ("익숙", 0.25), ("친절", 0.3), ("회복", 0.25)
+        ]
+        let negativeMarkers: [(String, Double)] = [
+            ("힘들", 0.45), ("아쉽", 0.4), ("부족", 0.4), ("어렵", 0.35),
+            ("혼란", 0.4), ("지연", 0.35), ("실패", 0.5), ("놓쳤", 0.4),
+            ("놓침", 0.4), ("못했", 0.45), ("문제", 0.35), ("부담", 0.4),
+            ("걱정", 0.35), ("불안", 0.4), ("피곤", 0.35), ("늦", 0.3),
+            ("막혔", 0.4), ("긴장", 0.3), ("떨", 0.25), ("불편", 0.35),
+            ("짜증", 0.45), ("슬프", 0.45), ("후회", 0.45), ("실수", 0.4),
+            ("까먹", 0.35), ("미룸", 0.35), ("미뤘", 0.35), ("버거", 0.4),
+            ("스트레스", 0.45), ("급했", 0.3), ("헤맸", 0.35), ("당황", 0.35),
+            ("답답", 0.4), ("별로", 0.4), ("불만", 0.4), ("망", 0.45),
+            ("미흡", 0.4), ("반성", 0.25), ("개선필요", 0.35)
+        ]
+        let negativePhrases = [
+            "좋지않", "잘안", "잘못", "하지못", "못하", "안됐", "안되",
+            "필요했", "필요하다고느꼈", "보완", "아쉬웠", "부족했"
+        ]
+
+        let positiveScore = positiveMarkers.reduce(0.0) { score, marker in
+            score + marker.1 * Double(occurrenceCount(of: marker.0, in: normalizedText))
+        }
+        let negativeScore = negativeMarkers.reduce(0.0) { score, marker in
+            score + marker.1 * Double(occurrenceCount(of: marker.0, in: normalizedText))
+        }
+        let negativePhraseScore = negativePhrases.reduce(0.0) { score, phrase in
+            score + (normalizedText.contains(phrase) ? 0.35 : 0)
+        }
+        let fourLScore = scoreFromFourLLabel(in: normalizedText)
+        let score = positiveScore - negativeScore - negativePhraseScore + fourLScore
+
+        return max(-1, min(1, score))
+    }
+
+    private func occurrenceCount(of marker: String, in text: String) -> Int {
+        guard !marker.isEmpty else { return 0 }
+
+        var count = 0
+        var searchRange = text.startIndex..<text.endIndex
+        while let range = text.range(of: marker, options: [], range: searchRange) {
+            count += 1
+            searchRange = range.upperBound..<text.endIndex
+        }
+        return count
+    }
+
+    private func scoreFromFourLLabel(in normalizedText: String) -> Double {
+        if normalizedText.hasPrefix("liked") || normalizedText.hasPrefix("좋았") {
+            return 0.25
+        }
+        if normalizedText.hasPrefix("learned") || normalizedText.hasPrefix("배운") {
+            return 0.25
+        }
+        if normalizedText.hasPrefix("lacked") || normalizedText.hasPrefix("부족") {
+            return -0.3
+        }
+        if normalizedText.hasPrefix("longedfor") || normalizedText.hasPrefix("바랐") {
+            return -0.15
+        }
+        return 0
     }
 
     private func debugLog(_ message: String) {

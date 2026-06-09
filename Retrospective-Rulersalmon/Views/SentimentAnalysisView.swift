@@ -4,6 +4,7 @@ import SwiftData
 struct SentimentAnalysisView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SentimentRecord.createdAt, order: .reverse) private var records: [SentimentRecord]
+    @Query(sort: \ReflectionInsightRecord.updatedAt, order: .reverse) private var storedInsights: [ReflectionInsightRecord]
 
     @State private var transcript = """
     이번 프로젝트는 일정이 촉박해서 힘들었지만 팀원들이 적극적으로 도와줘서 끝까지 마무리할 수 있었다.
@@ -15,10 +16,18 @@ struct SentimentAnalysisView: View {
     @State private var result = RetrospectiveSentimentResult.empty
     @State private var debugMessage = "분석 대기 중"
     @State private var saveMessage: String?
+    @State private var insightResult = ReflectionInsightResult.empty
+    @State private var selectedInsightDays = 30
+    @State private var isLoadingInsights = false
+    @State private var insightErrorMessage: String?
 
     private let analyzer = RetrospectiveSentimentAnalyzer()
+    private let insightService = ReflectionInsightService()
     private var statistics: SentimentSummary {
         SentimentStatistics.summarize(records)
+    }
+    private var savedReflectionRecords: [SentimentRecord] {
+        records
     }
     
     var body: some View {
@@ -30,6 +39,7 @@ struct SentimentAnalysisView: View {
                     inputSection
                     scoreSection
                     saveSection
+                    insightSection
                     recordsSection
                     statisticsSection
                     keywordSection
@@ -52,6 +62,17 @@ struct SentimentAnalysisView: View {
         }
         .task {
             analyze()
+            loadStoredInsights()
+            await bootstrapStoredInsightsIfNeeded()
+        }
+        .onChange(of: records.count) {
+            Task {
+                loadStoredInsights()
+                await bootstrapStoredInsightsIfNeeded()
+            }
+        }
+        .onChange(of: selectedInsightDays) {
+            refreshInsights()
         }
     }
 
@@ -103,7 +124,7 @@ struct SentimentAnalysisView: View {
             Button {
                 analyze()
             } label: {
-                Label("감정 분석하기", systemImage: "sparkline")
+                Label("감정 분석하기", systemImage: "chart.line.uptrend.xyaxis")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -159,6 +180,17 @@ struct SentimentAnalysisView: View {
                 }
             }
         }
+    }
+
+    private var insightSection: some View {
+        ReflectionInsightSectionView(
+            result: insightResult,
+            selectedDays: $selectedInsightDays,
+            recordCount: records.count,
+            isLoading: isLoadingInsights,
+            errorMessage: insightErrorMessage,
+            onRefresh: refreshInsights
+        )
     }
     
     private var scoreSection: some View {
@@ -339,6 +371,7 @@ struct SentimentAnalysisView: View {
         do {
             try modelContext.save()
             saveMessage = "\(formatDate(selectedDate)) 회고를 저장했습니다."
+            updateInsightsAfterSaving(record)
         } catch {
             saveMessage = "저장 실패: \(error.localizedDescription)"
         }
@@ -360,14 +393,289 @@ struct SentimentAnalysisView: View {
     }
 
     private func deleteRecord(_ record: SentimentRecord) {
+        removeRecordFromInsights(record)
         modelContext.delete(record)
 
         do {
             try modelContext.save()
             saveMessage = "저장된 회고를 삭제했습니다."
+            loadStoredInsights()
         } catch {
             saveMessage = "삭제 실패: \(error.localizedDescription)"
         }
+    }
+
+    private func removeRecordFromInsights(_ record: SentimentRecord) {
+        let now = Date()
+
+        for insight in storedInsights where insight.containsSourceRecord(record) {
+            insight.removeSourceRecord(record)
+            insight.count = insight.sourceIDs.count
+            insight.updatedAt = now
+        }
+    }
+
+    private func refreshInsights() {
+        Task {
+            await generateMissingInsightsFromStoredRecords()
+        }
+    }
+
+    @MainActor
+    private func bootstrapStoredInsightsIfNeeded() async {
+        removeInvalidStoredInsightsIfNeeded()
+        let validInsights = storedInsights.filter { !isInvalidInsight($0) }
+
+        #if DEBUG
+        print("[SentimentAnalysisView] bootstrap check records: \(savedReflectionRecords.count), storedInsights: \(validInsights.count)")
+        #endif
+
+        guard validInsights.isEmpty,
+              savedReflectionRecords.count >= 3 else {
+            return
+        }
+
+        await generateMissingInsightsFromStoredRecords()
+    }
+
+    @MainActor
+    private func generateMissingInsightsFromStoredRecords() async {
+        guard savedReflectionRecords.count >= 3 else {
+            loadStoredInsights()
+            return
+        }
+
+        isLoadingInsights = true
+        insightErrorMessage = nil
+        defer { isLoadingInsights = false }
+
+        do {
+            let result = try await insightService.generateInsights(
+                from: savedReflectionRecords,
+                days: selectedInsightDays
+            )
+            guard !result.reflectionPoints.isEmpty || !result.strengthPoints.isEmpty else {
+                #if DEBUG
+                print("[SentimentAnalysisView] generated insight result is empty")
+                #endif
+                loadStoredInsights()
+                return
+            }
+
+            insertMissingInsights(result)
+            try modelContext.save()
+            loadStoredInsights()
+        } catch {
+            insightErrorMessage = error.localizedDescription
+            loadStoredInsights()
+        }
+    }
+
+    @MainActor
+    private func loadStoredInsights() {
+        removeInvalidStoredInsightsIfNeeded()
+        insightResult = makeInsightResult(
+            from: storedInsights.filter { !isInvalidInsight($0) }
+        )
+        insightErrorMessage = nil
+    }
+
+    private func makeInsightResult(from insights: [ReflectionInsightRecord]) -> ReflectionInsightResult {
+        let reflectionPoints = insights
+            .filter { $0.kind == "reflection" && $0.count >= 3 && !isInvalidInsight($0) }
+            .sorted { first, second in
+                if first.count == second.count { return first.updatedAt > second.updatedAt }
+                return first.count > second.count
+            }
+            .prefix(2)
+            .map {
+                ReflectionInsightPoint(
+                    title: $0.title,
+                    description: $0.insightDescription,
+                    count: $0.count
+                )
+            }
+
+        let strengthPoints = insights
+            .filter { $0.kind == "strength" && $0.count >= 3 && !isInvalidInsight($0) }
+            .sorted { first, second in
+                if first.count == second.count { return first.updatedAt > second.updatedAt }
+                return first.count > second.count
+            }
+            .prefix(2)
+            .map {
+                ReflectionInsightPoint(
+                    title: $0.title,
+                    description: $0.insightDescription,
+                    count: $0.count
+                )
+            }
+
+        return ReflectionInsightResult(
+            reflectionPoints: Array(reflectionPoints),
+            strengthPoints: Array(strengthPoints)
+        )
+    }
+
+    private func removeInvalidStoredInsightsIfNeeded() {
+        let invalidInsights = storedInsights.filter { isInvalidInsight($0) }
+        guard !invalidInsights.isEmpty else { return }
+
+        invalidInsights.forEach(modelContext.delete)
+        try? modelContext.save()
+    }
+
+    private func isInvalidInsight(_ insight: ReflectionInsightRecord) -> Bool {
+        let normalizedTitle = normalizedInsightKey(insight.title)
+        let normalizedDescription = normalizedInsightKey(insight.insightDescription)
+        let exactPlaceholders = [
+            "제목",
+            "설명",
+            "새반성포인트제목",
+            "새강점포인트제목",
+            "반복되는공통점설명",
+            "구체적사건이아니라반복되는공통점설명"
+        ]
+        let englishPlaceholders = [
+            "title",
+            "description"
+        ]
+
+        if exactPlaceholders.contains(normalizedTitle) ||
+            exactPlaceholders.contains(normalizedDescription) {
+            return true
+        }
+
+        return englishPlaceholders.contains { fragment in
+            normalizedTitle.contains(fragment) || normalizedDescription.contains(fragment)
+        }
+    }
+
+    private func updateInsightsAfterSaving(_ record: SentimentRecord) {
+        Task {
+            await updateStoredInsights(afterAdding: record)
+        }
+    }
+
+    @MainActor
+    private func updateStoredInsights(afterAdding record: SentimentRecord) async {
+        isLoadingInsights = true
+        insightErrorMessage = nil
+        defer { isLoadingInsights = false }
+
+        do {
+            let allRecords = ([record] + savedReflectionRecords)
+                .reduce(into: [UUID: SentimentRecord]()) { recordsByID, record in
+                    recordsByID[record.id] = record
+                }
+                .values
+                .sorted { $0.createdAt < $1.createdAt }
+
+            let update = try await insightService.updateInsights(
+                afterAdding: record,
+                allRecords: allRecords,
+                existingInsights: storedInsights.filter { !isInvalidInsight($0) }
+            )
+            applyInsightUpdate(update, newRecord: record)
+            try modelContext.save()
+            loadStoredInsights()
+        } catch {
+            insightErrorMessage = error.localizedDescription
+            loadStoredInsights()
+        }
+    }
+
+    private func applyInsightUpdate(
+        _ update: ReflectionInsightUpdate,
+        newRecord: SentimentRecord
+    ) {
+        let now = Date()
+
+        for insightID in update.matchedInsightIDs {
+            guard let insight = storedInsights.first(where: { $0.id == insightID }),
+                  !insight.containsSourceRecord(newRecord) else {
+                continue
+            }
+
+            insight.count += 1
+            insight.addSourceRecord(newRecord)
+            insight.updatedAt = now
+        }
+
+        for point in update.newReflectionPoints {
+            insertInsight(
+                point,
+                kind: "reflection",
+                sourceRecords: [newRecord],
+                now: now
+            )
+        }
+
+        for point in update.newStrengthPoints {
+            insertInsight(
+                point,
+                kind: "strength",
+                sourceRecords: [newRecord],
+                now: now
+            )
+        }
+    }
+
+    private func insertMissingInsights(_ result: ReflectionInsightResult) {
+        let now = Date()
+
+        for point in result.reflectionPoints {
+            insertInsight(
+                point,
+                kind: "reflection",
+                sourceRecords: sourceRecords(for: point),
+                now: now
+            )
+        }
+
+        for point in result.strengthPoints {
+            insertInsight(
+                point,
+                kind: "strength",
+                sourceRecords: sourceRecords(for: point),
+                now: now
+            )
+        }
+    }
+
+    private func sourceRecords(for point: ReflectionInsightPoint) -> [SentimentRecord] {
+        Array(savedReflectionRecords.prefix(max(point.count, 3)))
+    }
+
+    private func insertInsight(
+        _ point: ReflectionInsightPoint,
+        kind: String,
+        sourceRecords: [SentimentRecord],
+        now: Date
+    ) {
+        let existing = storedInsights.contains { insight in
+            insight.kind == kind &&
+            normalizedInsightKey(insight.title) == normalizedInsightKey(point.title)
+        }
+
+        guard !existing else { return }
+
+        let insight = ReflectionInsightRecord(
+            kind: kind,
+            title: point.title,
+            insightDescription: point.description,
+            count: point.count,
+            sourceRecordIDs: sourceRecords.map(\.id),
+            createdAt: now,
+            updatedAt: now
+        )
+        modelContext.insert(insight)
+    }
+
+    private func normalizedInsightKey(_ text: String) -> String {
+        text
+            .lowercased()
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
     }
 
     private func formatPercent(_ value: Double) -> String {
@@ -565,5 +873,8 @@ private struct SegmentRow: View {
 
 #Preview {
     SentimentAnalysisView()
-        .modelContainer(for: SentimentRecord.self, inMemory: true)
+        .modelContainer(
+            for: [SentimentRecord.self, ReflectionInsightRecord.self],
+            inMemory: true
+        )
 }

@@ -15,6 +15,6 @@ struct Retrospective_RulersalmonApp: App {
             //UserInfoView()
             SentimentAnalysisView()
         }
-        .modelContainer(for: SentimentRecord.self)
+        .modelContainer(for: [SentimentRecord.self, ReflectionInsightRecord.self])
     }
 }
