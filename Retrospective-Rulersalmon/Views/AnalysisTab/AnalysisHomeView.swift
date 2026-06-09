@@ -5,21 +5,9 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct AnalysisHomeView: View {
     @StateObject private var viewModel = AnalysisHomeViewModel()
-
-    @Query(sort: \StoredReflectionReport.createdAt, order: .reverse)
-    private var storedReports: [StoredReflectionReport]
-
-    private var availableRange: PeriodRange {
-        viewModel.availableRange(from: storedReports)
-    }
-
-    private var emotionKeywordStatistics: [EmotionKeyword] {
-        viewModel.emotionKeywords(from: storedReports)
-    }
 
     var body: some View {
         ZStack {
@@ -41,17 +29,9 @@ struct AnalysisHomeView: View {
                         title: viewModel.selectedData.monthlyTitle
                     )
 
-                    SatisfactionTrendSection(
-                        data: viewModel.selectedData,
-                        year: viewModel.selectedYear,
-                        month: viewModel.selectedMonth,
-                        selectedMode: $viewModel.selectedMode
-                    )
-                    SentimentRatioSection(
-                        positivePercentage: viewModel.selectedData.monthlyPositivePercentage,
-                        negativePercentage: viewModel.selectedData.monthlyNegativePercentage
-                    )
-                    EmotionKeywordSection(keywords: emotionKeywordStatistics)
+                    SatisfactionTrendSection(data: viewModel.selectedData)
+                    SentimentRatioSection()
+                    StrengthKeywordSection(keywords: viewModel.selectedData.strengthKeywords)
                     InsightListSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -61,13 +41,13 @@ struct AnalysisHomeView: View {
             }
         }
         .onAppear {
-            viewModel.normalizeSelectedPeriod(for: storedReports)
+            viewModel.normalizeSelectedPeriod()
         }
         .sheet(isPresented: $viewModel.isPeriodSheetPresented) {
             PeriodSelectionSheet(
                 selectedYear: $viewModel.selectedYear,
                 selectedMonth: $viewModel.selectedMonth,
-                availableRange: availableRange,
+                availableRange: viewModel.availableRange,
                 isPresented: $viewModel.isPeriodSheetPresented
             )
             .presentationDetents([.height(300)])
@@ -134,13 +114,11 @@ private struct MonthlySatisfactionSummaryCard: View {
 
 private struct SatisfactionTrendSection: View {
     let data: MonthlyAnalysisData
-    let year: Int
-    let month: Int
 
-    @Binding var selectedMode: SatisfactionChartMode
+    @State private var selectedChartMode: SatisfactionChartMode = .weekly
 
     private var selectedPoints: [SatisfactionPoint] {
-        switch selectedMode {
+        switch selectedChartMode {
         case .weekly:
             return data.weeklySatisfactionPoints
         case .monthly:
@@ -149,92 +127,48 @@ private struct SatisfactionTrendSection: View {
     }
 
     private var xAxisLabels: [SatisfactionAxisLabel] {
-        switch selectedMode {
+        switch selectedChartMode {
         case .weekly:
-            return weeklyAxisLabels
+            return [
+                SatisfactionAxisLabel(index: 0, title: "6.2"),
+                SatisfactionAxisLabel(index: 1, title: "6.3"),
+                SatisfactionAxisLabel(index: 2, title: "6.4"),
+                SatisfactionAxisLabel(index: 3, title: "6.5"),
+                SatisfactionAxisLabel(index: 4, title: "6.6"),
+                SatisfactionAxisLabel(index: 5, title: "6.7"),
+                SatisfactionAxisLabel(index: 6, title: "6.8")
+            ]
         case .monthly:
-            return monthlyAxisLabels
+            return [
+                SatisfactionAxisLabel(index: 0, title: "1일"),
+                SatisfactionAxisLabel(index: 7, title: "8일"),
+                SatisfactionAxisLabel(index: 14, title: "15일"),
+                SatisfactionAxisLabel(index: 21, title: "22일"),
+                SatisfactionAxisLabel(index: 29, title: "30일")
+            ]
         }
     }
 
     private var chartRange: String {
-        switch selectedMode {
+        switch selectedChartMode {
         case .weekly:
-            return weeklyChartRange
+            return "6.2 ~ 6.8"
         case .monthly:
-            return "\(year)년 \(month)월"
+            return "2026년 6월"
         }
-    }
-
-    private var weeklyAxisLabels: [SatisfactionAxisLabel] {
-        let calendar = analysisCalendar
-        let startDate = currentWeekStartDate
-
-        return (0..<7).compactMap { offset in
-            guard let date = calendar.date(byAdding: .day, value: offset, to: startDate) else {
-                return nil
-            }
-
-            return SatisfactionAxisLabel(index: offset, title: shortMonthDayString(from: date))
-        }
-    }
-
-    private var monthlyAxisLabels: [SatisfactionAxisLabel] {
-        let dayCount = max(data.monthlySatisfactionPoints.count, 1)
-        let labelDays = [1, 8, 15, 22, dayCount]
-
-        return labelDays
-            .reduce(into: [Int]()) { days, day in
-                guard !days.contains(day), day <= dayCount else { return }
-                days.append(day)
-            }
-            .map { day in
-                SatisfactionAxisLabel(index: day - 1, title: "\(day)일")
-            }
-    }
-
-    private var weeklyChartRange: String {
-        guard
-            let firstLabel = weeklyAxisLabels.first?.title,
-            let lastLabel = weeklyAxisLabels.last?.title
-        else {
-            return ""
-        }
-
-        return "\(firstLabel) ~ \(lastLabel)"
-    }
-
-    private func shortMonthDayString(from date: Date) -> String {
-        let calendar = analysisCalendar
-        return "\(calendar.component(.month, from: date)).\(calendar.component(.day, from: date))"
-    }
-
-    private var currentWeekStartDate: Date {
-        let calendar = analysisCalendar
-        let today = calendar.startOfDay(for: Date())
-        let weekday = calendar.component(.weekday, from: today)
-        let daysFromMonday = (weekday + 5) % 7
-        return calendar.date(byAdding: .day, value: -daysFromMonday, to: today) ?? today
-    }
-
-    private var analysisCalendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        calendar.firstWeekday = 2
-        return calendar
     }
 
     private var summaryTitle: String {
-        switch selectedMode {
+        switch selectedChartMode {
         case .weekly:
-            return "이번 주 만족도 흐름을 확인해요"
+            return "최근 7일은 후반으로 갈수록 만족도가 올랐어요"
         case .monthly:
             return "6월은 후반부로 갈수록 더 안정적이었어요"
         }
     }
 
     private var summaryDescription: String {
-        switch selectedMode {
+        switch selectedChartMode {
         case .weekly:
             return "오늘에 가까워질수록 긍정 흐름이 커졌고, 6월 전체 상승 흐름의 시작점으로 보여요."
         case .monthly:
@@ -256,13 +190,13 @@ private struct SatisfactionTrendSection: View {
                     .foregroundStyle(Color.gray600)
             }
 
-            SatisfactionChartModeSegmentedControl(selectedMode: $selectedMode)
+            SatisfactionChartModeSegmentedControl(selectedMode: $selectedChartMode)
 
             SatisfactionLineChart(
                 points: selectedPoints,
                 xAxisLabels: xAxisLabels,
-                showsPointMarkers: selectedMode == .weekly,
-                highlightsLastPoint: selectedMode == .monthly
+                showsPointMarkers: selectedChartMode == .weekly,
+                highlightsLastPoint: selectedChartMode == .monthly
             )
             .frame(height: AnalysisHomeLayout.chartHeight)
             .padding(.top, 14)
@@ -290,6 +224,20 @@ private struct SatisfactionTrendSection: View {
                 RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
                     .fill(Color.gray50)
             }
+        }
+    }
+}
+
+private enum SatisfactionChartMode: CaseIterable {
+    case weekly
+    case monthly
+
+    var title: String {
+        switch self {
+        case .weekly:
+            return "주간"
+        case .monthly:
+            return "월간"
         }
     }
 }
@@ -325,8 +273,8 @@ private struct SatisfactionChartModeSegmentedControl: View {
     }
 }
 
-private struct EmotionKeywordSection: View {
-    let keywords: [EmotionKeyword]
+private struct StrengthKeywordSection: View {
+    let keywords: [StrengthKeyword]
 
     private var maxCount: CGFloat {
         CGFloat(keywords.map(\.count).max() ?? 1)
@@ -334,27 +282,20 @@ private struct EmotionKeywordSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("감정 키워드 top5")
+            Text("감정 키워드")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
             VStack(spacing: 8) {
-                if keywords.isEmpty {
-                    Text("아직 누적된 감정 키워드가 없어요.")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.gray600)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    ForEach(keywords) { keyword in
-                        EmotionRow(
-                            keyword: keyword,
-                            progress: CGFloat(keyword.count) / maxCount
-                        )
-                    }
+                ForEach(keywords) { keyword in
+                    StrengthKeywordRow(
+                        keyword: keyword,
+                        progress: CGFloat(keyword.count) / maxCount
+                    )
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, keywords.isEmpty ? 28 : 34)
+            .padding(.vertical, 34)
             .background {
                 RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
                     .fill(Color.white)
@@ -368,8 +309,8 @@ private struct EmotionKeywordSection: View {
     }
 }
 
-private struct EmotionRow: View {
-    let keyword: EmotionKeyword
+private struct StrengthKeywordRow: View {
+    let keyword: StrengthKeyword
     let progress: CGFloat
 
     var body: some View {
@@ -403,29 +344,6 @@ private struct EmotionRow: View {
 }
 
 private struct SentimentRatioSection: View {
-    let positivePercentage: Double
-    let negativePercentage: Double
-
-    private var clampedPositivePercentage: Double {
-        max(0, min(positivePercentage, 100))
-    }
-
-    private var clampedNegativePercentage: Double {
-        max(0, min(negativePercentage, 100))
-    }
-
-    private var positiveRatio: CGFloat {
-        CGFloat(clampedPositivePercentage / 100)
-    }
-
-    private var positiveText: String {
-        String(format: "%.0f", clampedPositivePercentage)
-    }
-
-    private var negativeText: String {
-        String(format: "%.0f", clampedNegativePercentage)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("감정 비율")
@@ -440,19 +358,19 @@ private struct SentimentRatioSection: View {
 
                         Capsule()
                             .fill(Color.blue500)
-                            .frame(width: geometry.size.width * positiveRatio)
+                            .frame(width: geometry.size.width * 0.82)
                     }
                 }
                 .frame(height: 10)
 
                 HStack {
-                    Text("긍정 \(positiveText)%")
+                    Text("긍정 82%")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Color.blue500)
 
                     Spacer()
 
-                    Text("부정 \(negativeText)%")
+                    Text("부정 18%")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Color.gray600)
                 }
@@ -467,7 +385,7 @@ private struct SentimentRatioSection: View {
                     .stroke(Color.gray300, lineWidth: 1)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("긍정 \(positiveText)퍼센트, 부정 \(negativeText)퍼센트")
+            .accessibilityLabel("긍정 82퍼센트, 부정 18퍼센트")
         }
     }
 }
