@@ -6,12 +6,17 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct RetrospectiveAnalysisView: View {
+    @Environment(\.modelContext) private var modelContext
+
     @StateObject private var viewModel: FourLResultViewModel
     @State private var completedReport: RetrospectiveReport?
     @State private var isShowingReport = false
+    @State private var didSaveSentimentRecord = false
     private let onExitToMain: (() -> Void)?
+    private let sentimentAnalyzer = RetrospectiveSentimentAnalyzer()
 
     init(messages: [ChatMessage], onExitToMain: (() -> Void)? = nil) {
         _viewModel = StateObject(wrappedValue: FourLResultViewModel(messages: messages))
@@ -38,6 +43,7 @@ struct RetrospectiveAnalysisView: View {
         }
         .onChange(of: isReportReady) { _, newValue in
             guard newValue, let report else { return }
+            saveSentimentRecordIfNeeded()
             completedReport = report
             isShowingReport = true
         }
@@ -85,6 +91,29 @@ struct RetrospectiveAnalysisView: View {
         }
 
         return 0.18
+    }
+
+    private func saveSentimentRecordIfNeeded() {
+        guard !didSaveSentimentRecord else { return }
+
+        let transcript = viewModel.userReflectionText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !transcript.isEmpty else { return }
+
+        let result = sentimentAnalyzer.analyze(transcript)
+        let record = SentimentRecord(
+            createdAt: viewModel.lastUserMessageDate,
+            transcript: transcript,
+            result: result
+        )
+
+        modelContext.insert(record)
+
+        do {
+            try modelContext.save()
+            didSaveSentimentRecord = true
+        } catch {
+            print("[RetrospectiveAnalysisView] SentimentRecord save failed: \(error)")
+        }
     }
 
     private var fourLEntries: [FourLEntry] {
