@@ -304,7 +304,7 @@ private struct StrengthKeywordSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("강점 키워드")
+            Text("감정 키워드")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 

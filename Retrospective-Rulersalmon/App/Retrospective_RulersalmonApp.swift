@@ -12,8 +12,10 @@ import SwiftData
 struct Retrospective_RulersalmonApp: App {
     var body: some Scene {
         WindowGroup {
-            OnboardingFlowView()
-                .modelContainer(AppDataStore.shared.container)
+            NavigationStack {
+                OnboardingFlowView()
+                    .modelContainer(AppDataStore.shared.container)
+            }
         }
     }
 }

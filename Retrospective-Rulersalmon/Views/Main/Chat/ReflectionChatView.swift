@@ -10,6 +10,8 @@ import SwiftUI
 struct ReflectionChatView: View {
     @StateObject private var viewModel: ReflectionChatViewModel
     @FocusState private var isInputFocused: Bool
+    @State private var isShowingResult = false
+    @State private var resultMessages: [ChatMessage] = []
 
     private let bubbleShadowColor = Color(
         red: 23.0 / 255.0,
@@ -68,7 +70,8 @@ struct ReflectionChatView: View {
                     isInputFocused: $isInputFocused,
                     isResponding: viewModel.isResponding,
                     bubbleShadowColor: bubbleShadowColor,
-                    onSend: viewModel.sendMessage
+                    onSend: viewModel.sendMessage,
+                    onFinish: finishReflection
                 )
             }
         }
@@ -77,6 +80,9 @@ struct ReflectionChatView: View {
             isInputFocused = false
         }
         .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(isPresented: $isShowingResult) {
+            RetrospectiveAnalysisView(messages: resultMessages)
+        }
         .task {
             viewModel.prepareFoundationModelIfNeeded()
         }
@@ -88,6 +94,12 @@ struct ReflectionChatView: View {
         } message: {
             Text(viewModel.alertMessage ?? "")
         }
+    }
+
+    private func finishReflection() {
+        isInputFocused = false
+        resultMessages = viewModel.finishReflection()
+        isShowingResult = true
     }
 
     private func scrollToBottom(using proxy: ScrollViewProxy) {
