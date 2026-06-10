@@ -275,6 +275,55 @@ final class AppDataStore {
         saveContext(reason: "applyInsightUpdate")
     }
 
+    func replaceInsights(
+        with result: ReflectionInsightResult,
+        scope: String,
+        periodStartDate: Date,
+        periodEndDate: Date,
+        updatedAt: Date,
+        sourceRecordIDs: [UUID]
+    ) {
+        allInsightRecords()
+            .filter { record in
+                record.scope == scope &&
+                    record.updatedAt >= periodStartDate &&
+                    record.updatedAt < periodEndDate
+            }
+            .forEach { context.delete($0) }
+
+        result.reflectionPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "reflection",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: sourceRecordIDs,
+                    scopeRawValue: scope,
+                    createdAt: updatedAt,
+                    updatedAt: updatedAt
+                )
+            )
+        }
+
+        result.strengthPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "strength",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: sourceRecordIDs,
+                    scopeRawValue: scope,
+                    createdAt: updatedAt,
+                    updatedAt: updatedAt
+                )
+            )
+        }
+
+        saveContext(reason: "replaceInsights")
+    }
+
     func makeMainPageContent() -> MainPageContent {
         let profile = loadCurrentProfile()
         let mentorName = profile?.mentorName ?? Mentor.sampleMentors.first?.name ?? "Mentor"
@@ -336,6 +385,7 @@ final class AppDataStore {
         if !reports.isEmpty {
             return Array(reports.prefix(limit)).map { report in
                 RetrospectiveItem(
+                    id: report.id,
                     date: report.createdAt.compactKoreanDate,
                     title: String(report.todaySummary.prefix(20))
                 )
@@ -349,6 +399,7 @@ final class AppDataStore {
 
         return Array(sessions.prefix(limit)).map { session in
             RetrospectiveItem(
+                id: session.id,
                 date: session.updatedAt.compactKoreanDate,
                 title: session.displayTitle
             )
@@ -447,23 +498,6 @@ final class AppDataStore {
             }
         }
 
-        for insight in DevelopmentReflectionSample.insights where insightRecord(for: insight.id) == nil {
-            context.insert(
-                ReflectionInsightRecord(
-                    id: insight.id,
-                    kind: insight.kind,
-                    title: insight.title,
-                    insightDescription: insight.description,
-                    count: insight.count,
-                    sourceRecordIDs: insight.sourceIDs,
-                    scopeRawValue: insight.scope,
-                    createdAt: insight.date,
-                    updatedAt: insight.date
-                )
-            )
-            didSeed = true
-        }
-
         if didSeed {
             saveContext(reason: "seedDevelopmentReflectionDataIfNeeded")
         }
@@ -480,37 +514,6 @@ private struct DevelopmentReflectionSample {
     let emotionKeywords: [String]
     let actionItems: [String]
     let fourLItemsRaw: String
-
-    struct InsightSample {
-        let id: UUID
-        let kind: String
-        let title: String
-        let description: String
-        let count: Int
-        let sourceIDs: [UUID]
-        let date: Date
-        let scope: String
-
-        init(
-            id: UUID,
-            kind: String,
-            title: String,
-            description: String,
-            count: Int,
-            sourceIDs: [UUID],
-            date: Date,
-            scope: String = "weekly"
-        ) {
-            self.id = id
-            self.kind = kind
-            self.title = title
-            self.description = description
-            self.count = count
-            self.sourceIDs = sourceIDs
-            self.date = date
-            self.scope = scope
-        }
-    }
 
     static let samples: [DevelopmentReflectionSample] = [
         DevelopmentReflectionSample(
@@ -674,136 +677,6 @@ private struct DevelopmentReflectionSample {
                 "Lacked:결과물을 더 잘 만들고 싶어 준비만 하다가 실제 작업 시작이 늦어진 점이 아쉬웠다.",
                 "Longed for:다음에는 고민되는 부분을 바로 팀에 공유하고 실제 작업을 더 빨리 시작하고 싶다."
             ].joined(separator: "|")
-        )
-    ]
-
-    static let insights: [InsightSample] = [
-        InsightSample(
-            id: UUID(uuidString: "20260610-1000-0000-0000-000000000001") ?? UUID(),
-            kind: "reflection",
-            title: "작업 전 범위와 흐름 정리",
-            description: "여러 회고에서 구현 전에 브랜치 상태, 작업 범위, 전체 데이터 흐름을 먼저 확인해야 한다는 반성이 반복되었습니다.",
-            count: 4,
-            sourceIDs: [
-                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
-                UUID(uuidString: "20260608-0000-0000-0000-000000000008") ?? UUID(),
-                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
-                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 10)
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260610-1000-0000-0000-000000000002") ?? UUID(),
-            kind: "reflection",
-            title: "빠른 공유와 질문",
-            description: "막히는 시간이 길어지거나 이슈가 생겼을 때 팀에 더 빨리 공유하고 의견을 구하려는 필요가 반복적으로 나타났습니다.",
-            count: 2,
-            sourceIDs: [
-                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
-                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 10)
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260610-1000-0000-0000-000000000003") ?? UUID(),
-            kind: "strength",
-            title: "끝까지 원인을 추적하는 힘",
-            description: "Git 충돌, 데이터 연결, 예상치 못한 오류를 커밋 기록과 데이터 흐름을 따라가며 해결하는 강점이 드러났습니다.",
-            count: 4,
-            sourceIDs: [
-                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
-                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
-                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
-                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 10)
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260619-1000-0000-0000-000000000001") ?? UUID(),
-            kind: "reflection",
-            title: "시작을 미루는 완성도 부담",
-            description: "발표 자료와 프로젝트 결과물을 더 잘 만들고 싶다는 부담 때문에 시작이 늦어지는 패턴이 반복되었습니다.",
-            count: 2,
-            sourceIDs: [
-                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
-                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 19)
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260619-1000-0000-0000-000000000002") ?? UUID(),
-            kind: "reflection",
-            title: "혼자 오래 고민하는 습관",
-            description: "부담감이나 어려운 부분을 혼자 해결하려다 시간이 길어지고 스트레스가 커지는 모습이 여러 회고에서 나타났습니다.",
-            count: 3,
-            sourceIDs: [
-                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
-                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
-                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 19)
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260619-1000-0000-0000-000000000003") ?? UUID(),
-            kind: "strength",
-            title: "책임지고 끝까지 마무리하는 태도",
-            description: "발표, 행사 준비, 팀 프로젝트에서 맡은 역할을 끝까지 확인하고 책임감 있게 마무리하는 강점이 이어졌습니다.",
-            count: 3,
-            sourceIDs: [
-                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
-                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
-                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 19)
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260630-2000-0000-0000-000000000001") ?? UUID(),
-            kind: "reflection",
-            title: "준비 시작 시점 관리",
-            description: "6월 전체 회고에서 작업을 더 잘 만들고 싶은 마음 때문에 시작이 늦어지는 흐름이 반복되었습니다. 월간 단위에서는 완성도보다 시작 시점을 먼저 관리하는 것이 중요한 포인트로 보입니다.",
-            count: 5,
-            sourceIDs: [
-                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
-                UUID(uuidString: "20260608-0000-0000-0000-000000000008") ?? UUID(),
-                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID(),
-                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
-                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 30),
-            scope: "monthly"
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260630-2000-0000-0000-000000000002") ?? UUID(),
-            kind: "reflection",
-            title: "빠른 공유와 도움 요청",
-            description: "여러 주에 걸쳐 혼자 고민하거나 상황 공유가 늦어진 점이 반복되었습니다. 월간 인사이트로는 문제가 생겼을 때 더 빠르게 주변과 공유하는 습관이 필요합니다.",
-            count: 5,
-            sourceIDs: [
-                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
-                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
-                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
-                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
-                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 30),
-            scope: "monthly"
-        ),
-        InsightSample(
-            id: UUID(uuidString: "20260630-2000-0000-0000-000000000003") ?? UUID(),
-            kind: "strength",
-            title: "문제를 끝까지 해결하는 지속력",
-            description: "6월 회고 전반에서 Git 충돌, 데이터 연결, 행사 준비, 프로젝트 진행처럼 예상치 못한 문제가 있어도 끝까지 확인하며 해결하는 강점이 꾸준히 드러났습니다.",
-            count: 6,
-            sourceIDs: [
-                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
-                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
-                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
-                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID(),
-                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
-                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
-            ],
-            date: makeDate(month: 6, day: 30),
-            scope: "monthly"
         )
     ]
 

@@ -9,6 +9,7 @@ import SwiftData
 
 struct AnalysisHomeView: View {
     @StateObject private var viewModel = AnalysisHomeViewModel()
+    @State private var generatedInsightKeys: Set<String> = []
 
     @Query(sort: \StoredReflectionReport.createdAt, order: .reverse)
     private var storedReports: [StoredReflectionReport]
@@ -122,15 +123,33 @@ struct AnalysisHomeView: View {
         .onAppear {
             viewModel.normalizeSelectedPeriod(for: storedReports)
             viewModel.normalizeSelectedWeek(from: storedSentiments)
+            Task {
+                await generateDevelopmentInsightsIfNeeded()
+            }
         }
         .onChange(of: viewModel.selectedYear) { _, _ in
             viewModel.normalizeSelectedWeek(from: storedSentiments)
+            Task {
+                await generateDevelopmentInsightsIfNeeded()
+            }
         }
         .onChange(of: viewModel.selectedMonth) { _, _ in
             viewModel.normalizeSelectedWeek(from: storedSentiments)
+            Task {
+                await generateDevelopmentInsightsIfNeeded()
+            }
+        }
+        .onChange(of: viewModel.selectedWeekStartDate) { _, _ in
+            Task {
+                await generateDevelopmentInsightsIfNeeded()
+            }
         }
         .onChange(of: storedSentiments.count) { _, _ in
             viewModel.normalizeSelectedWeek(from: storedSentiments)
+            generatedInsightKeys.removeAll()
+            Task {
+                await generateDevelopmentInsightsIfNeeded()
+            }
         }
         .sheet(isPresented: $viewModel.isPeriodSheetPresented) {
             PeriodSelectionSheet(
@@ -152,6 +171,111 @@ struct AnalysisHomeView: View {
         }
         .toolbarBackground(Color.white, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+    }
+
+    @MainActor
+    private func generateDevelopmentInsightsIfNeeded() async {
+        #if DEBUG
+        guard !storedSentiments.isEmpty else { return }
+
+        let key = [
+            "\(viewModel.selectedYear)",
+            "\(viewModel.selectedMonth)",
+            "\(viewModel.selectedWeekStartDate?.timeIntervalSince1970 ?? 0)"
+        ].joined(separator: "-")
+
+        guard !generatedInsightKeys.contains(key) else { return }
+        generatedInsightKeys.insert(key)
+
+        await generateWeeklyDevelopmentInsightsIfNeeded()
+        await generateMonthlyDevelopmentInsightsIfNeeded()
+        #endif
+    }
+
+    @MainActor
+    private func generateWeeklyDevelopmentInsightsIfNeeded() async {
+        #if DEBUG
+        guard let startDate = viewModel.selectedWeekStartDate else { return }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+
+        guard let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
+            return
+        }
+
+        let dataStore = AppDataStore.shared
+        let records = dataStore.sentimentRecords(startDate: startDate, endDate: endDate)
+        let sourceRecords = records.map(\.asInsightSourceRecord)
+        let referenceDate = calendar.date(byAdding: .day, value: -1, to: endDate) ?? startDate
+
+        do {
+            let result = try await ReflectionInsightService().generateInsights(
+                from: sourceRecords,
+                days: 7,
+                minimumRepeatCount: 2,
+                referenceDate: referenceDate
+            )
+
+            dataStore.replaceInsights(
+                with: result,
+                scope: "weekly",
+                periodStartDate: startDate,
+                periodEndDate: endDate,
+                updatedAt: referenceDate,
+                sourceRecordIDs: records.map(\.id)
+            )
+        } catch {
+            print("[AnalysisHomeView] failed to generate weekly insights: \(error)")
+        }
+        #endif
+    }
+
+    @MainActor
+    private func generateMonthlyDevelopmentInsightsIfNeeded() async {
+        #if DEBUG
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+
+        guard
+            let startDate = calendar.date(from: DateComponents(
+                year: viewModel.selectedYear,
+                month: viewModel.selectedMonth
+            )),
+            let endDate = calendar.date(byAdding: .month, value: 1, to: startDate)
+        else {
+            return
+        }
+
+        let dataStore = AppDataStore.shared
+        let records = dataStore.sentimentRecords(
+            year: viewModel.selectedYear,
+            month: viewModel.selectedMonth
+        )
+        let sourceRecords = records.map(\.asInsightSourceRecord)
+        let days = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 30
+        let referenceDate = calendar.date(byAdding: .day, value: -1, to: endDate) ?? startDate
+
+        do {
+            let result = try await ReflectionInsightService().generateInsights(
+                from: sourceRecords,
+                days: days,
+                minimumRepeatCount: 3,
+                referenceDate: referenceDate
+            )
+
+            dataStore.replaceInsights(
+                with: result,
+                scope: "monthly",
+                periodStartDate: startDate,
+                periodEndDate: endDate,
+                updatedAt: referenceDate,
+                sourceRecordIDs: records.map(\.id)
+            )
+        } catch {
+            print("[AnalysisHomeView] failed to generate monthly insights: \(error)")
+        }
+        #endif
     }
 }
 
@@ -1000,5 +1124,18 @@ struct AnalysisHomeView_Previews: PreviewProvider {
         NavigationStack {
             AnalysisHomeView()
         }
+    }
+}
+
+private extension SentimentRecord {
+    var asInsightSourceRecord: ReflectionInsightSourceRecord {
+        ReflectionInsightSourceRecord(
+            id: id,
+            createdAt: createdAt,
+            transcript: transcript,
+            positivePercentage: positivePercentage,
+            negativePercentage: negativePercentage,
+            satisfactionScore: satisfactionScore
+        )
     }
 }

@@ -18,11 +18,18 @@ struct MainPageContent {
 }
 
 struct RetrospectiveItem: Identifiable, Hashable {
+    let id: UUID
     let date: String
     let title: String
 
-    var id: String {
-        date + title
+    init(
+        id: UUID = UUID(),
+        date: String,
+        title: String
+    ) {
+        self.id = id
+        self.date = date
+        self.title = title
     }
 }
 
