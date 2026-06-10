@@ -13,6 +13,39 @@ enum RetrospectiveReportDisplayStyle {
     case archived(navigationTitle: String)
 }
 
+struct ReportNavigationContent {
+    let title: String
+}
+
+struct ReportSummaryCardContent {
+    let title: String
+    let summary: String
+    let transcript: String
+    let transcriptLinkTitle: String
+}
+
+struct ReportFourLCardContent {
+    let title: String
+    let entries: [FourLEntry]
+}
+
+struct ReportKeywordSectionContent {
+    let title: String
+    let keywords: [String]
+}
+
+struct ReportActionItemRowContent: Identifiable {
+    let id: Int
+    let number: Int
+    let text: String
+}
+
+struct ReportActionItemCardContent {
+    let title: String
+    let rows: [ReportActionItemRowContent]
+    let emptyMessage: String
+}
+
 @MainActor
 final class RetrospectiveReportViewModel: ObservableObject {
     @Published private(set) var report: RetrospectiveReport
@@ -26,7 +59,52 @@ final class RetrospectiveReportViewModel: ObservableObject {
         self.displayStyle = displayStyle
     }
 
-    var navigationTitle: String {
+    var navigationContent: ReportNavigationContent {
+        ReportNavigationContent(title: navigationTitle)
+    }
+
+    var summaryCard: ReportSummaryCardContent {
+        ReportSummaryCardContent(
+            title: summaryTitle,
+            summary: report.summary,
+            transcript: report.transcript,
+            transcriptLinkTitle: transcriptLinkTitle
+        )
+    }
+
+    var fourLCard: ReportFourLCardContent {
+        ReportFourLCardContent(
+            title: fourLTitle,
+            entries: report.fourLEntries
+        )
+    }
+
+    var keywordSection: ReportKeywordSectionContent {
+        ReportKeywordSectionContent(
+            title: keywordTitle,
+            keywords: report.keywords
+        )
+    }
+
+    var actionItemCard: ReportActionItemCardContent {
+        ReportActionItemCardContent(
+            title: actionItemTitle,
+            rows: report.actionItems.enumerated().map {
+                ReportActionItemRowContent(
+                    id: $0.offset,
+                    number: $0.offset + 1,
+                    text: $0.element
+                )
+            },
+            emptyMessage: emptyActionItemMessage
+        )
+    }
+
+    var transcriptNavigationTitle: String {
+        "전사문"
+    }
+
+    private var navigationTitle: String {
         switch displayStyle {
         case .today:
             return "오늘의 회고"
@@ -35,7 +113,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
         }
     }
 
-    var summaryTitle: String {
+    private var summaryTitle: String {
         switch displayStyle {
         case .today:
             return "오늘 회고 요약"
@@ -44,7 +122,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
         }
     }
 
-    var fourLTitle: String {
+    private var fourLTitle: String {
         switch displayStyle {
         case .today:
             return "오늘의 4L 회고"
@@ -53,11 +131,11 @@ final class RetrospectiveReportViewModel: ObservableObject {
         }
     }
 
-    var keywordTitle: String {
+    private var keywordTitle: String {
         "핵심 키워드"
     }
 
-    var actionItemTitle: String {
+    private var actionItemTitle: String {
         switch displayStyle {
         case .today:
             return "내일의 Action Item"
@@ -66,35 +144,11 @@ final class RetrospectiveReportViewModel: ObservableObject {
         }
     }
 
-    var transcriptLinkTitle: String {
-        "전사문 보기 >"
+    private var transcriptLinkTitle: String {
+        "전사문 보기"
     }
 
-    var emptyActionItemMessage: String {
+    private var emptyActionItemMessage: String {
         "추천할 Action Item이 없어요."
-    }
-
-    var summary: String {
-        report.summary
-    }
-
-    var transcript: String {
-        report.transcript
-    }
-
-    var fourLEntries: [FourLEntry] {
-        report.fourLEntries
-    }
-
-    var keywords: [String] {
-        report.keywords
-    }
-
-    var actionItems: [String] {
-        report.actionItems
-    }
-
-    var hasActionItems: Bool {
-        !actionItems.isEmpty
     }
 }

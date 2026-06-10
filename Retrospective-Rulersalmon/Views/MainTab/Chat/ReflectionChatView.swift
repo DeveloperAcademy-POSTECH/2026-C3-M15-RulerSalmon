@@ -135,7 +135,8 @@ struct ReflectionChatView: View {
 
     private func finishReflection() {
         isInputFocused = false
-        resultMessages = viewModel.finishReflection()
+        guard let finishedMessages = viewModel.finishReflection() else { return }
+        resultMessages = finishedMessages
         isShowingResult = true
     }
 
