@@ -89,10 +89,10 @@ private struct MainHomeView: View {
 }
 
 private enum MainPageLayout {
-    static let screenPadding: CGFloat = 16
-    static let headerHorizontalPadding: CGFloat = 10
+    static let screenPadding: CGFloat = AppLayout.screenHorizontalPadding
+    static let headerHorizontalPadding: CGFloat = AppLayout.screenHorizontalPadding
     static let cardPadding: CGFloat = 24
-    static let listRowHorizontalPadding: CGFloat = 16
+    static let listRowHorizontalPadding: CGFloat = AppLayout.screenHorizontalPadding
     static let listRowVerticalPadding: CGFloat = 12
     static let cardCornerRadius: CGFloat = 25
     static let borderWidth: CGFloat = 1

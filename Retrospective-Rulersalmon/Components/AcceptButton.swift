@@ -12,7 +12,7 @@ struct AcceptButtonStyle: ButtonStyle{
         RoundedRectangle(cornerRadius: 1000)
             .fill(Color.blue600)
             .frame(maxWidth:.infinity, maxHeight: 56)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, AppLayout.screenHorizontalPadding)
             .overlay{
                 configuration.label
                     .foregroundStyle(Color.white)

@@ -57,7 +57,7 @@ struct ReflectionChatView: View {
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 22)
+                        .padding(.horizontal, AppLayout.screenHorizontalPadding)
                         .padding(.bottom, 0)
                     }
                     .onAppear {

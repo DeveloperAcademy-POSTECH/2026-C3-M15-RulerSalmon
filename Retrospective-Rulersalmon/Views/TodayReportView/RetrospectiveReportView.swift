@@ -60,7 +60,7 @@ struct RetrospectiveReportView: View {
 }
 
 private enum ReportLayout {
-    static let screenPadding: CGFloat = 16
+    static let screenPadding: CGFloat = AppLayout.screenHorizontalPadding
     static let cardPadding: CGFloat = 16
     static let cardCornerRadius: CGFloat = 20
     static let summaryCornerRadius: CGFloat = 24

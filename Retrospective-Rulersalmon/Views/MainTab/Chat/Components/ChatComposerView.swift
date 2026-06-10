@@ -66,7 +66,7 @@ struct ChatComposerView: View {
                     .offset(x: 2, y: -48)
             }
         }
-        .padding(.horizontal, 22)
+        .padding(.horizontal, AppLayout.screenHorizontalPadding)
         .padding(.top, 14)
         .padding(.bottom, 22)
         .background(Color.gray50)
