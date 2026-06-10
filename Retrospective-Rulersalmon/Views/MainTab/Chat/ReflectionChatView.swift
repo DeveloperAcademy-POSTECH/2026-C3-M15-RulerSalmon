@@ -11,6 +11,7 @@ struct ReflectionChatView: View {
     @StateObject private var viewModel: ReflectionChatViewModel
     @FocusState private var isInputFocused: Bool
     @State private var isShowingResult = false
+    @State private var isShowingFinishAlert = false
     @State private var resultMessages: [ChatMessage] = []
     @Environment(\.dismiss) private var dismiss
     private let onExitToMain: (() -> Void)?
@@ -34,7 +35,7 @@ struct ReflectionChatView: View {
 
     var body: some View {
         ZStack {
-            Color.gray50
+            Color.white
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -73,10 +74,31 @@ struct ReflectionChatView: View {
                     text: $viewModel.inputText,
                     isInputFocused: $isInputFocused,
                     isResponding: viewModel.isResponding,
-                    bubbleShadowColor: bubbleShadowColor,
-                    onSend: viewModel.sendMessage,
-                    onFinish: finishReflection
+                    onSend: viewModel.sendMessage
                 )
+            }
+
+            VStack {
+                Spacer()
+
+                HStack {
+                    Spacer()
+
+                    GlassEffectContainer {
+                        Button {
+                            isShowingFinishAlert = true
+                        } label: {
+                            Image(systemName: "power")
+                                .font(.system(size: 20, weight: .regular))
+                                .frame(width: 24, height: 32)
+                        }
+                        .buttonStyle(.glass)
+                    }
+                    .disabled(viewModel.isResponding)
+                    .opacity(viewModel.isResponding ? 0.5 : 1)
+                    .padding(.trailing, AppLayout.screenHorizontalPadding)
+                    .padding(.bottom, 84)
+                }
             }
         }
         .contentShape(Rectangle())
@@ -100,6 +122,14 @@ struct ReflectionChatView: View {
             Button("확인", role: .cancel) { }
         } message: {
             Text(viewModel.alertMessage ?? "")
+        }
+        .alert("오늘의 회고를 종료할까요?", isPresented: $isShowingFinishAlert) {
+            Button("취소", role: .cancel) { }
+            Button("종료하기") {
+                finishReflection()
+            }
+        } message: {
+            Text("종료하면 오늘의 회고 세션이 자동으로 생성돼요.")
         }
     }
 
