@@ -76,11 +76,7 @@ final class AnalysisHomeViewModel: ObservableObject {
     }
 
     func insights(from records: [ReflectionInsightRecord]) -> [AnalysisInsightItem] {
-        records
-            .filter { record in
-                let components = Calendar.current.dateComponents([.year, .month], from: record.updatedAt)
-                return components.year == selectedYear && components.month == selectedMonth
-            }
+        filteredInsights(from: records)
             .map { record in
                 AnalysisInsightItem(
                     id: record.id,
@@ -180,6 +176,26 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
 
         return reports.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
+    }
+
+    private func filteredInsights(
+        from records: [ReflectionInsightRecord],
+        calendar: Calendar = .current
+    ) -> [ReflectionInsightRecord] {
+        switch selectedMode {
+        case .weekly:
+            guard let selectedWeekStartDate,
+                  let endDate = calendar.date(byAdding: .day, value: 7, to: selectedWeekStartDate) else {
+                return []
+            }
+
+            return records.filter { $0.updatedAt >= selectedWeekStartDate && $0.updatedAt < endDate }
+        case .monthly:
+            return records.filter { record in
+                let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
+                return components.year == selectedYear && components.month == selectedMonth
+            }
+        }
     }
 
     private func reportsWithinDays(
