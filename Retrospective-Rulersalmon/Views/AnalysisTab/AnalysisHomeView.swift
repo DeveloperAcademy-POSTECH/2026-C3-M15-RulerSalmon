@@ -182,6 +182,9 @@ private enum AnalysisHomeLayout {
     static let cardPadding: CGFloat = 16
     static let cardCornerRadius: CGFloat = 18
     static let chartHeight: CGFloat = 152
+    static let chartRangeControlWidth: CGFloat = 112
+    static let chartRangeControlHeight: CGFloat = 32
+    static let chartRangeChevronWidth: CGFloat = 16
 }
 
 private struct MonthlySatisfactionSummaryCard: View {
@@ -341,26 +344,37 @@ private struct SatisfactionTrendSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center) {
                 Text("만족도 흐름")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Color.gray900)
 
                 Spacer()
 
-                Text(chartRange)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.gray600)
+                if selectedMode == .weekly {
+                    WeekSelectionPicker(
+                        selectedWeekStartDate: $selectedWeekStartDate,
+                        weekOptions: weekOptions
+                    )
+                    .frame(
+                        width: AnalysisHomeLayout.chartRangeControlWidth,
+                        height: AnalysisHomeLayout.chartRangeControlHeight,
+                        alignment: .trailing
+                    )
+                } else {
+                    Text(chartRange)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.gray600)
+                        .frame(
+                            width: AnalysisHomeLayout.chartRangeControlWidth - AnalysisHomeLayout.chartRangeChevronWidth,
+                            height: AnalysisHomeLayout.chartRangeControlHeight,
+                            alignment: .trailing
+                        )
+                        .padding(.trailing, AnalysisHomeLayout.chartRangeChevronWidth)
+                }
             }
 
             SatisfactionChartModeSegmentedControl(selectedMode: $selectedMode)
-
-            if selectedMode == .weekly {
-                WeekSelectionPicker(
-                    selectedWeekStartDate: $selectedWeekStartDate,
-                    weekOptions: weekOptions
-                )
-            }
 
             SatisfactionLineChart(
                 points: selectedPoints,
@@ -403,28 +417,39 @@ private struct WeekSelectionPicker: View {
     let weekOptions: [AnalysisWeekOption]
 
     var body: some View {
-        Picker("주차", selection: selectedWeekBinding) {
+        Menu {
             ForEach(weekOptions) { option in
-                Text(option.title)
-                    .tag(option.startDate)
+                Button {
+                    selectedWeekStartDate = option.startDate
+                } label: {
+                    Text(option.title)
+                }
             }
+        } label: {
+            HStack(spacing: 0) {
+                Text(selectedWeekTitle)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.blue500)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.blue500)
+                    .frame(width: AnalysisHomeLayout.chartRangeChevronWidth, alignment: .trailing)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
         }
-        .pickerStyle(.menu)
-        .font(.system(size: 13, weight: .bold))
-        .tint(Color.blue500)
-        .frame(maxWidth: .infinity, alignment: .trailing)
         .disabled(weekOptions.isEmpty)
     }
 
-    private var selectedWeekBinding: Binding<Date> {
-        Binding(
-            get: {
-                selectedWeekStartDate ?? weekOptions.first?.startDate ?? Date()
-            },
-            set: { newValue in
-                selectedWeekStartDate = newValue
-            }
-        )
+    private var selectedWeekTitle: String {
+        guard let selectedWeekStartDate else {
+            return weekOptions.first?.title ?? "주차"
+        }
+
+        return weekOptions.first { option in
+            Calendar.current.isDate(option.startDate, inSameDayAs: selectedWeekStartDate)
+        }?.title ?? weekOptions.first?.title ?? "주차"
     }
 }
 
