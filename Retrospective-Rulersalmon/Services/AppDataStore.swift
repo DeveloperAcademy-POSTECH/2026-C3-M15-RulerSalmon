@@ -456,6 +456,7 @@ final class AppDataStore {
                     insightDescription: insight.description,
                     count: insight.count,
                     sourceRecordIDs: insight.sourceIDs,
+                    scopeRawValue: insight.scope,
                     createdAt: insight.date,
                     updatedAt: insight.date
                 )
@@ -488,6 +489,27 @@ private struct DevelopmentReflectionSample {
         let count: Int
         let sourceIDs: [UUID]
         let date: Date
+        let scope: String
+
+        init(
+            id: UUID,
+            kind: String,
+            title: String,
+            description: String,
+            count: Int,
+            sourceIDs: [UUID],
+            date: Date,
+            scope: String = "weekly"
+        ) {
+            self.id = id
+            self.kind = kind
+            self.title = title
+            self.description = description
+            self.count = count
+            self.sourceIDs = sourceIDs
+            self.date = date
+            self.scope = scope
+        }
     }
 
     static let samples: [DevelopmentReflectionSample] = [
@@ -733,6 +755,55 @@ private struct DevelopmentReflectionSample {
                 UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
             ],
             date: makeDate(month: 6, day: 19)
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260630-2000-0000-0000-000000000001") ?? UUID(),
+            kind: "reflection",
+            title: "준비 시작 시점 관리",
+            description: "6월 전체 회고에서 작업을 더 잘 만들고 싶은 마음 때문에 시작이 늦어지는 흐름이 반복되었습니다. 월간 단위에서는 완성도보다 시작 시점을 먼저 관리하는 것이 중요한 포인트로 보입니다.",
+            count: 5,
+            sourceIDs: [
+                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
+                UUID(uuidString: "20260608-0000-0000-0000-000000000008") ?? UUID(),
+                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID(),
+                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
+                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 30),
+            scope: "monthly"
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260630-2000-0000-0000-000000000002") ?? UUID(),
+            kind: "reflection",
+            title: "빠른 공유와 도움 요청",
+            description: "여러 주에 걸쳐 혼자 고민하거나 상황 공유가 늦어진 점이 반복되었습니다. 월간 인사이트로는 문제가 생겼을 때 더 빠르게 주변과 공유하는 습관이 필요합니다.",
+            count: 5,
+            sourceIDs: [
+                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
+                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
+                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
+                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
+                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 30),
+            scope: "monthly"
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260630-2000-0000-0000-000000000003") ?? UUID(),
+            kind: "strength",
+            title: "문제를 끝까지 해결하는 지속력",
+            description: "6월 회고 전반에서 Git 충돌, 데이터 연결, 행사 준비, 프로젝트 진행처럼 예상치 못한 문제가 있어도 끝까지 확인하며 해결하는 강점이 꾸준히 드러났습니다.",
+            count: 6,
+            sourceIDs: [
+                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
+                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
+                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
+                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID(),
+                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
+                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 30),
+            scope: "monthly"
         )
     ]
 

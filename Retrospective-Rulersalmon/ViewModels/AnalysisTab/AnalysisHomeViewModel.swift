@@ -189,11 +189,17 @@ final class AnalysisHomeViewModel: ObservableObject {
                 return []
             }
 
-            return records.filter { $0.updatedAt >= selectedWeekStartDate && $0.updatedAt < endDate }
+            return records.filter {
+                $0.scope == "weekly" &&
+                    $0.updatedAt >= selectedWeekStartDate &&
+                    $0.updatedAt < endDate
+            }
         case .monthly:
             return records.filter { record in
                 let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
-                return components.year == selectedYear && components.month == selectedMonth
+                return record.scope == "monthly" &&
+                    components.year == selectedYear &&
+                    components.month == selectedMonth
             }
         }
     }

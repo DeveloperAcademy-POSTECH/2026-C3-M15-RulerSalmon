@@ -16,6 +16,7 @@ final class ReflectionInsightRecord {
     var insightDescription: String
     var count: Int
     var sourceRecordIDs: String
+    var scopeRawValue: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -26,6 +27,7 @@ final class ReflectionInsightRecord {
         insightDescription: String,
         count: Int,
         sourceRecordIDs: [UUID] = [],
+        scopeRawValue: String = "weekly",
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -35,8 +37,13 @@ final class ReflectionInsightRecord {
         self.insightDescription = insightDescription
         self.count = count
         self.sourceRecordIDs = sourceRecordIDs.map(\.uuidString).joined(separator: ",")
+        self.scopeRawValue = scopeRawValue
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    var scope: String {
+        scopeRawValue ?? "weekly"
     }
 
     var sourceIDs: Set<String> {
