@@ -33,6 +33,51 @@ struct AnalysisHomeView: View {
         viewModel.weekOptions()
     }
 
+    private var satisfactionLabel: String {
+        switch viewModel.selectedMode {
+        case .weekly:
+            return "이번 주 만족도"
+        case .monthly:
+            return "\(viewModel.selectedMonth)월 만족도"
+        }
+    }
+
+    private var satisfactionScore: String {
+        switch viewModel.selectedMode {
+        case .weekly:
+            return viewModel.selectedData.weeklyScore
+        case .monthly:
+            return viewModel.selectedData.monthlyScore
+        }
+    }
+
+    private var satisfactionTitle: String {
+        switch viewModel.selectedMode {
+        case .weekly:
+            return viewModel.selectedData.weeklyTitle
+        case .monthly:
+            return viewModel.selectedData.monthlyTitle
+        }
+    }
+
+    private var positivePercentage: Double {
+        switch viewModel.selectedMode {
+        case .weekly:
+            return viewModel.selectedData.weeklyPositivePercentage
+        case .monthly:
+            return viewModel.selectedData.monthlyPositivePercentage
+        }
+    }
+
+    private var negativePercentage: Double {
+        switch viewModel.selectedMode {
+        case .weekly:
+            return viewModel.selectedData.weeklyNegativePercentage
+        case .monthly:
+            return viewModel.selectedData.monthlyNegativePercentage
+        }
+    }
+
     var body: some View {
         ZStack {
             Color.white
@@ -48,9 +93,9 @@ struct AnalysisHomeView: View {
                     }
 
                     MonthlySatisfactionSummaryCard(
-                        month: viewModel.selectedMonth,
-                        score: viewModel.selectedData.monthlyScore,
-                        title: viewModel.selectedData.monthlyTitle
+                        label: satisfactionLabel,
+                        score: satisfactionScore,
+                        title: satisfactionTitle
                     )
 
                     SatisfactionTrendSection(
@@ -62,8 +107,8 @@ struct AnalysisHomeView: View {
                         weekOptions: weekOptions
                     )
                     SentimentRatioSection(
-                        positivePercentage: viewModel.selectedData.monthlyPositivePercentage,
-                        negativePercentage: viewModel.selectedData.monthlyNegativePercentage
+                        positivePercentage: positivePercentage,
+                        negativePercentage: negativePercentage
                     )
                     EmotionKeywordSection(keywords: emotionKeywordStatistics)
                     InsightListSection(insights: insightItems)
@@ -118,14 +163,14 @@ private enum AnalysisHomeLayout {
 }
 
 private struct MonthlySatisfactionSummaryCard: View {
-    let month: Int
+    let label: String
     let score: String
     let title: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("\(month)월 만족도")
+                Text(label)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color.gray600)
 

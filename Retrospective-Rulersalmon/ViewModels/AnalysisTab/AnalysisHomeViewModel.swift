@@ -15,6 +15,7 @@ final class AnalysisHomeViewModel: ObservableObject {
     @Published var selectedWeekStartDate: Date?
     @Published var isPeriodSheetPresented = false
 
+    private let referenceDate: Date
     private let dataProvider: AnalysisDataProviding
 
     convenience init(selectedDate: Date = Date()) {
@@ -29,17 +30,23 @@ final class AnalysisHomeViewModel: ObservableObject {
         dataProvider: AnalysisDataProviding
     ) {
         let calendar = Calendar.current
+        self.referenceDate = selectedDate
         self.selectedYear = calendar.component(.year, from: selectedDate)
         self.selectedMonth = calendar.component(.month, from: selectedDate)
         self.dataProvider = dataProvider
         normalizeSelectedPeriod()
     }
 
+    var analysisReferenceDate: Date {
+        referenceDate
+    }
+
     var selectedData: MonthlyAnalysisData {
         dataProvider.data(
             year: selectedYear,
             month: selectedMonth,
-            weekStartDate: selectedWeekStartDate
+            weekStartDate: selectedWeekStartDate,
+            referenceDate: referenceDate
         )
     }
 

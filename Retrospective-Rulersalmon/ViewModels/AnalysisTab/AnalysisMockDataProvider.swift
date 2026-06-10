@@ -9,7 +9,7 @@ import Foundation
 @MainActor
 protocol AnalysisDataProviding {
     var availableRange: PeriodRange { get }
-    func data(year: Int, month: Int, weekStartDate: Date?) -> MonthlyAnalysisData
+    func data(year: Int, month: Int, weekStartDate: Date?, referenceDate: Date) -> MonthlyAnalysisData
 }
 
 struct AnalysisMockDataProvider: AnalysisDataProviding {
@@ -25,11 +25,15 @@ struct AnalysisMockDataProvider: AnalysisDataProviding {
         )
     }
 
-    func data(year: Int, month: Int, weekStartDate: Date?) -> MonthlyAnalysisData {
+    func data(year: Int, month: Int, weekStartDate: Date?, referenceDate: Date) -> MonthlyAnalysisData {
         monthly
     }
 
     private let monthly = MonthlyAnalysisData(
+        weeklyScore: "4.0",
+        weeklyTitle: "이번 주도 차분히 이어가고 있어요",
+        weeklyPositivePercentage: 76,
+        weeklyNegativePercentage: 24,
         monthlyScore: "4.1",
         monthlyTitle: "안정적인 한 달이었어요",
         monthlyPositivePercentage: 82,
