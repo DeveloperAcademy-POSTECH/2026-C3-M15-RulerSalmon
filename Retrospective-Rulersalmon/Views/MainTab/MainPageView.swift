@@ -22,7 +22,9 @@ struct MainPageView: View {
                     content: viewModel.content,
                     onStartReflection: viewModel.startReflection,
                     onEditUserInfo: viewModel.startUserInfoEdit,
-                    onEditMentor: viewModel.startMentorEdit
+                    onEditMentor: viewModel.startMentorEdit,
+                    onShowRetrospectiveArchive: viewModel.showRetrospectiveArchive,
+                    onSelectRetrospective: viewModel.showRetrospectiveDetail
                 )
                 .navigationDestination(for: HomeNavigationRoute.self) { route in
                     switch route {
@@ -32,6 +34,13 @@ struct MainPageView: View {
                         UserInfoEditView(onSaved: viewModel.onExitToHome)
                     case .editMentor:
                         MentorEditView(onSaved: viewModel.onExitToHome)
+                    case .retrospectiveArchive:
+                        RetrospectiveArchiveView(
+                            items: viewModel.content.retrospectives,
+                            onSelectItem: viewModel.showRetrospectiveDetail
+                        )
+                    case .retrospectiveDetail(let item):
+                        RetrospectiveDetailView(item: item)
                     }
                 }
             }

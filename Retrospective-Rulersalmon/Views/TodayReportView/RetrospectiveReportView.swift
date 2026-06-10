@@ -13,8 +13,17 @@ struct RetrospectiveReportView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    init(report: RetrospectiveReport = .mock, onClose: (() -> Void)? = nil) {
-        _viewModel = StateObject(wrappedValue: RetrospectiveReportViewModel(report: report))
+    init(
+        report: RetrospectiveReport = .mock,
+        displayStyle: RetrospectiveReportDisplayStyle = .today,
+        onClose: (() -> Void)? = nil
+    ) {
+        _viewModel = StateObject(
+            wrappedValue: RetrospectiveReportViewModel(
+                report: report,
+                displayStyle: displayStyle
+            )
+        )
         self.onClose = onClose
     }
 

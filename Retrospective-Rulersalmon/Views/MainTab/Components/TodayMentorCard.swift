@@ -17,12 +17,12 @@ struct TodayMentorCard: View {
             HStack(spacing: 16) {
                 MentorAvatarTile(imageName: content.mentorImageName)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(content.mentorBadgeTitle)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color.blue500)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                         .background {
                             Capsule()
                                 .fill(Color.blue50)
@@ -30,16 +30,16 @@ struct TodayMentorCard: View {
 
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(content.mentorName)
-                            .font(.system(size: 30, weight: .bold))
+                            .font(.system(size: 32, weight: .bold))
                             .foregroundStyle(Color.blue500)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.72)
+                            .minimumScaleFactor(0.7)
 
                         Button(action: onEditMentor) {
                             Image("Edit-Blue")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 20, height: 20)
+                                .frame(width: 24, height: 24)
                         }
                         .buttonStyle(.plain)
                     }
@@ -68,11 +68,7 @@ struct TodayMentorCard: View {
             RoundedRectangle(cornerRadius: MainPageLayout.cardCornerRadius)
                 .fill(Color.white)
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: MainPageLayout.cardCornerRadius)
-                .stroke(Color.gray200, lineWidth: MainPageLayout.borderWidth)
-        }
-        .shadow(color: Color.blue600.opacity(0.12), radius: 30, x: 0, y: 12)
+        .shadow(color: Color.gray600.opacity(0.15), radius: 28, x: 0, y: 8)
     }
 }
 

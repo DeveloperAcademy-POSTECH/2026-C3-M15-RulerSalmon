@@ -165,6 +165,10 @@ final class AppDataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    func loadStoredReport(id: UUID) -> StoredReflectionReport? {
+        reflectionReport(for: id)
+    }
+
     func deleteReport(id: UUID) {
         guard let report = reflectionReport(for: id) else { return }
         context.delete(report)

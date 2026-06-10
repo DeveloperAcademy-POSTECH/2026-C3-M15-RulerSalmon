@@ -12,14 +12,16 @@ struct MainHomeView: View {
     let onStartReflection: () -> Void
     let onEditUserInfo: () -> Void
     let onEditMentor: () -> Void
+    let onShowRetrospectiveArchive: () -> Void
+    let onSelectRetrospective: (RetrospectiveItem) -> Void
 
     var body: some View {
         ZStack {
-            Color.gray50
+            Color.white
                 .ignoresSafeArea(.all)
 
             ScrollView(showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 36) {
+                LazyVStack(alignment: .leading, spacing: 28) {
                     MainHeaderView(
                         userName: content.userName,
                         encouragementMessage: content.encouragementMessage,
@@ -30,11 +32,15 @@ struct MainHomeView: View {
                         onStartReflection: onStartReflection,
                         onEditMentor: onEditMentor
                     )
-                    RetrospectiveListView(items: content.retrospectives)
+                    RetrospectiveListView(
+                        items: content.retrospectives,
+                        onShowArchive: onShowRetrospectiveArchive,
+                        onSelectItem: onSelectRetrospective
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, MainPageLayout.screenPadding)
-                .padding(.top, 48)
+                .padding(.top, 32)
                 .padding(.bottom, 32)
             }
         }
@@ -49,7 +55,9 @@ struct MainHomeView_Previews: PreviewProvider {
                 content: .mock,
                 onStartReflection: {},
                 onEditUserInfo: {},
-                onEditMentor: {}
+                onEditMentor: {},
+                onShowRetrospectiveArchive: {},
+                onSelectRetrospective: { _ in }
             )
         }
     }

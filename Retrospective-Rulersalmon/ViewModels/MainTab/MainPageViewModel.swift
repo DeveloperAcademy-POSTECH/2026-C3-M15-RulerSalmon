@@ -18,6 +18,8 @@ enum HomeNavigationRoute: Hashable {
     case reflectionChat
     case editUserInfo
     case editMentor
+    case retrospectiveArchive
+    case retrospectiveDetail(RetrospectiveItem)
 }
 
 @MainActor
@@ -62,6 +64,14 @@ final class MainPageViewModel: ObservableObject {
 
     func startMentorEdit() {
         homePath.append(HomeNavigationRoute.editMentor)
+    }
+
+    func showRetrospectiveArchive() {
+        homePath.append(HomeNavigationRoute.retrospectiveArchive)
+    }
+
+    func showRetrospectiveDetail(_ item: RetrospectiveItem) {
+        homePath.append(HomeNavigationRoute.retrospectiveDetail(item))
     }
 
     func onExitToHome() {
