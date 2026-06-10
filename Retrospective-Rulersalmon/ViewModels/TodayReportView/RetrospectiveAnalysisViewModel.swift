@@ -23,6 +23,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
     private let fourLService: FourLService
     private let refinementService: FourLRefinementService
     private let summaryService: ReflectionSummaryService
+    private var didSaveReport = false
 
     init(
         messages: [ChatMessage],
@@ -101,8 +102,29 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
 
     private func prepareReportIfNeeded() {
         guard let report else { return }
+
+        if !didSaveReport {
+            saveReport(report)
+            didSaveReport = true
+        }
+
         completedReport = report
         isShowingReport = true
+    }
+
+    private func saveReport(_ report: RetrospectiveReport) {
+        let storedReport = StoredReflectionReport(
+            todaySummary: report.summary,
+            refinedReflection: report.transcript,
+            fourLItemsRaw: report.fourLEntries
+                .map { "\($0.title):\($0.content)" }
+                .joined(separator: "|"),
+            coreKeywordsRaw: report.keywords.joined(separator: "|"),
+            emotionKeywordsRaw: report.emotionKeywords.joined(separator: "|"),
+            actionItemsRaw: report.actionItems.joined(separator: "|")
+        )
+
+        AppDataStore.shared.saveReport(storedReport)
     }
 
     private var report: RetrospectiveReport? {
@@ -187,4 +209,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
             return Color.gray50
         }
     }
+    
+    
+    
 }
