@@ -45,6 +45,7 @@ struct AnalysisHomeView: View {
                         data: viewModel.selectedData,
                         year: viewModel.selectedYear,
                         month: viewModel.selectedMonth,
+                        referenceDate: viewModel.analysisReferenceDate,
                         selectedMode: $viewModel.selectedMode
                     )
                     SentimentRatioSection(
@@ -136,6 +137,7 @@ private struct SatisfactionTrendSection: View {
     let data: MonthlyAnalysisData
     let year: Int
     let month: Int
+    let referenceDate: Date
 
     @Binding var selectedMode: SatisfactionChartMode
 
@@ -211,7 +213,7 @@ private struct SatisfactionTrendSection: View {
 
     private var currentWeekStartDate: Date {
         let calendar = analysisCalendar
-        let today = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: referenceDate)
         let weekday = calendar.component(.weekday, from: today)
         let daysFromMonday = (weekday + 5) % 7
         return calendar.date(byAdding: .day, value: -daysFromMonday, to: today) ?? today

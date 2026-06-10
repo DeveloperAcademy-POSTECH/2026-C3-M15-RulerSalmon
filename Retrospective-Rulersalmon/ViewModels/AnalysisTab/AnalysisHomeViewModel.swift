@@ -14,6 +14,7 @@ final class AnalysisHomeViewModel: ObservableObject {
     @Published var selectedMode: SatisfactionChartMode = .weekly
     @Published var isPeriodSheetPresented = false
 
+    private let referenceDate: Date
     private let dataProvider: AnalysisDataProviding
 
     convenience init(selectedDate: Date = Date()) {
@@ -28,16 +29,22 @@ final class AnalysisHomeViewModel: ObservableObject {
         dataProvider: AnalysisDataProviding
     ) {
         let calendar = Calendar.current
+        self.referenceDate = selectedDate
         self.selectedYear = calendar.component(.year, from: selectedDate)
         self.selectedMonth = calendar.component(.month, from: selectedDate)
-        self.dataProvider = dataProvider ?? AnalysisMockDataProvider()
+        self.dataProvider = dataProvider
         normalizeSelectedPeriod()
+    }
+
+    var analysisReferenceDate: Date {
+        referenceDate
     }
 
     var selectedData: MonthlyAnalysisData {
         dataProvider.data(
             year: selectedYear,
-            month: selectedMonth
+            month: selectedMonth,
+            referenceDate: referenceDate
         )
     }
 
@@ -54,7 +61,7 @@ final class AnalysisHomeViewModel: ObservableObject {
 
         switch selectedMode {
         case .weekly:
-            selectedReports = reportsWithinDays(from: reports, days: 7)
+            selectedReports = reportsInSelectedWeek(from: reports)
         case .monthly:
             selectedReports = reportsInMonth(
                 from: reports,
@@ -109,6 +116,25 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
 
         return reports.filter { $0.createdAt >= cutoff }
+    }
+
+    private func reportsInSelectedWeek(
+        from reports: [StoredReflectionReport],
+        calendar: Calendar = .current
+    ) -> [StoredReflectionReport] {
+        let startDate = weekStartDate(containing: referenceDate, calendar: calendar)
+        guard let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
+            return []
+        }
+
+        return reports.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
+    }
+
+    private func weekStartDate(containing date: Date, calendar: Calendar) -> Date {
+        let day = calendar.startOfDay(for: date)
+        let weekday = calendar.component(.weekday, from: day)
+        let daysFromMonday = (weekday + 5) % 7
+        return calendar.date(byAdding: .day, value: -daysFromMonday, to: day) ?? day
     }
 
     private func topEmotionKeywords(from reports: [StoredReflectionReport], limit: Int = 5) -> [EmotionKeyword] {

@@ -9,7 +9,7 @@ import Foundation
 @MainActor
 protocol AnalysisDataProviding {
     var availableRange: PeriodRange { get }
-    func data(year: Int, month: Int) -> MonthlyAnalysisData
+    func data(year: Int, month: Int, referenceDate: Date) -> MonthlyAnalysisData
 }
 
 struct AnalysisMockDataProvider: AnalysisDataProviding {
@@ -25,7 +25,7 @@ struct AnalysisMockDataProvider: AnalysisDataProviding {
         )
     }
 
-    func data(year: Int, month: Int) -> MonthlyAnalysisData {
+    func data(year: Int, month: Int, referenceDate: Date) -> MonthlyAnalysisData {
         monthly
     }
 

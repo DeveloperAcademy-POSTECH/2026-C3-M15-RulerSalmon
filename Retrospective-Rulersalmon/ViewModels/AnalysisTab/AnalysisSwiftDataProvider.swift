@@ -26,11 +26,12 @@ struct AnalysisSwiftDataProvider: AnalysisDataProviding {
         AnalysisMockDataProvider().availableRange
     }
     
-    func data(year: Int, month: Int) -> MonthlyAnalysisData {
+    func data(year: Int, month: Int, referenceDate: Date) -> MonthlyAnalysisData {
         let monthlyRecords = store.sentimentRecords(year: year, month: month)
+        let weeklyStartDate = weekStartDate(containing: referenceDate)
         let weeklyRecords = store.sentimentRecords(
-            startDate: currentWeekStartDate,
-            endDate: currentWeekEndDate
+            startDate: weeklyStartDate,
+            endDate: weekEndDate(startingAt: weeklyStartDate)
         )
         let summary = SentimentStatistics.summarize(monthlyRecords)
         
@@ -41,14 +42,16 @@ struct AnalysisSwiftDataProvider: AnalysisDataProviding {
             monthlyNegativePercentage: summary.negativePercentage,
             weeklyEmotionKeywords: [],
             monthlyEmotionKeywords: [],
-            weeklySatisfactionPoints: weeklySatisfactionPoints(from: weeklyRecords),
+            weeklySatisfactionPoints: weeklySatisfactionPoints(from: weeklyRecords, startDate: weeklyStartDate),
             monthlySatisfactionPoints: monthlySatisfactionPoints(from: monthlyRecords, year: year, month: month)
         )
     }
 
-    private func weeklySatisfactionPoints(from records: [SentimentRecord]) -> [SatisfactionPoint] {
+    private func weeklySatisfactionPoints(
+        from records: [SentimentRecord],
+        startDate: Date
+    ) -> [SatisfactionPoint] {
         let calendar = analysisCalendar
-        let startDate = currentWeekStartDate
 
         return (0..<7).map { offset in
             guard let date = calendar.date(byAdding: .day, value: offset, to: startDate) else {
@@ -90,16 +93,16 @@ struct AnalysisSwiftDataProvider: AnalysisDataProviding {
         return CGFloat(totalScore / Double(records.count))
     }
 
-    private var currentWeekStartDate: Date {
+    private func weekStartDate(containing date: Date) -> Date {
         let calendar = analysisCalendar
-        let today = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: date)
         let weekday = calendar.component(.weekday, from: today)
         let daysFromMonday = (weekday + 5) % 7
         return calendar.date(byAdding: .day, value: -daysFromMonday, to: today) ?? today
     }
 
-    private var currentWeekEndDate: Date {
-        analysisCalendar.date(byAdding: .day, value: 7, to: currentWeekStartDate) ?? Date()
+    private func weekEndDate(startingAt startDate: Date) -> Date {
+        analysisCalendar.date(byAdding: .day, value: 7, to: startDate) ?? startDate
     }
 
     private var analysisCalendar: Calendar {

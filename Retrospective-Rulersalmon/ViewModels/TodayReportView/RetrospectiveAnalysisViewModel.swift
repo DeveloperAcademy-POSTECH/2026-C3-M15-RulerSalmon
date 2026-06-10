@@ -33,12 +33,12 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         fourLService: FourLService? = nil,
         refinementService: FourLRefinementService? = nil,
         summaryService: ReflectionSummaryService? = nil,
-        dataStore: AppDataStore = .shared
+        dataStore: AppDataStore? = nil
     ) {
         self.messages = messages
         self.refinementService = refinementService ?? FourLRefinementService()
         self.summaryService = summaryService ?? ReflectionSummaryService()
-        self.dataStore = dataStore
+        self.dataStore = dataStore ?? AppDataStore.shared
 
         do {
             if let fourLService {
@@ -107,6 +107,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
 
     private func prepareReportIfNeeded() {
         guard let report else { return }
+
         saveReportIfNeeded(report)
         saveSentimentRecordIfNeeded()
         completedReport = report
