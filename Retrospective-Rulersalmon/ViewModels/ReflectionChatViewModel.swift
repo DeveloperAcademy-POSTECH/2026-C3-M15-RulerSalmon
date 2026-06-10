@@ -58,7 +58,7 @@ final class ReflectionChatViewModel: ObservableObject {
         }
     }
 
-    func finishReflection() -> [ChatMessage] {
+    func finishReflection() -> [ChatMessage]? {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if !text.isEmpty {
@@ -66,6 +66,11 @@ final class ReflectionChatViewModel: ObservableObject {
             let userMessage = ChatMessage(role: .user, text: text)
             messages.append(userMessage)
             scrollTargetID = userMessage.id.uuidString
+        }
+
+        guard messages.contains(where: { $0.role == .user }) else {
+            alertMessage = "회고 내용이 아직 없어요. 한 줄이라도 입력한 뒤 종료해주세요."
+            return nil
         }
 
         return messages

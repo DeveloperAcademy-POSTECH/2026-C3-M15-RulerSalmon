@@ -7,6 +7,9 @@
 
 import Combine
 import Foundation
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 @MainActor
 final class OnboardingFlowViewModel: ObservableObject {
@@ -70,13 +73,32 @@ final class OnboardingFlowViewModel: ObservableObject {
         step = .reflection
     }
 
+    @discardableResult
+    func refreshAppleIntelligencePermissionStatus() -> Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            let isGranted = SystemLanguageModel.default.isAvailable
+            appleIntelligencePermissionGranted = isGranted
+            persistProfile(onboardingCompleted: false)
+            return isGranted
+        }
+        #endif
+
+        appleIntelligencePermissionGranted = false
+        persistProfile(onboardingCompleted: false)
+        return false
+    }
+
     private func loadStoredProfile() {
         guard let profile = dataStore.loadCurrentProfile() else { return }
 
         nickname = profile.nickname
         selectedJob = Job(rawValue: profile.jobRawValue) ?? .student
         selectedAgeGroup = AgeGroup(rawValue: profile.ageGroupRawValue) ?? .twenties
-        selectedMentorID = profile.mentorID ?? Mentor.sampleMentors.first?.id
+        selectedMentorID = Mentor.resolvedID(
+            storedID: profile.mentorID,
+            storedName: profile.mentorName
+        )
         appleIntelligencePermissionGranted = profile.appleIntelligencePermissionGranted
 
         if profile.onboardingCompleted {

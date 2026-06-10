@@ -11,7 +11,7 @@ struct AgePicker: View {
     @Binding var selectedAgeGroup: AgeGroup
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("연령대")
                 .font(.subheadline)
                 .fontWeight(.bold)
@@ -37,8 +37,8 @@ struct AgePicker: View {
                         .fontWeight(.bold)
                         .foregroundStyle(Color.gray600)
                 }
-                .padding(.horizontal, 28)
-                .frame(height: 54)
+                .padding(.horizontal, 16)
+                .frame(height: 48)
                 .background {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(Color.white)
@@ -49,8 +49,6 @@ struct AgePicker: View {
                 }
             }
             .buttonStyle(.plain)
-            
-            Caption(caption: "회고 질문과 조언을 직업 맥락에 맞게 조정해요.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

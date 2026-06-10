@@ -27,11 +27,11 @@ struct MentorSelectView: View {
     
     var body: some View {
         ZStack {
-            Color.gray50
+            Color.white
                 .ignoresSafeArea(.all)
 
             VStack{
-                OnboardingTitle(headline: "회고 멘토를 선택해 주세요", subtitle: "멘토는 나중에라도\n제한 없이 변경할 수 있어요.")
+                OnboardingTitle(headline: "회고 멘토를 선택해 주세요", subtitle: "멘토는 나중에라도 제한 없이 변경할 수 있어요.")
                 
                 TabView(selection: selectedMentorBinding) {
                     ForEach(mentors) { mentor in
@@ -43,7 +43,7 @@ struct MentorSelectView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 500)
+//                .frame(height: 500)
                 
                 PageIndicator(pageCount: mentors.count, selectedIndex: selectedIndex)
 
