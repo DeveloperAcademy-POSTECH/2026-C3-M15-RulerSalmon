@@ -132,8 +132,7 @@ final class AnalysisHomeViewModel: ObservableObject {
     func weekOptions() -> [AnalysisWeekOption] {
         let calendar = analysisCalendar
         guard let monthStartDate = calendar.date(from: DateComponents(year: selectedYear, month: selectedMonth, day: 1)),
-              let nextMonthDate = calendar.date(byAdding: .month, value: 1, to: monthStartDate),
-              let monthEndDate = calendar.date(byAdding: .day, value: -1, to: nextMonthDate) else {
+              let nextMonthDate = calendar.date(byAdding: .month, value: 1, to: monthStartDate) else {
             return []
         }
 
@@ -145,7 +144,7 @@ final class AnalysisHomeViewModel: ObservableObject {
             options.append(
                 AnalysisWeekOption(
                     startDate: startDate,
-                    title: weekTitle(startDate: startDate, endDate: min(endDate, monthEndDate), calendar: calendar)
+                    title: weekTitle(startDate: startDate, endDate: endDate, calendar: calendar)
                 )
             )
 
