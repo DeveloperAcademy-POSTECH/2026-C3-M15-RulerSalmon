@@ -374,9 +374,13 @@ final class ReflectionInsightService {
             guard !isPlaceholderPoint(
                 title: point.title,
                 description: point.description
-            ), let candidate = matchingCandidate(for: point, in: candidates) else {
+            ) else {
                 return nil
             }
+                
+            guard let candidate = matchingCandidate(for: point, in: candidates) else {
+                            return point
+                        }
 
             return ReflectionInsightPoint(
                 title: point.title,
@@ -409,10 +413,24 @@ final class ReflectionInsightService {
             )
         }
 
-        return Array(points.sorted { first, second in
+        return uniquePointsByTitle(points).sorted { first, second in
             if first.count == second.count { return first.title < second.title }
             return first.count > second.count
-        }.prefix(2))
+        }
+    }
+
+    private func uniquePointsByTitle(
+        _ points: [ReflectionInsightPoint]
+    ) -> [ReflectionInsightPoint] {
+        var seenKeys = Set<String>()
+
+        return points.filter { point in
+            let key = normalizedKey(point.title)
+            guard !seenKeys.contains(key) else { return false }
+
+            seenKeys.insert(key)
+            return true
+        }
     }
 
     private func matchingCandidate(
@@ -630,8 +648,8 @@ final class ReflectionInsightService {
         }
 
         return ReflectionInsightResult(
-            reflectionPoints: Array(reflectionPoints.prefix(2)),
-            strengthPoints: Array(strengthPoints.prefix(2))
+            reflectionPoints: uniquePointsByTitle(reflectionPoints),
+            strengthPoints: uniquePointsByTitle(strengthPoints)
         )
     }
 
@@ -743,8 +761,8 @@ final class ReflectionInsightService {
         }
 
         return ReflectionInsightResult(
-            reflectionPoints: Array(reflectionPoints.prefix(2)),
-            strengthPoints: Array(strengthPoints.prefix(2))
+            reflectionPoints: uniquePointsByTitle(reflectionPoints),
+            strengthPoints: uniquePointsByTitle(strengthPoints)
         )
     }
 
