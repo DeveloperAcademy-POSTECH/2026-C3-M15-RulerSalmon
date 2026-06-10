@@ -5,12 +5,26 @@
 //  Created by DevPaul on 6/4/26.
 //
 
-import Foundation
 import Combine
+import Foundation
+import SwiftUI
+
+enum MainPageTab: Hashable {
+    case home
+    case analysis
+}
+
+enum HomeNavigationRoute: Hashable {
+    case reflectionChat
+    case editUserInfo
+    case editMentor
+}
 
 @MainActor
 final class MainPageViewModel: ObservableObject {
     @Published private(set) var content: MainPageContent
+    @Published var selectedTab: MainPageTab = .home
+    @Published var homePath = NavigationPath()
     private let dataStore: AppDataStore
 
     init(content: MainPageContent? = nil, dataStore: AppDataStore? = nil) {
@@ -36,5 +50,23 @@ final class MainPageViewModel: ObservableObject {
             viewModel: ReflectionChatViewModel(ragPipeline: pipeline),
             onExitToMain: onExitToMain
         )
+    }
+
+    func startReflection() {
+        homePath.append(HomeNavigationRoute.reflectionChat)
+    }
+
+    func startUserInfoEdit() {
+        homePath.append(HomeNavigationRoute.editUserInfo)
+    }
+
+    func startMentorEdit() {
+        homePath.append(HomeNavigationRoute.editMentor)
+    }
+
+    func onExitToHome() {
+        homePath = NavigationPath()
+        selectedTab = .home
+        reload()
     }
 }

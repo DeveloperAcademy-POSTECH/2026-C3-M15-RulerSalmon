@@ -9,8 +9,6 @@ import SwiftUI
 
 struct MainPageView: View {
     @StateObject private var viewModel: MainPageViewModel
-    @State private var selectedTab: MainPageTab = .home
-    @State private var homePath = NavigationPath()
 
     @MainActor
     init(viewModel: MainPageViewModel? = nil) {
@@ -18,16 +16,22 @@ struct MainPageView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NavigationStack(path: $homePath) {
+        TabView(selection: $viewModel.selectedTab) {
+            NavigationStack(path: $viewModel.homePath) {
                 MainHomeView(
                     content: viewModel.content,
-                    onStartReflection: startReflection
+                    onStartReflection: viewModel.startReflection,
+                    onEditUserInfo: viewModel.startUserInfoEdit,
+                    onEditMentor: viewModel.startMentorEdit
                 )
                 .navigationDestination(for: HomeNavigationRoute.self) { route in
                     switch route {
                     case .reflectionChat:
-                        viewModel.makeChatView(onExitToMain: exitToHome)
+                        viewModel.makeChatView(onExitToMain: viewModel.onExitToHome)
+                    case .editUserInfo:
+                        UserInfoEditView(onSaved: viewModel.onExitToHome)
+                    case .editMentor:
+                        MentorEditView(onSaved: viewModel.onExitToHome)
                     }
                 }
             }
@@ -51,18 +55,11 @@ struct MainPageView: View {
     }
 }
 
-private enum MainPageTab: Hashable {
-    case home
-    case analysis
-}
-
-private enum HomeNavigationRoute: Hashable {
-    case reflectionChat
-}
-
 private struct MainHomeView: View {
     let content: MainPageContent
     let onStartReflection: () -> Void
+    let onEditUserInfo: () -> Void
+    let onEditMentor: () -> Void
 
     var body: some View {
         ZStack {
@@ -73,9 +70,14 @@ private struct MainHomeView: View {
                 LazyVStack(alignment: .leading, spacing: 36) {
                     MainHeaderView(
                         userName: content.userName,
-                        encouragementMessage: content.encouragementMessage
+                        encouragementMessage: content.encouragementMessage,
+                        onEdit: onEditUserInfo
                     )
-                    TodayMentorCard(content: content, onStartReflection: onStartReflection)
+                    TodayMentorCard(
+                        content: content,
+                        onStartReflection: onStartReflection,
+                        onEditMentor: onEditMentor
+                    )
                     RetrospectiveListView(items: content.retrospectives)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -90,9 +92,9 @@ private struct MainHomeView: View {
 
 private enum MainPageLayout {
     static let screenPadding: CGFloat = AppLayout.screenHorizontalPadding
-    static let headerHorizontalPadding: CGFloat = AppLayout.screenHorizontalPadding
+    static let headerHorizontalPadding: CGFloat = 0
     static let cardPadding: CGFloat = 24
-    static let listRowHorizontalPadding: CGFloat = AppLayout.screenHorizontalPadding
+    static let listRowHorizontalPadding: CGFloat = 0
     static let listRowVerticalPadding: CGFloat = 12
     static let cardCornerRadius: CGFloat = 25
     static let borderWidth: CGFloat = 1
@@ -102,6 +104,7 @@ private enum MainPageLayout {
 private struct MainHeaderView: View {
     let userName: String
     let encouragementMessage: String
+    let onEdit: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -112,9 +115,13 @@ private struct MainHeaderView: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.78)
 
-                Image(systemName: "pencil")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color.gray900)
+                Button(action: onEdit) {
+                    Image("Edit-Gray")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -132,6 +139,7 @@ private struct MainHeaderView: View {
 private struct TodayMentorCard: View {
     let content: MainPageContent
     let onStartReflection: () -> Void
+    let onEditMentor: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -156,9 +164,13 @@ private struct TodayMentorCard: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
 
-                        Image(systemName: "pencil")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(Color.blue500)
+                        Button(action: onEditMentor) {
+                            Image("Edit-Blue")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -383,17 +395,5 @@ private struct RetrospectiveDetailPlaceholderView: View {
 struct MainPageView_Previews: PreviewProvider {
     static var previews: some View {
         MainPageView()
-    }
-}
-
-private extension MainPageView {
-    func startReflection() {
-        homePath.append(HomeNavigationRoute.reflectionChat)
-    }
-
-    func exitToHome() {
-        homePath = NavigationPath()
-        selectedTab = .home
-        viewModel.reload()
     }
 }
