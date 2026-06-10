@@ -1,0 +1,24 @@
+{
+  "Inputs" : {
+    "attention_mask" : {
+      "MLFeatureShortDescription" : ""
+    },
+    "token_type_ids" : {
+      "MLFeatureShortDescription" : ""
+    },
+    "input_ids" : {
+      "MLFeatureShortDescription" : ""
+    }
+  },
+  "Outputs" : {
+    "emotion_score" : {
+      "MLFeatureShortDescription" : ""
+    }
+  },
+  "TrainingInputs" : {
+
+  },
+  "States" : {
+
+  }
+}

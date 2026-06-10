@@ -23,16 +23,22 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
     private let fourLService: FourLService
     private let refinementService: FourLRefinementService
     private let summaryService: ReflectionSummaryService
+    private let dataStore: AppDataStore
+    private let sentimentAnalyzer = RetrospectiveSentimentAnalyzer()
+    private var didSaveReport = false
+    private var didSaveSentimentRecord = false
 
     init(
         messages: [ChatMessage],
         fourLService: FourLService? = nil,
         refinementService: FourLRefinementService? = nil,
-        summaryService: ReflectionSummaryService? = nil
+        summaryService: ReflectionSummaryService? = nil,
+        dataStore: AppDataStore? = nil
     ) {
         self.messages = messages
         self.refinementService = refinementService ?? FourLRefinementService()
         self.summaryService = summaryService ?? ReflectionSummaryService()
+        self.dataStore = dataStore ?? AppDataStore.shared
 
         do {
             if let fourLService {
@@ -101,8 +107,58 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
 
     private func prepareReportIfNeeded() {
         guard let report else { return }
+
+        saveReportIfNeeded(report)
+        saveSentimentRecordIfNeeded()
         completedReport = report
         isShowingReport = true
+    }
+
+    private func saveReportIfNeeded(_ report: RetrospectiveReport) {
+        guard !didSaveReport else { return }
+
+        dataStore.saveReport(
+            StoredReflectionReport(
+                todaySummary: report.summary,
+                refinedReflection: report.transcript,
+                fourLItemsRaw: report.fourLEntries.map { "\($0.title):\($0.content)" }.joined(separator: "|"),
+                coreKeywordsRaw: report.keywords.joined(separator: "|"),
+                emotionKeywordsRaw: report.emotionKeywords.joined(separator: "|"),
+                actionItemsRaw: report.actionItems.joined(separator: "|")
+            )
+        )
+        didSaveReport = true
+    }
+
+    private func saveSentimentRecordIfNeeded() {
+        guard !didSaveSentimentRecord else { return }
+
+        let transcript = userReflectionText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !transcript.isEmpty else { return }
+
+        let result = sentimentAnalyzer.analyze(transcript)
+        let record = SentimentRecord(
+            createdAt: lastUserMessageDate,
+            transcript: transcript,
+            result: result
+        )
+
+        dataStore.saveSentimentRecord(record)
+        didSaveSentimentRecord = true
+    }
+
+    private var userReflectionText: String {
+        messages
+            .filter { $0.role == .user }
+            .map(\.text)
+            .joined(separator: "\n")
+    }
+
+    private var lastUserMessageDate: Date {
+        messages
+            .filter { $0.role == .user }
+            .map(\.date)
+            .max() ?? Date()
     }
 
     private var report: RetrospectiveReport? {
