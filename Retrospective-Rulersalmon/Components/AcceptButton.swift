@@ -9,7 +9,7 @@ import SwiftUI
 
 struct AcceptButtonStyle: ButtonStyle{
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        RoundedRectangle(cornerRadius: 16)
+        RoundedRectangle(cornerRadius: 1000)
             .fill(Color.blue600)
             .frame(maxWidth:.infinity, maxHeight: 56)
             .padding(.horizontal, 16)
