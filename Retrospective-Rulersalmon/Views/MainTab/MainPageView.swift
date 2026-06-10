@@ -20,7 +20,7 @@ struct MainPageView: View {
             NavigationStack(path: $viewModel.homePath) {
                 MainHomeView(
                     content: viewModel.content,
-                    onStartReflection: viewModel.startReflection,
+                    onStartReflection: viewModel.presentReflectionStartAlert,
                     onEditUserInfo: viewModel.startUserInfoEdit,
                     onEditMentor: viewModel.startMentorEdit,
                     onShowRetrospectiveArchive: viewModel.showRetrospectiveArchive,
@@ -43,6 +43,17 @@ struct MainPageView: View {
                         RetrospectiveDetailView(item: item)
                     }
                 }
+            }
+            .alert(
+                "오늘의 회고를 시작할까요?",
+                isPresented: $viewModel.isShowingReflectionStartAlert
+            ) {
+                Button("취소", role: .cancel) { }
+                Button("시작하기") {
+                    viewModel.startReflection()
+                }
+            } message: {
+                Text("시작하면 오늘의 회고 세션이 자동으로 생성돼요.")
             }
             .tag(MainPageTab.home)
             .tabItem {

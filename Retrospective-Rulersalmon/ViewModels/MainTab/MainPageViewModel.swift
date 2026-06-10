@@ -27,6 +27,7 @@ final class MainPageViewModel: ObservableObject {
     @Published private(set) var content: MainPageContent
     @Published var selectedTab: MainPageTab = .home
     @Published var homePath = NavigationPath()
+    @Published var isShowingReflectionStartAlert = false
     private let dataStore: AppDataStore
 
     init(content: MainPageContent? = nil, dataStore: AppDataStore? = nil) {
@@ -54,7 +55,12 @@ final class MainPageViewModel: ObservableObject {
         )
     }
 
+    func presentReflectionStartAlert() {
+        isShowingReflectionStartAlert = true
+    }
+
     func startReflection() {
+        isShowingReflectionStartAlert = false
         homePath.append(HomeNavigationRoute.reflectionChat)
     }
 
