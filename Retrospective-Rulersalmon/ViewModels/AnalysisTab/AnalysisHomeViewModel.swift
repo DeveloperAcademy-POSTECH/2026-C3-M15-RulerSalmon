@@ -76,7 +76,17 @@ final class AnalysisHomeViewModel: ObservableObject {
     }
 
     func insights(from records: [ReflectionInsightRecord]) -> [AnalysisInsightItem] {
-        filteredInsights(from: records)
+        let uniqueInsights = uniqueInsightsByTitle(filteredInsights(from: records))
+        let reflectionInsights = uniqueInsights
+            .filter { $0.kind == "reflection" }
+            .sorted(by: insightSort)
+            .prefix(2)
+        let strengthInsights = uniqueInsights
+            .filter { $0.kind == "strength" }
+            .sorted(by: insightSort)
+            .prefix(2)
+
+        return (Array(reflectionInsights) + Array(strengthInsights))
             .map { record in
                 AnalysisInsightItem(
                     id: record.id,
@@ -86,6 +96,37 @@ final class AnalysisHomeViewModel: ObservableObject {
                     count: record.count
                 )
             }
+    }
+
+    private func uniqueInsightsByTitle(
+        _ records: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        var seenTitles = Set<String>()
+
+        return records.filter { record in
+            let key = normalizedInsightTitle(record.title)
+            guard !seenTitles.contains(key) else { return false }
+
+            seenTitles.insert(key)
+            return true
+        }
+    }
+
+    private func insightSort(
+        _ lhs: ReflectionInsightRecord,
+        _ rhs: ReflectionInsightRecord
+    ) -> Bool {
+        if lhs.count == rhs.count {
+            return lhs.title < rhs.title
+        }
+
+        return lhs.count > rhs.count
+    }
+
+    private func normalizedInsightTitle(_ title: String) -> String {
+        title
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
     }
 
     func weekOptions() -> [AnalysisWeekOption] {
