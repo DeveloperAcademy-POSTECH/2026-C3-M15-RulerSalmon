@@ -41,16 +41,28 @@ final class FoundationModelService: FoundationModelServicing {
     func respond(to prompt: String) async throws -> String {
         #if canImport(FoundationModels)
         guard #available(iOS 26.0, *) else {
+            #if DEBUG
+            print("[FoundationModelService] FoundationModels unavailable: iOS version is lower than 26.0")
+            #endif
             return Self.fallbackResponse(for: prompt)
         }
 
         do {
             let response = try await session.respond(to: prompt)
+            #if DEBUG
+            print("[FoundationModelService] FoundationModels response received")
+            #endif
             return response.content
         } catch {
+            #if DEBUG
+            print("[FoundationModelService] FoundationModels response failed: \(error)")
+            #endif
             return Self.fallbackResponse(for: prompt)
         }
         #else
+        #if DEBUG
+        print("[FoundationModelService] FoundationModels module is not available")
+        #endif
         return Self.fallbackResponse(for: prompt)
         #endif
     }
