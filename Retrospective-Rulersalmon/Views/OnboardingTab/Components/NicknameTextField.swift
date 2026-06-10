@@ -27,6 +27,8 @@ struct NicknameTextField: View {
                     }
                     .font(.callout)
                     .fontWeight(.bold)
+                    .foregroundStyle(Color.gray900)
+                    .tint(Color.blue500)
                 Spacer()
                 
                 Text("최대 12자")
