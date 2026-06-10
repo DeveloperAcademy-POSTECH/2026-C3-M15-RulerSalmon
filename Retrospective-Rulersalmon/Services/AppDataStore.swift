@@ -391,7 +391,8 @@ final class AppDataStore {
                 RetrospectiveItem(
                     id: report.id,
                     date: report.createdAt.compactKoreanDate,
-                    title: String(report.todaySummary.prefix(20))
+                    title: String(report.todaySummary.prefix(20)),
+                    subtitle: splitKeywords(report.coreKeywordsRaw).joined(separator: ", ")
                 )
             }
         }
@@ -405,7 +406,8 @@ final class AppDataStore {
             RetrospectiveItem(
                 id: session.id,
                 date: session.updatedAt.compactKoreanDate,
-                title: session.displayTitle
+                title: session.displayTitle,
+                subtitle: nil
             )
         }
     }
@@ -459,6 +461,13 @@ final class AppDataStore {
         "오늘은 어떤 일이 있었는지 부담 없이 하나씩 꺼내주세요.",
         "오늘 하루를 돌아보며 지금 가장 먼저 말하고 싶은 이야기를 들려주세요."
     ]
+
+    private func splitKeywords(_ raw: String) -> [String] {
+        raw
+            .split(separator: "|")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
 
     private func saveContext(reason: String) {
         do {

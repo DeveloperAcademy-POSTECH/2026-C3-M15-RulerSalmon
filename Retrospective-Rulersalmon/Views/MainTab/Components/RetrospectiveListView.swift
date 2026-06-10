@@ -116,45 +116,6 @@ struct RetrospectiveListView_Previews: PreviewProvider {
     }
 }
 
-struct RetrospectiveArchiveView: View {
-    let items: [RetrospectiveItem]
-    let onSelectItem: (RetrospectiveItem) -> Void
-
-    var body: some View {
-        ZStack {
-            Color.white
-                .ignoresSafeArea(.all)
-
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(items) { item in
-                        RetrospectiveRow(item: item, onTap: { onSelectItem(item) })
-                    }
-                }
-                .overlay(alignment: .top) {
-                    Rectangle()
-                        .fill(Color.gray200)
-                        .frame(height: 1)
-                }
-                .padding(.horizontal, MainPageLayout.screenPadding)
-                .padding(.top, 16)
-            }
-        }
-        .navigationTitle("지난 회고")
-    }
-}
-
-struct RetrospectiveArchiveView_Previews: PreviewProvider {
-    static var previews: some View {
-        NavigationStack {
-            RetrospectiveArchiveView(
-                items: MainPageContent.mock.retrospectives,
-                onSelectItem: { _ in }
-            )
-        }
-    }
-}
-
 struct RetrospectiveDetailView: View {
     @StateObject private var viewModel: RetrospectiveDetailViewModel
 

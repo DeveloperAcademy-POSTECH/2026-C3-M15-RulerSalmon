@@ -17,6 +17,7 @@ struct Retrospective_RulersalmonApp: App {
                     .modelContainer(AppDataStore.shared.container)
             }
             .environment(\.font, .system(.body, design: .default))
+            .preferredColorScheme(.light)
         }
     }
 }
