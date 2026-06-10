@@ -16,6 +16,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var isRefining = false
     @Published private(set) var isGeneratingSummary = false
+    @Published private(set) var isCompleting = false
     @Published var completedReport: RetrospectiveReport?
     @Published var isShowingReport = false
 
@@ -57,6 +58,10 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
     }
 
     var progress: Double {
+        if isCompleting || completedReport != nil {
+            return 1.0
+        }
+
         if isGeneratingSummary {
             return 0.88
         }
@@ -82,7 +87,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
             results = await fourLService.classify(messages: messages)
             summaryResult = nil
             await refineResults()
-            prepareReportIfNeeded()
+            await prepareReportIfNeeded()
         }
     }
 
@@ -109,11 +114,17 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         isGeneratingSummary = false
     }
 
-    private func prepareReportIfNeeded() {
+    private func prepareReportIfNeeded() async {
         guard let report else { return }
 
         saveReportIfNeeded(report)
         let sentimentRecord = saveSentimentRecordIfNeeded()
+        isCompleting = true
+
+        do {
+            try await Task.sleep(for: .milliseconds(600))
+        } catch { }
+
         completedReport = report
         isShowingReport = true
 
