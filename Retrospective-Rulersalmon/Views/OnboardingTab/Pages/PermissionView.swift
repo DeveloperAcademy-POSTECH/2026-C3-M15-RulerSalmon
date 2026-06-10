@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct PermissionView: View {
+    let isPermissionGranted: () -> Bool
     let onNext: () -> Void
 
     var body: some View {
@@ -31,20 +32,33 @@ struct PermissionView: View {
                 Spacer()
 
                 AcceptButton(labelText: "권한 허용하기"){
-                    onNext()
-//                    if let url = URL(string: UIApplication.openSettingsURLString) {
-//                            UIApplication.shared.open(url)
-//                        }
+                    handlePermissionAction()
                 }
             }
             .padding(.top, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            _ = isPermissionGranted()
+        }
+    }
+
+    private func handlePermissionAction() {
+        if isPermissionGranted() {
+            onNext()
+            return
+        }
+
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            return
+        }
+
+        UIApplication.shared.open(url)
     }
 }
 
 struct PermissionView_Previews: PreviewProvider {
     static var previews: some View {
-        PermissionView(onNext: {})
+        PermissionView(isPermissionGranted: { false }, onNext: {})
     }
 }

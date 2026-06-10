@@ -33,7 +33,9 @@ struct OnboardingFlowView: View {
                 }
 
             case .permissions:
-                PermissionView {
+                PermissionView(
+                    isPermissionGranted: viewModel.refreshAppleIntelligencePermissionStatus
+                ) {
                     viewModel.completeOnboarding()
                 }
 
