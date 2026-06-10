@@ -31,12 +31,19 @@ struct AnalysisMockDataProvider: AnalysisDataProviding {
     private let monthly = MonthlyAnalysisData(
         monthlyScore: "4.1",
         monthlyTitle: "안정적인 한 달이었어요",
-        strengthKeywords: [
-            StrengthKeyword(title: "성장", count: 24),
-            StrengthKeyword(title: "감사", count: 18),
-            StrengthKeyword(title: "도전", count: 16),
-            StrengthKeyword(title: "설렘", count: 14),
-            StrengthKeyword(title: "불안", count: 9)
+        weeklyEmotionKeywords: [
+            EmotionKeyword(title: "뿌듯함", count: 6),
+            EmotionKeyword(title: "안도감", count: 5),
+            EmotionKeyword(title: "아쉬움", count: 4),
+            EmotionKeyword(title: "집중", count: 3),
+            EmotionKeyword(title: "기대감", count: 2)
+        ],
+        monthlyEmotionKeywords: [
+            EmotionKeyword(title: "성장", count: 24),
+            EmotionKeyword(title: "감사", count: 18),
+            EmotionKeyword(title: "도전", count: 16),
+            EmotionKeyword(title: "설렘", count: 14),
+            EmotionKeyword(title: "불안", count: 9)
         ],
         weeklySatisfactionPoints: [
             SatisfactionPoint(value: 3.4),
