@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "Reflectoo.png",
+      "filename" : "Reflectoo-icon-no-alpha.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "Reflectoo 1.png",
+      "filename" : "Reflectoo-icon-no-alpha 1.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,7 +25,7 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "Reflectoo 2.png",
+      "filename" : "Reflectoo-icon-no-alpha 2.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
