@@ -14,14 +14,17 @@ struct PermissionRow: View {
     
     var body: some View {
         HStack{
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(Color.blue50)
                 .frame(width: 56, height: 56)
                 .overlay(
                     Image(systemName: systemImageName)
                         .font(.title2)
                         .foregroundStyle(Color.blue500))
-                .padding(.trailing, 16)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.blue100, lineWidth: 0.5)
+                }
             
             VStack{
                 Text(permissionTitle)
@@ -29,7 +32,7 @@ struct PermissionRow: View {
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(Color.gray900)
-                    .padding(.bottom, 5)
+                    .padding(.bottom, 2)
                 
                 Text(permissionDescription)
                     .font(.footnote)
@@ -38,19 +41,21 @@ struct PermissionRow: View {
                     .foregroundStyle(Color.gray600)
                 
             }
+            .padding(.leading, 8)
             
             
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 26)
-        .padding(.vertical, 18)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
         .background{
             RoundedRectangle(cornerRadius: 24)
                 .fill(Color.white)
-            
         }
-        
-        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 8)
+        .overlay {
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.gray200, lineWidth: 1)
+        }
         .padding(.horizontal, AppLayout.screenHorizontalPadding)
 
         
