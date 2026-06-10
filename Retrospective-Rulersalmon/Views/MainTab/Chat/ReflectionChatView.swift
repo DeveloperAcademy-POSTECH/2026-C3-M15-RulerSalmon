@@ -10,6 +10,10 @@ import SwiftUI
 struct ReflectionChatView: View {
     @StateObject private var viewModel: ReflectionChatViewModel
     @FocusState private var isInputFocused: Bool
+    @State private var isShowingResult = false
+    @State private var resultMessages: [ChatMessage] = []
+    @Environment(\.dismiss) private var dismiss
+    private let onExitToMain: (() -> Void)?
 
     private let bubbleShadowColor = Color(
         red: 23.0 / 255.0,
@@ -20,10 +24,12 @@ struct ReflectionChatView: View {
     @MainActor
     init() {
         _viewModel = StateObject(wrappedValue: ReflectionChatViewModel())
+        onExitToMain = nil
     }
 
-    init(viewModel: ReflectionChatViewModel) {
+    init(viewModel: ReflectionChatViewModel, onExitToMain: (() -> Void)? = nil) {
         _viewModel = StateObject(wrappedValue: viewModel)
+        self.onExitToMain = onExitToMain
     }
 
     var body: some View {
@@ -68,7 +74,8 @@ struct ReflectionChatView: View {
                     isInputFocused: $isInputFocused,
                     isResponding: viewModel.isResponding,
                     bubbleShadowColor: bubbleShadowColor,
-                    onSend: viewModel.sendMessage
+                    onSend: viewModel.sendMessage,
+                    onFinish: finishReflection
                 )
             }
         }
@@ -77,6 +84,12 @@ struct ReflectionChatView: View {
             isInputFocused = false
         }
         .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(isPresented: $isShowingResult) {
+            RetrospectiveAnalysisView(
+                messages: resultMessages,
+                onExitToMain: exitToMain
+            )
+        }
         .task {
             viewModel.prepareFoundationModelIfNeeded()
         }
@@ -87,6 +100,21 @@ struct ReflectionChatView: View {
             Button("확인", role: .cancel) { }
         } message: {
             Text(viewModel.alertMessage ?? "")
+        }
+    }
+
+    private func finishReflection() {
+        isInputFocused = false
+        resultMessages = viewModel.finishReflection()
+        isShowingResult = true
+    }
+
+    private func exitToMain() {
+        isShowingResult = false
+        if let onExitToMain {
+            onExitToMain()
+        } else {
+            dismiss()
         }
     }
 

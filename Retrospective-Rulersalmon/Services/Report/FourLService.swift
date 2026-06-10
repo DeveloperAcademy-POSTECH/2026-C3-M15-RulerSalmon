@@ -23,25 +23,28 @@ struct FourLClassificationResult: Identifiable, Equatable {
 
 final class FourLService {
     static let fourLLabels = ["Liked", "Learned", "Lacked", "Longed for"]
+    static let unclearLabel = "Unclear"
     static let extraLabel = "Extra"
     static let emptyFallback = FourLService(model: nil)
 
     private let model: NLModel?
-    private let chunker = SentenceChunkerService()
+    private let chunker: SentenceChunkerService
     private let fourLThreshold: Double
     private let secondaryThreshold: Double
     private let secondaryMargin: Double
-    
+
     init(
         fourLThreshold: Double = 0.8,
         secondaryThreshold: Double = 0.2,
-        secondaryMargin: Double = 0.15
+        secondaryMargin: Double = 0.15,
+        chunker: SentenceChunkerService = SentenceChunkerService()
     ) throws {
         guard let modelURL = Bundle.main.url(forResource: "FourLClassifier", withExtension: "mlmodelc") else {
             throw FourLServiceError.modelNotFound
         }
 
         self.model = try NLModel(contentsOf: modelURL)
+        self.chunker = chunker
         self.fourLThreshold = fourLThreshold
         self.secondaryThreshold = secondaryThreshold
         self.secondaryMargin = secondaryMargin
@@ -49,22 +52,31 @@ final class FourLService {
 
     private init(model: NLModel?) {
         self.model = model
+        self.chunker = SentenceChunkerService()
         self.fourLThreshold = 0.8
         self.secondaryThreshold = 0.2
         self.secondaryMargin = 0.15
     }
-    
-    func classify(messages: [ChatMessage]) -> [FourLClassificationResult] {
-        let chunks = chunker.chunks(from: messages)
-        
+
+    func classify(messages: [ChatMessage]) async -> [FourLClassificationResult] {
+        let chunks = await chunker.semanticChunks(from: messages)
+
         return chunks.map { chunk in
             classify(chunk: chunk)
         }
     }
 
-    func classify(text: String, messageId: UUID = UUID(), date: Date = .now) -> [FourLClassificationResult] {
-        let chunks = chunker.chunks(from: [ChatMessage(role: .user, text: text)])
-        return chunks.map(classify(chunk:))
+    func classify(
+        text: String,
+        messageId: UUID = UUID(),
+        date: Date = .now
+    ) async -> [FourLClassificationResult] {
+        let message = ChatMessage(role: .user, text: text)
+        let chunks = await chunker.semanticChunks(from: [message])
+
+        return chunks.map { chunk in
+            classify(chunk: SentenceChunk(messageId: messageId, text: chunk.text, date: date))
+        }
     }
 
     func topResultsByFourL(from results: [FourLClassificationResult], limit: Int = 2) -> [String: [FourLClassificationResult]] {
@@ -82,18 +94,18 @@ final class FourLService {
         .sorted { $0.confidence > $1.confidence }
 
         let fourLConfidence = fourLScores.reduce(0) { $0 + $1.confidence }
-        let primary = fourLScores.first ?? (label: Self.extraLabel, confidence: 0)
+        let primary = fourLScores.first ?? (label: Self.unclearLabel, confidence: 0)
         let secondary = fourLScores.dropFirst().first
         let isFourLRelated = fourLConfidence >= fourLThreshold
         let shouldShowSecondary = isFourLRelated
             && (secondary?.confidence ?? 0) >= secondaryThreshold
             && primary.confidence - (secondary?.confidence ?? 0) <= secondaryMargin
-            
+
         return FourLClassificationResult(
             messageId: chunk.messageId,
             text: chunk.text,
-            label: isFourLRelated ? primary.label : Self.extraLabel,
-            confidence: isFourLRelated ? primary.confidence : (hypotheses[Self.extraLabel] ?? 1 - fourLConfidence),
+            label: isFourLRelated ? primary.label : Self.unclearLabel,
+            confidence: isFourLRelated ? primary.confidence : (hypotheses[Self.extraLabel] ?? max(0, 1 - fourLConfidence)),
             fourLConfidence: fourLConfidence,
             secondaryLabel: shouldShowSecondary ? secondary?.label : nil,
             secondaryConfidence: shouldShowSecondary ? secondary?.confidence : nil,

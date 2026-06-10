@@ -9,6 +9,8 @@ import SwiftUI
 
 struct MainPageView: View {
     @StateObject private var viewModel: MainPageViewModel
+    @State private var selectedTab: MainPageTab = .home
+    @State private var homePath = NavigationPath()
 
     @MainActor
     init(viewModel: MainPageViewModel? = nil) {
@@ -16,17 +18,28 @@ struct MainPageView: View {
     }
 
     var body: some View {
-        TabView {
-            NavigationStack {
-                MainHomeView(content: viewModel.content, chatView: viewModel.makeChatView())
+        TabView(selection: $selectedTab) {
+            NavigationStack(path: $homePath) {
+                MainHomeView(
+                    content: viewModel.content,
+                    onStartReflection: startReflection
+                )
+                .navigationDestination(for: HomeNavigationRoute.self) { route in
+                    switch route {
+                    case .reflectionChat:
+                        viewModel.makeChatView(onExitToMain: exitToHome)
+                    }
+                }
             }
+            .tag(MainPageTab.home)
             .tabItem {
                 Label("홈", systemImage: "house.fill")
             }
 
             NavigationStack {
-                AnalysisPlaceholderView()
+                AnalysisHomeView()
             }
+            .tag(MainPageTab.analysis)
             .tabItem {
                 Label("분석", systemImage: "chart.bar.fill")
             }
@@ -38,9 +51,18 @@ struct MainPageView: View {
     }
 }
 
+private enum MainPageTab: Hashable {
+    case home
+    case analysis
+}
+
+private enum HomeNavigationRoute: Hashable {
+    case reflectionChat
+}
+
 private struct MainHomeView: View {
     let content: MainPageContent
-    let chatView: ReflectionChatView
+    let onStartReflection: () -> Void
 
     var body: some View {
         ZStack {
@@ -53,7 +75,7 @@ private struct MainHomeView: View {
                         userName: content.userName,
                         encouragementMessage: content.encouragementMessage
                     )
-                    TodayMentorCard(content: content, chatView: chatView)
+                    TodayMentorCard(content: content, onStartReflection: onStartReflection)
                     RetrospectiveListView(items: content.retrospectives)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -109,7 +131,7 @@ private struct MainHeaderView: View {
 
 private struct TodayMentorCard: View {
     let content: MainPageContent
-    let chatView: ReflectionChatView
+    let onStartReflection: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -154,7 +176,7 @@ private struct TodayMentorCard: View {
             MainPrimaryNavigationButton(
                 title: "회고 시작",
                 systemImageName: "phone.fill",
-                destination: chatView
+                action: onStartReflection
             )
         }
         .frame(maxWidth: .infinity)
@@ -198,15 +220,13 @@ private struct MentorAvatarTile: View {
     }
 }
 
-private struct MainPrimaryNavigationButton<Destination: View>: View {
+private struct MainPrimaryNavigationButton: View {
     let title: String
     let systemImageName: String
-    let destination: Destination
+    let action: () -> Void
 
     var body: some View {
-        NavigationLink {
-            destination
-        } label: {
+        Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: systemImageName)
                     .font(.system(size: 17, weight: .bold))
@@ -310,20 +330,6 @@ private struct RetrospectiveRow: View {
     }
 }
 
-private struct AnalysisPlaceholderView: View {
-    var body: some View {
-        ZStack {
-            Color.gray50
-                .ignoresSafeArea(.all)
-
-            Text("분석")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(Color.gray900)
-        }
-        .navigationTitle("분석")
-    }
-}
-
 private struct RetrospectiveArchiveView: View {
     let items: [RetrospectiveItem]
 
@@ -377,5 +383,17 @@ private struct RetrospectiveDetailPlaceholderView: View {
 struct MainPageView_Previews: PreviewProvider {
     static var previews: some View {
         MainPageView()
+    }
+}
+
+private extension MainPageView {
+    func startReflection() {
+        homePath.append(HomeNavigationRoute.reflectionChat)
+    }
+
+    func exitToHome() {
+        homePath = NavigationPath()
+        selectedTab = .home
+        viewModel.reload()
     }
 }
