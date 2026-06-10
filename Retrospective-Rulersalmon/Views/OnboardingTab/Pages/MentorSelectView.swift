@@ -28,6 +28,7 @@ struct MentorSelectView: View {
     var body: some View {
         ZStack {
             Color.white
+                .ignoresSafeArea(.all)
 
             VStack{
                 OnboardingTitle(headline: "회고 멘토를 선택해 주세요", subtitle: "멘토는 나중에라도 제한 없이 변경할 수 있어요.")

@@ -18,6 +18,8 @@ struct UserInfoView: View {
     var body: some View {
         ZStack {
             Color.white
+                .ignoresSafeArea(.all)
+
             VStack {
                 OnboardingTitle(
                     headline: "정보를 입력해 주세요",
