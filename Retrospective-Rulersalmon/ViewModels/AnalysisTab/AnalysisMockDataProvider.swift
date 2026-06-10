@@ -6,9 +6,10 @@
 
 import Foundation
 
+@MainActor
 protocol AnalysisDataProviding {
     var availableRange: PeriodRange { get }
-    func data(year: Int, month: Int) -> MonthlyAnalysisData
+    func data(year: Int, month: Int, referenceDate: Date) -> MonthlyAnalysisData
 }
 
 struct AnalysisMockDataProvider: AnalysisDataProviding {
@@ -24,13 +25,15 @@ struct AnalysisMockDataProvider: AnalysisDataProviding {
         )
     }
 
-    func data(year: Int, month: Int) -> MonthlyAnalysisData {
+    func data(year: Int, month: Int, referenceDate: Date) -> MonthlyAnalysisData {
         monthly
     }
 
     private let monthly = MonthlyAnalysisData(
         monthlyScore: "4.1",
         monthlyTitle: "안정적인 한 달이었어요",
+        monthlyPositivePercentage: 82,
+        monthlyNegativePercentage: 18,
         weeklyEmotionKeywords: [
             EmotionKeyword(title: "뿌듯함", count: 6),
             EmotionKeyword(title: "안도감", count: 5),

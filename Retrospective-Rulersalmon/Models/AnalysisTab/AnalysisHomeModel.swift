@@ -34,6 +34,8 @@ struct PeriodRange {
 struct MonthlyAnalysisData {
     let monthlyScore: String
     let monthlyTitle: String
+    let monthlyPositivePercentage: Double
+    let monthlyNegativePercentage: Double
     let weeklyEmotionKeywords: [EmotionKeyword]
     let monthlyEmotionKeywords: [EmotionKeyword]
     let weeklySatisfactionPoints: [SatisfactionPoint]

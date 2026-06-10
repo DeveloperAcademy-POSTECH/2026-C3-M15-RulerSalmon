@@ -24,7 +24,6 @@ final class RetrospectiveReportViewModel: ObservableObject {
         self.report = report
     }
 
-
     var summary: String {
         report.summary
     }
