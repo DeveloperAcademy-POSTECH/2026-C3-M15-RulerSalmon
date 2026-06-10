@@ -24,20 +24,24 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
     private let refinementService: FourLRefinementService
     private let summaryService: ReflectionSummaryService
     private let dataStore: AppDataStore
+    private let insightService: ReflectionInsightService
     private let sentimentAnalyzer = RetrospectiveSentimentAnalyzer()
     private var didSaveReport = false
     private var didSaveSentimentRecord = false
+    private var didUpdateInsights = false
 
     init(
         messages: [ChatMessage],
         fourLService: FourLService? = nil,
         refinementService: FourLRefinementService? = nil,
         summaryService: ReflectionSummaryService? = nil,
+        insightService: ReflectionInsightService = ReflectionInsightService(),
         dataStore: AppDataStore = .shared
     ) {
         self.messages = messages
         self.refinementService = refinementService ?? FourLRefinementService()
         self.summaryService = summaryService ?? ReflectionSummaryService()
+        self.insightService = insightService
         self.dataStore = dataStore
 
         do {
@@ -108,9 +112,15 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
     private func prepareReportIfNeeded() {
         guard let report else { return }
         saveReportIfNeeded(report)
-        saveSentimentRecordIfNeeded()
+        let sentimentRecord = saveSentimentRecordIfNeeded()
         completedReport = report
         isShowingReport = true
+
+        if let sentimentRecord {
+            Task {
+                await updateInsightsIfNeeded(with: sentimentRecord)
+            }
+        }
     }
 
     private func saveReportIfNeeded(_ report: RetrospectiveReport) {
@@ -118,6 +128,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
 
         dataStore.saveReport(
             StoredReflectionReport(
+                createdAt: lastUserMessageDate,
                 todaySummary: report.summary,
                 refinedReflection: report.transcript,
                 fourLItemsRaw: report.fourLEntries.map { "\($0.title):\($0.content)" }.joined(separator: "|"),
@@ -129,11 +140,11 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         didSaveReport = true
     }
 
-    private func saveSentimentRecordIfNeeded() {
-        guard !didSaveSentimentRecord else { return }
+    private func saveSentimentRecordIfNeeded() -> SentimentRecord? {
+        guard !didSaveSentimentRecord else { return nil }
 
         let transcript = userReflectionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !transcript.isEmpty else { return }
+        guard !transcript.isEmpty else { return nil }
 
         let result = sentimentAnalyzer.analyze(transcript)
         let record = SentimentRecord(
@@ -144,6 +155,29 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
 
         dataStore.saveSentimentRecord(record)
         didSaveSentimentRecord = true
+        return record
+    }
+
+    private func updateInsightsIfNeeded(with sentimentRecord: SentimentRecord) async {
+        guard !didUpdateInsights else { return }
+        didUpdateInsights = true
+
+        let newRecord = sentimentRecord.asInsightSourceRecord
+        let allRecords = dataStore.allSentimentRecords().map(\.asInsightSourceRecord)
+        let existingInsights = dataStore.allInsightRecords()
+
+        do {
+            let update = try await insightService.updateInsights(
+                afterAdding: newRecord,
+                allRecords: allRecords,
+                existingInsights: existingInsights
+            )
+            dataStore.applyInsightUpdate(update, sourceRecordID: sentimentRecord.id)
+        } catch {
+            #if DEBUG
+            print("[RetrospectiveAnalysisViewModel] insight update failed: \(error)")
+            #endif
+        }
     }
 
     private var userReflectionText: String {
@@ -241,5 +275,18 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         default:
             return Color.gray50
         }
+    }
+}
+
+private extension SentimentRecord {
+    var asInsightSourceRecord: ReflectionInsightSourceRecord {
+        ReflectionInsightSourceRecord(
+            id: id,
+            createdAt: createdAt,
+            transcript: transcript,
+            positivePercentage: positivePercentage,
+            negativePercentage: negativePercentage,
+            satisfactionScore: satisfactionScore
+        )
     }
 }

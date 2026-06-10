@@ -12,6 +12,10 @@ struct AnalysisHomeView: View {
 
     @Query(sort: \StoredReflectionReport.createdAt, order: .reverse)
     private var storedReports: [StoredReflectionReport]
+    @Query(sort: \SentimentRecord.createdAt, order: .reverse)
+    private var storedSentiments: [SentimentRecord]
+    @Query(sort: \ReflectionInsightRecord.updatedAt, order: .reverse)
+    private var storedInsights: [ReflectionInsightRecord]
 
     private var availableRange: PeriodRange {
         viewModel.availableRange(from: storedReports)
@@ -19,6 +23,14 @@ struct AnalysisHomeView: View {
 
     private var emotionKeywordStatistics: [EmotionKeyword] {
         viewModel.emotionKeywords(from: storedReports)
+    }
+
+    private var insightItems: [AnalysisInsightItem] {
+        viewModel.insights(from: storedInsights)
+    }
+
+    private var weekOptions: [AnalysisWeekOption] {
+        viewModel.weekOptions()
     }
 
     var body: some View {
@@ -45,14 +57,16 @@ struct AnalysisHomeView: View {
                         data: viewModel.selectedData,
                         year: viewModel.selectedYear,
                         month: viewModel.selectedMonth,
-                        selectedMode: $viewModel.selectedMode
+                        selectedMode: $viewModel.selectedMode,
+                        selectedWeekStartDate: $viewModel.selectedWeekStartDate,
+                        weekOptions: weekOptions
                     )
                     SentimentRatioSection(
                         positivePercentage: viewModel.selectedData.monthlyPositivePercentage,
                         negativePercentage: viewModel.selectedData.monthlyNegativePercentage
                     )
                     EmotionKeywordSection(keywords: emotionKeywordStatistics)
-                    InsightListSection()
+                    InsightListSection(insights: insightItems)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, AnalysisHomeLayout.screenPadding)
@@ -62,6 +76,16 @@ struct AnalysisHomeView: View {
         }
         .onAppear {
             viewModel.normalizeSelectedPeriod(for: storedReports)
+            viewModel.normalizeSelectedWeek(from: storedSentiments)
+        }
+        .onChange(of: viewModel.selectedYear) { _, _ in
+            viewModel.normalizeSelectedWeek(from: storedSentiments)
+        }
+        .onChange(of: viewModel.selectedMonth) { _, _ in
+            viewModel.normalizeSelectedWeek(from: storedSentiments)
+        }
+        .onChange(of: storedSentiments.count) { _, _ in
+            viewModel.normalizeSelectedWeek(from: storedSentiments)
         }
         .sheet(isPresented: $viewModel.isPeriodSheetPresented) {
             PeriodSelectionSheet(
@@ -138,6 +162,8 @@ private struct SatisfactionTrendSection: View {
     let month: Int
 
     @Binding var selectedMode: SatisfactionChartMode
+    @Binding var selectedWeekStartDate: Date?
+    let weekOptions: [AnalysisWeekOption]
 
     private var selectedPoints: [SatisfactionPoint] {
         switch selectedMode {
@@ -168,7 +194,11 @@ private struct SatisfactionTrendSection: View {
 
     private var weeklyAxisLabels: [SatisfactionAxisLabel] {
         let calendar = analysisCalendar
-        let startDate = currentWeekStartDate
+        guard let startDate = data.weeklyRangeStartDate else {
+            return (0..<7).map { offset in
+                SatisfactionAxisLabel(index: offset, title: "")
+            }
+        }
 
         return (0..<7).compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: offset, to: startDate) else {
@@ -211,7 +241,7 @@ private struct SatisfactionTrendSection: View {
 
     private var currentWeekStartDate: Date {
         let calendar = analysisCalendar
-        let today = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: data.weeklyRangeStartDate ?? Date())
         let weekday = calendar.component(.weekday, from: today)
         let daysFromMonday = (weekday + 5) % 7
         return calendar.date(byAdding: .day, value: -daysFromMonday, to: today) ?? today
@@ -258,6 +288,13 @@ private struct SatisfactionTrendSection: View {
 
             SatisfactionChartModeSegmentedControl(selectedMode: $selectedMode)
 
+            if selectedMode == .weekly {
+                WeekSelectionPicker(
+                    selectedWeekStartDate: $selectedWeekStartDate,
+                    weekOptions: weekOptions
+                )
+            }
+
             SatisfactionLineChart(
                 points: selectedPoints,
                 xAxisLabels: xAxisLabels,
@@ -291,6 +328,36 @@ private struct SatisfactionTrendSection: View {
                     .fill(Color.gray50)
             }
         }
+    }
+}
+
+private struct WeekSelectionPicker: View {
+    @Binding var selectedWeekStartDate: Date?
+    let weekOptions: [AnalysisWeekOption]
+
+    var body: some View {
+        Picker("주차", selection: selectedWeekBinding) {
+            ForEach(weekOptions) { option in
+                Text(option.title)
+                    .tag(option.startDate)
+            }
+        }
+        .pickerStyle(.menu)
+        .font(.system(size: 13, weight: .bold))
+        .tint(Color.blue500)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .disabled(weekOptions.isEmpty)
+    }
+
+    private var selectedWeekBinding: Binding<Date> {
+        Binding(
+            get: {
+                selectedWeekStartDate ?? weekOptions.first?.startDate ?? Date()
+            },
+            set: { newValue in
+                selectedWeekStartDate = newValue
+            }
+        )
     }
 }
 
@@ -473,16 +540,7 @@ private struct SentimentRatioSection: View {
 }
 
 private struct InsightListSection: View {
-    private let insights = [
-        InsightItem(
-            title: "강점 포인트",
-            description: "이번 달에는 성장과 감사 키워드가 자주 나타났어요. 월간 흐름에서는 후반부가 가장 안정적으로 보였어요."
-        ),
-        InsightItem(
-            title: "반성 포인트",
-            description: "시간 관리 회고는 월간 누적에서 계속 반복되고 있어요. 다음 달에는 우선순위를 먼저 정하는 방식이 좋아 보여요."
-        )
-    ]
+    let insights: [AnalysisInsightItem]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -490,29 +548,41 @@ private struct InsightListSection: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
-            VStack(spacing: 10) {
-                ForEach(insights) { insight in
-                    InsightCard(item: insight)
+            if insights.isEmpty {
+                EmptyInsightCard()
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(insights) { insight in
+                        InsightCard(item: insight)
+                    }
                 }
             }
         }
     }
 }
 
-private struct InsightItem: Identifiable {
-    let id = UUID()
-    let title: String
-    let description: String
-}
-
 private struct InsightCard: View {
-    let item: InsightItem
+    let item: AnalysisInsightItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(item.title)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Color.gray900)
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(item.title)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.gray900)
+
+                Text(kindTitle)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(kindColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background {
+                        Capsule()
+                            .fill(kindColor.opacity(0.12))
+                    }
+
+                Spacer(minLength: 8)
+            }
 
             Text(item.description)
                 .font(.system(size: 14, weight: .medium))
@@ -530,6 +600,47 @@ private struct InsightCard: View {
             RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
                 .stroke(Color.gray300, lineWidth: 1)
         }
+    }
+
+    private var kindTitle: String {
+        switch item.kind {
+        case "strength":
+            return "강점"
+        case "reflection":
+            return "반성"
+        default:
+            return "인사이트"
+        }
+    }
+
+    private var kindColor: Color {
+        switch item.kind {
+        case "strength":
+            return Color.blue500
+        case "reflection":
+            return Color.gray600
+        default:
+            return Color.gray900
+        }
+    }
+}
+
+private struct EmptyInsightCard: View {
+    var body: some View {
+        Text("아직 이 기간에 반복 인사이트가 충분히 쌓이지 않았어요.")
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Color.gray600)
+            .lineSpacing(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(AnalysisHomeLayout.cardPadding)
+            .background {
+                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                    .fill(Color.white)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                    .stroke(Color.gray300, lineWidth: 1)
+            }
     }
 }
 

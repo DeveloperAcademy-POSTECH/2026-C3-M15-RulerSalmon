@@ -25,6 +25,7 @@ final class AppDataStore {
                 ReflectionInsightRecord.self
             )
             logStorageLocation()
+            seedDevelopmentReflectionDataIfNeeded()
         } catch {
             fatalError("Failed to initialize SwiftData container: \(error)")
         }
@@ -181,6 +182,93 @@ final class AppDataStore {
         saveContext(reason: "saveSentimentRecord")
     }
 
+    private func sentimentRecord(for id: UUID) -> SentimentRecord? {
+        let predicate = #Predicate<SentimentRecord> { $0.id == id }
+        let descriptor = FetchDescriptor<SentimentRecord>(predicate: predicate)
+        return try? context.fetch(descriptor).first
+    }
+
+    func allSentimentRecords() -> [SentimentRecord] {
+        let descriptor = FetchDescriptor<SentimentRecord>(
+            sortBy: [SortDescriptor(\.createdAt)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func allInsightRecords() -> [ReflectionInsightRecord] {
+        let descriptor = FetchDescriptor<ReflectionInsightRecord>(
+            sortBy: [
+                SortDescriptor(\.updatedAt, order: .reverse),
+                SortDescriptor(\.count, order: .reverse)
+            ]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func insightRecords(year: Int, month: Int) -> [ReflectionInsightRecord] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+
+        let components = DateComponents(year: year, month: month)
+        guard
+            let startDate = calendar.date(from: components),
+            let endDate = calendar.date(byAdding: .month, value: 1, to: startDate)
+        else { return [] }
+
+        let predicate = #Predicate<ReflectionInsightRecord> { record in
+            record.updatedAt >= startDate && record.updatedAt < endDate
+        }
+
+        let descriptor = FetchDescriptor<ReflectionInsightRecord>(
+            predicate: predicate,
+            sortBy: [
+                SortDescriptor(\.updatedAt, order: .reverse),
+                SortDescriptor(\.count, order: .reverse)
+            ]
+        )
+
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func applyInsightUpdate(_ update: ReflectionInsightUpdate, sourceRecordID: UUID) {
+        let existingRecords = allInsightRecords()
+        let matchedIDs = Set(update.matchedInsightIDs)
+
+        existingRecords
+            .filter { matchedIDs.contains($0.id) }
+            .forEach { record in
+                record.addSourceRecord(id: sourceRecordID)
+                record.count = max(record.count + 1, record.sourceIDs.count)
+                record.updatedAt = .now
+            }
+
+        update.newReflectionPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "reflection",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: [sourceRecordID]
+                )
+            )
+        }
+
+        update.newStrengthPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "strength",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: [sourceRecordID]
+                )
+            )
+        }
+
+        saveContext(reason: "applyInsightUpdate")
+    }
+
     func makeMainPageContent() -> MainPageContent {
         let profile = loadCurrentProfile()
         let mentorName = profile?.mentorName ?? Mentor.sampleMentors.first?.name ?? "Mentor"
@@ -235,10 +323,23 @@ final class AppDataStore {
     }
 
     private func recentRetrospectiveItems(limit: Int) -> [RetrospectiveItem] {
-        let descriptor = FetchDescriptor<StoredReflectionSession>(
+        let reportDescriptor = FetchDescriptor<StoredReflectionReport>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let reports = (try? context.fetch(reportDescriptor)) ?? []
+        if !reports.isEmpty {
+            return Array(reports.prefix(limit)).map { report in
+                RetrospectiveItem(
+                    date: report.createdAt.compactKoreanDate,
+                    title: String(report.todaySummary.prefix(20))
+                )
+            }
+        }
+
+        let sessionDescriptor = FetchDescriptor<StoredReflectionSession>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
-        let sessions = (try? context.fetch(descriptor)) ?? []
+        let sessions = (try? context.fetch(sessionDescriptor)) ?? []
 
         return Array(sessions.prefix(limit)).map { session in
             RetrospectiveItem(
@@ -301,6 +402,174 @@ final class AppDataStore {
         ).first {
             print("[Storage][SwiftData] applicationSupport=\(applicationSupportURL.path)")
         }
+    }
+
+    private func seedDevelopmentReflectionDataIfNeeded() {
+        #if DEBUG
+        let samples = DevelopmentReflectionSample.samples
+        let analyzer = RetrospectiveSentimentAnalyzer()
+        var didSeed = false
+
+        for sample in samples {
+            if reflectionReport(for: sample.id) == nil {
+                context.insert(
+                    StoredReflectionReport(
+                        id: sample.id,
+                        createdAt: sample.date,
+                        todaySummary: sample.summary,
+                        refinedReflection: sample.transcript,
+                        fourLItemsRaw: sample.fourLItemsRaw,
+                        coreKeywordsRaw: sample.coreKeywords.joined(separator: "|"),
+                        emotionKeywordsRaw: sample.emotionKeywords.joined(separator: "|"),
+                        actionItemsRaw: sample.actionItems.joined(separator: "|")
+                    )
+                )
+                didSeed = true
+            }
+
+            if sentimentRecord(for: sample.id) == nil {
+                let result = analyzer.analyze(sample.transcript)
+                context.insert(
+                    SentimentRecord(
+                        id: sample.id,
+                        createdAt: sample.date,
+                        transcript: sample.transcript,
+                        result: result
+                    )
+                )
+                didSeed = true
+            }
+        }
+
+        if didSeed {
+            saveContext(reason: "seedDevelopmentReflectionDataIfNeeded")
+        }
+        #endif
+    }
+}
+
+private struct DevelopmentReflectionSample {
+    let id: UUID
+    let date: Date
+    let transcript: String
+    let summary: String
+    let coreKeywords: [String]
+    let emotionKeywords: [String]
+    let actionItems: [String]
+    let fourLItemsRaw: String
+
+    static let samples: [DevelopmentReflectionSample] = [
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
+            date: makeDate(month: 6, day: 1),
+            transcript: """
+            오늘은 Git 충돌을 해결하는 데 많은 시간을 썼다.
+            처음에는 원인을 찾지 못했지만 커밋 기록을 하나씩 따라가며 결국 해결했다.
+            덕분에 cherry-pick과 revert 흐름을 이전보다 훨씬 잘 이해하게 되었다.
+            다만 작업을 시작하기 전에 브랜치 상태를 충분히 확인하지 못한 점은 아쉽다.
+            다음에는 작업 전에 현재 브랜치와 base 브랜치를 먼저 점검해야겠다.
+            """,
+            summary: "Git 충돌을 해결하며 cherry-pick과 revert 흐름을 익혔고, 다음에는 브랜치 상태를 먼저 확인하기로 했다.",
+            coreKeywords: ["Git 충돌", "커밋 기록", "cherry-pick", "revert", "브랜치 점검"],
+            emotionKeywords: ["아쉬움", "뿌듯함", "이해", "집중"],
+            actionItems: ["브랜치 상태 확인하기", "base 브랜치 점검하기"],
+            fourLItemsRaw: [
+                "Liked:커밋 기록을 따라가며 Git 충돌을 해결한 점이 좋았다.",
+                "Learned:cherry-pick과 revert 흐름을 더 잘 이해하게 되었다.",
+                "Lacked:작업 전 브랜치 상태를 충분히 확인하지 못한 점이 아쉬웠다.",
+                "Longed for:다음에는 현재 브랜치와 base 브랜치를 먼저 점검하고 싶다."
+            ].joined(separator: "|")
+        ),
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
+            date: makeDate(month: 6, day: 2),
+            transcript: """
+            오늘은 분석 탭과 감정 분석 데이터를 연결하는 작업을 진행했다.
+            예상보다 구조가 복잡했지만 데이터 흐름을 직접 따라가며 이해할 수 있었다.
+            막히는 부분이 있었지만 문서를 찾아보고 여러 방법을 시도하면서 해결했다.
+            혼자 고민하는 시간이 길어져 팀원에게 질문하는 시점이 조금 늦었다.
+            다음에는 어려운 문제가 생기면 더 빨리 의견을 구하고 싶다.
+            """,
+            summary: "분석 탭과 감정 분석 데이터를 연결하며 데이터 흐름을 이해했고, 다음에는 더 빨리 팀원에게 의견을 구하기로 했다.",
+            coreKeywords: ["분석 탭", "감정 분석", "데이터 흐름", "문서 탐색", "팀원 질문"],
+            emotionKeywords: ["복잡함", "이해", "막힘", "아쉬움"],
+            actionItems: ["막히면 빠르게 질문하기", "데이터 흐름 먼저 정리하기"],
+            fourLItemsRaw: [
+                "Liked:여러 방법을 시도하며 문제를 해결한 점이 좋았다.",
+                "Learned:분석 탭과 감정 분석 데이터의 흐름을 이해하게 되었다.",
+                "Lacked:혼자 고민하는 시간이 길어져 질문이 늦어진 점이 아쉬웠다.",
+                "Longed for:어려운 문제가 생기면 더 빨리 의견을 구하고 싶다."
+            ].joined(separator: "|")
+        ),
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260608-0000-0000-0000-000000000008") ?? UUID(),
+            date: makeDate(month: 6, day: 8),
+            transcript: """
+            오늘은 만족도 점수 계산 로직을 정리했다.
+            구현 과정에서 기존 코드 구조를 다시 살펴보며 배울 점이 많았다.
+            특히 SwiftData와 ViewModel 연결 방식을 더 명확하게 이해할 수 있었다.
+            하지만 작업 범위를 명확하게 나누지 않고 시작해서 중간에 방향이 흔들렸다.
+            다음에는 해야 할 일을 먼저 정리한 뒤 구현을 시작해야겠다.
+            """,
+            summary: "만족도 점수 계산 로직을 정리하며 SwiftData와 ViewModel 연결을 이해했고, 다음에는 작업 범위를 먼저 정리하기로 했다.",
+            coreKeywords: ["만족도 점수", "계산 로직", "SwiftData", "ViewModel", "작업 범위"],
+            emotionKeywords: ["배움", "이해", "흔들림", "아쉬움"],
+            actionItems: ["해야 할 일 먼저 정리하기", "작업 범위 명확히 나누기"],
+            fourLItemsRaw: [
+                "Liked:기존 코드 구조를 다시 살펴보며 배울 점이 많았던 점이 좋았다.",
+                "Learned:SwiftData와 ViewModel 연결 방식을 더 명확하게 이해하게 되었다.",
+                "Lacked:작업 범위를 명확하게 나누지 않아 중간에 방향이 흔들린 점이 아쉬웠다.",
+                "Longed for:다음에는 해야 할 일을 먼저 정리한 뒤 구현을 시작하고 싶다."
+            ].joined(separator: "|")
+        ),
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
+            date: makeDate(month: 6, day: 9),
+            transcript: """
+            오늘은 PR을 정리하고 리뷰를 준비했다.
+            실수로 잘못된 브랜치에 작업을 반영했지만 문제를 복구하는 과정에서 Git 사용 경험이 늘었다.
+            문제가 생겼을 때 끝까지 원인을 찾아 해결한 점은 만족스럽다.
+            다만 상황을 정리해서 팀에 공유하기까지 시간이 꽤 걸렸다.
+            앞으로는 이슈가 발생하면 바로 공유하면서 진행해야겠다.
+            """,
+            summary: "PR 정리와 리뷰 준비 중 브랜치 문제를 복구하며 Git 경험을 쌓았고, 앞으로는 이슈를 더 빠르게 공유하기로 했다.",
+            coreKeywords: ["PR 정리", "리뷰 준비", "브랜치 복구", "Git 경험", "팀 공유"],
+            emotionKeywords: ["만족", "긴장", "회복", "아쉬움"],
+            actionItems: ["이슈 발생 시 바로 공유하기", "브랜치 확인 후 작업 반영하기"],
+            fourLItemsRaw: [
+                "Liked:문제가 생겼을 때 끝까지 원인을 찾아 해결한 점이 만족스러웠다.",
+                "Learned:잘못된 브랜치 작업을 복구하며 Git 사용 경험이 늘었다.",
+                "Lacked:상황을 정리해서 팀에 공유하기까지 시간이 걸린 점이 아쉬웠다.",
+                "Longed for:앞으로는 이슈가 발생하면 바로 공유하면서 진행하고 싶다."
+            ].joined(separator: "|")
+        ),
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID(),
+            date: makeDate(month: 6, day: 10),
+            transcript: """
+            오늘은 실제 회고 데이터를 분석 화면에 표시하는 작업을 마무리했다.
+            데이터가 연결되는 과정을 확인하면서 앱 구조에 대한 이해도가 높아졌다.
+            예상치 못한 오류가 있었지만 여러 시도를 통해 해결 방법을 찾았다.
+            초반 설계를 충분히 하지 못해 나중에 수정해야 하는 부분이 생겼다.
+            다음에는 구현 전에 전체 흐름을 먼저 그려보고 시작하고 싶다.
+            """,
+            summary: "실제 회고 데이터를 분석 화면에 표시하며 앱 구조를 더 이해했고, 다음에는 전체 흐름을 먼저 설계하기로 했다.",
+            coreKeywords: ["회고 데이터", "분석 화면", "앱 구조", "오류 해결", "초반 설계"],
+            emotionKeywords: ["이해", "성취", "당황", "아쉬움"],
+            actionItems: ["구현 전 전체 흐름 그려보기", "초반 설계 충분히 하기"],
+            fourLItemsRaw: [
+                "Liked:여러 시도를 통해 예상치 못한 오류의 해결 방법을 찾은 점이 좋았다.",
+                "Learned:데이터가 연결되는 과정을 확인하며 앱 구조에 대한 이해도가 높아졌다.",
+                "Lacked:초반 설계를 충분히 하지 못해 나중에 수정이 생긴 점이 아쉬웠다.",
+                "Longed for:다음에는 구현 전에 전체 흐름을 먼저 그려보고 시작하고 싶다."
+            ].joined(separator: "|")
+        )
+    ]
+
+    private static func makeDate(month: Int, day: Int) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: 12)) ?? Date()
     }
 }
 

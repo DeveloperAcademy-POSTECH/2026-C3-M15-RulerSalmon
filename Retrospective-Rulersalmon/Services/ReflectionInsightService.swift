@@ -370,10 +370,18 @@ final class ReflectionInsightService {
         candidates: [PatternCandidate],
         existingInsights: [ReflectionInsightRecord]
     ) -> [ReflectionInsightPoint] {
-        var points = modelPoints.filter { point in
-            !isPlaceholderPoint(
+        var points = modelPoints.compactMap { point -> ReflectionInsightPoint? in
+            guard !isPlaceholderPoint(
                 title: point.title,
                 description: point.description
+            ), let candidate = matchingCandidate(for: point, in: candidates) else {
+                return nil
+            }
+
+            return ReflectionInsightPoint(
+                title: point.title,
+                description: point.description,
+                count: candidate.count
             )
         }
         let existingKeys = Set(existingInsights.map { normalizedKey($0.title) })
@@ -405,6 +413,20 @@ final class ReflectionInsightService {
             if first.count == second.count { return first.title < second.title }
             return first.count > second.count
         }.prefix(2))
+    }
+
+    private func matchingCandidate(
+        for point: ReflectionInsightPoint,
+        in candidates: [PatternCandidate]
+    ) -> PatternCandidate? {
+        let pointKey = normalizedKey(point.title)
+
+        return candidates.first { candidate in
+            let candidateKey = normalizedKey(candidate.title)
+            return pointKey == candidateKey ||
+                pointKey.contains(candidateKey) ||
+                candidateKey.contains(pointKey)
+        }
     }
 
     private func makePrompt(
