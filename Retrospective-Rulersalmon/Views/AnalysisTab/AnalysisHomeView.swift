@@ -27,8 +27,30 @@ struct AnalysisHomeView: View {
     }
 
     private var insightItems: [AnalysisInsightItem] {
-        viewModel.insights(from: storedInsights)
+        guard selectedSentimentCount >= 3 else { return [] }
+        
+        return viewModel.insights(from: storedInsights)
     }
+
+    private var selectedSentimentCount: Int {
+           switch viewModel.selectedMode {
+           case .weekly:
+               guard let startDate = viewModel.selectedWeekStartDate,
+                     let endDate = Calendar.current.date(byAdding: .day, value: 7, to: startDate) else {
+                   return 0
+               }
+
+               return storedSentiments.filter {
+                   $0.createdAt >= startDate && $0.createdAt < endDate
+               }.count
+           case .monthly:
+               return storedSentiments.filter { sentiment in
+                   let components = Calendar.current.dateComponents([.year, .month], from: sentiment.createdAt)
+                   return components.year == viewModel.selectedYear &&
+                       components.month == viewModel.selectedMonth
+               }.count
+           }
+       }
 
     private var weekOptions: [AnalysisWeekOption] {
         viewModel.weekOptions()
@@ -206,14 +228,27 @@ struct AnalysisHomeView: View {
 
         let dataStore = AppDataStore.shared
         let records = dataStore.sentimentRecords(startDate: startDate, endDate: endDate)
-        let sourceRecords = records.map(\.asInsightSourceRecord)
         let referenceDate = calendar.date(byAdding: .day, value: -1, to: endDate) ?? startDate
+
+        guard records.count >= 3 else {
+                   dataStore.replaceInsights(
+                       with: .empty,
+                       scope: "weekly",
+                       periodStartDate: startDate,
+                       periodEndDate: endDate,
+                       updatedAt: referenceDate,
+                       sourceRecordIDs: []
+                   )
+                   return
+               }
+        
+        let sourceRecords = records.map(\.asInsightSourceRecord)
 
         do {
             let result = try await ReflectionInsightService().generateInsights(
                 from: sourceRecords,
                 days: 7,
-                minimumRepeatCount: 2,
+                minimumRepeatCount: 3,
                 referenceDate: referenceDate
             )
 
@@ -252,9 +287,22 @@ struct AnalysisHomeView: View {
             year: viewModel.selectedYear,
             month: viewModel.selectedMonth
         )
-        let sourceRecords = records.map(\.asInsightSourceRecord)
         let days = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 30
-        let referenceDate = calendar.date(byAdding: .day, value: -1, to: endDate) ?? startDate
+               let referenceDate = calendar.date(byAdding: .day, value: -1, to: endDate) ?? startDate
+
+        guard records.count >= 3 else {
+                    dataStore.replaceInsights(
+                        with: .empty,
+                        scope: "monthly",
+                        periodStartDate: startDate,
+                        periodEndDate: endDate,
+                        updatedAt: referenceDate,
+                        sourceRecordIDs: []
+                    )
+                    return
+                }
+
+        let sourceRecords = records.map(\.asInsightSourceRecord)
 
         do {
             let result = try await ReflectionInsightService().generateInsights(
