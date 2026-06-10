@@ -10,6 +10,7 @@ import SwiftData
 struct AnalysisHomeView: View {
     @StateObject private var viewModel = AnalysisHomeViewModel()
     @State private var generatedInsightKeys: Set<String> = []
+    @State private var activeInsightGenerationKey: String?
 
     @Query(sort: \StoredReflectionReport.createdAt, order: .reverse)
     private var storedReports: [StoredReflectionReport]
@@ -30,6 +31,19 @@ struct AnalysisHomeView: View {
         guard selectedSentimentCount >= 3 else { return [] }
         
         return viewModel.insights(from: storedInsights)
+    }
+
+    private var isAnalyzingInsights: Bool {
+        selectedSentimentCount >= 3 &&
+            activeInsightGenerationKey == currentInsightGenerationKey
+    }
+
+    private var currentInsightGenerationKey: String {
+        [
+            "\(viewModel.selectedYear)",
+            "\(viewModel.selectedMonth)",
+            "\(viewModel.selectedWeekStartDate?.timeIntervalSince1970 ?? 0)"
+        ].joined(separator: "-")
     }
 
     private var selectedSentimentCount: Int {
@@ -134,7 +148,10 @@ struct AnalysisHomeView: View {
                         negativePercentage: negativePercentage
                     )
                     EmotionKeywordSection(keywords: emotionKeywordStatistics)
-                    InsightListSection(insights: insightItems)
+                    InsightListSection(
+                        insights: insightItems,
+                        isLoading: isAnalyzingInsights
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, AnalysisHomeLayout.screenPadding)
@@ -200,14 +217,16 @@ struct AnalysisHomeView: View {
         #if DEBUG
         guard !storedSentiments.isEmpty else { return }
 
-        let key = [
-            "\(viewModel.selectedYear)",
-            "\(viewModel.selectedMonth)",
-            "\(viewModel.selectedWeekStartDate?.timeIntervalSince1970 ?? 0)"
-        ].joined(separator: "-")
+        let key = currentInsightGenerationKey
 
         guard !generatedInsightKeys.contains(key) else { return }
         generatedInsightKeys.insert(key)
+        activeInsightGenerationKey = key
+        defer {
+            if activeInsightGenerationKey == key {
+                activeInsightGenerationKey = nil
+            }
+        }
 
         await generateWeeklyDevelopmentInsightsIfNeeded()
         await generateMonthlyDevelopmentInsightsIfNeeded()
@@ -758,6 +777,7 @@ private struct SentimentRatioSection: View {
 
 private struct InsightListSection: View {
     let insights: [AnalysisInsightItem]
+    let isLoading: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -765,7 +785,9 @@ private struct InsightListSection: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.gray900)
 
-            if insights.isEmpty {
+            if isLoading {
+                InsightLoadingCard()
+            } else if insights.isEmpty {
                 EmptyInsightCard()
             } else {
                 VStack(spacing: 10) {
@@ -775,6 +797,34 @@ private struct InsightListSection: View {
                 }
             }
         }
+    }
+}
+
+private struct InsightLoadingCard: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.regular)
+                .tint(Color.blue500)
+
+            Text("인사이트 분석 중...")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Color.gray600)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AnalysisHomeLayout.cardPadding)
+        .background {
+            RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                .fill(Color.white)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
+                .stroke(Color.gray300, lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("인사이트 분석 중")
     }
 }
 
