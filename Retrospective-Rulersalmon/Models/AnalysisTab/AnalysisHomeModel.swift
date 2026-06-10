@@ -44,9 +44,27 @@ struct MonthlyAnalysisData {
     let monthlyEmotionKeywords: [EmotionKeyword]
     let weeklySatisfactionPoints: [SatisfactionPoint]
     let monthlySatisfactionPoints: [SatisfactionPoint]
+    let weeklyRangeStartDate: Date?
 
     var EmotionKeywords: [EmotionKeyword] {
         monthlyEmotionKeywords
+    }
+}
+
+struct AnalysisInsightItem: Identifiable, Equatable {
+    let id: UUID
+    let kind: String
+    let title: String
+    let description: String
+    let count: Int
+}
+
+struct AnalysisWeekOption: Identifiable, Hashable {
+    let startDate: Date
+    let title: String
+
+    var id: Date {
+        startDate
     }
 }
 
