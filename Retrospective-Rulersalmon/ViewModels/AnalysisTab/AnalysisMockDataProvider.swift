@@ -30,6 +30,10 @@ struct AnalysisMockDataProvider: AnalysisDataProviding {
     }
 
     private let monthly = MonthlyAnalysisData(
+        weeklyScore: "4.0",
+        weeklyTitle: "이번 주도 차분히 이어가고 있어요",
+        weeklyPositivePercentage: 76,
+        weeklyNegativePercentage: 24,
         monthlyScore: "4.1",
         monthlyTitle: "안정적인 한 달이었어요",
         monthlyPositivePercentage: 82,
