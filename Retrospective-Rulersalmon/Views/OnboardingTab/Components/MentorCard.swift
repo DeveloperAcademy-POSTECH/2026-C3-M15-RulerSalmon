@@ -18,11 +18,32 @@ struct MentorCard: View {
             Image(mentor.imageName)
                 .resizable()
                 .scaledToFill()
+                .frame(width: 160, height: 160)
                 .frame(width: 220, height: 220)
                 .background {
-                    Capsule()
-                        .fill(Color.white)
+                    RoundedRectangle(cornerRadius: 40)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white,
+                                    Color(
+                                        red: 232.0 / 255.0,
+                                        green: 243.0 / 255.0,
+                                        blue: 255.0 / 255.0
+                                    )
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(
+                            color: Color.gray600.opacity(0.15),
+                            radius: 20,
+                            x: 0,
+                            y: 20
+                        )
                 }
+                .padding(.top, 12)
 
             
             Text(mentor.name)
