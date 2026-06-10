@@ -28,7 +28,7 @@ struct OnboardingTitle: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal,16)
+        .padding(.horizontal, AppLayout.screenHorizontalPadding)
     }
 }
 

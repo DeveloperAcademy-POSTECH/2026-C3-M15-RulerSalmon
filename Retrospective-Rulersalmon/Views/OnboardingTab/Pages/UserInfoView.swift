@@ -17,14 +17,14 @@ struct UserInfoView: View {
     
     var body: some View {
         ZStack {
-            Color.gray50
+            Color.white
                 .ignoresSafeArea(.all)
+
             VStack {
                 OnboardingTitle(
                     headline: "정보를 입력해 주세요",
-                    subtitle: "입력해 주신 정보는\n추천 질문 개인화에만 사용돼요."
-                )
-                .padding(.bottom, 24)
+                    subtitle: "입력해 주신 정보는\n추천 질문 개인화에만 사용해요."
+                ).padding(.bottom, 20)
                 
                 UserInfoCard(
                     nickname: $nickname,

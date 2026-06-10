@@ -16,6 +16,8 @@ struct Retrospective_RulersalmonApp: App {
                 OnboardingFlowView()
                     .modelContainer(AppDataStore.shared.container)
             }
+            .environment(\.font, .system(.body, design: .default))
+            .preferredColorScheme(.light)
         }
     }
 }

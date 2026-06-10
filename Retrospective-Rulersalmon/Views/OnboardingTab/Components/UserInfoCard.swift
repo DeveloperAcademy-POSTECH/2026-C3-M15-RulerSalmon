@@ -24,11 +24,6 @@ struct UserInfoCard: View {
             RoundedRectangle(cornerRadius: 24)
                 .fill(Color.white)
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(Color.gray300)
-        }
-        .padding(.horizontal, 16)
     }
 }
 
