@@ -205,6 +205,12 @@ final class AppDataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    private func insightRecord(for id: UUID) -> ReflectionInsightRecord? {
+        let predicate = #Predicate<ReflectionInsightRecord> { $0.id == id }
+        let descriptor = FetchDescriptor<ReflectionInsightRecord>(predicate: predicate)
+        return try? context.fetch(descriptor).first
+    }
+
     func insightRecords(year: Int, month: Int) -> [ReflectionInsightRecord] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
@@ -441,6 +447,22 @@ final class AppDataStore {
             }
         }
 
+        for insight in DevelopmentReflectionSample.insights where insightRecord(for: insight.id) == nil {
+            context.insert(
+                ReflectionInsightRecord(
+                    id: insight.id,
+                    kind: insight.kind,
+                    title: insight.title,
+                    insightDescription: insight.description,
+                    count: insight.count,
+                    sourceRecordIDs: insight.sourceIDs,
+                    createdAt: insight.date,
+                    updatedAt: insight.date
+                )
+            )
+            didSeed = true
+        }
+
         if didSeed {
             saveContext(reason: "seedDevelopmentReflectionDataIfNeeded")
         }
@@ -457,6 +479,16 @@ private struct DevelopmentReflectionSample {
     let emotionKeywords: [String]
     let actionItems: [String]
     let fourLItemsRaw: String
+
+    struct InsightSample {
+        let id: UUID
+        let kind: String
+        let title: String
+        let description: String
+        let count: Int
+        let sourceIDs: [UUID]
+        let date: Date
+    }
 
     static let samples: [DevelopmentReflectionSample] = [
         DevelopmentReflectionSample(
@@ -563,6 +595,144 @@ private struct DevelopmentReflectionSample {
                 "Lacked:초반 설계를 충분히 하지 못해 나중에 수정이 생긴 점이 아쉬웠다.",
                 "Longed for:다음에는 구현 전에 전체 흐름을 먼저 그려보고 시작하고 싶다."
             ].joined(separator: "|")
+        ),
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
+            date: makeDate(month: 6, day: 15),
+            transcript: """
+            오늘은 학회 발표 준비와 전공 수업 과제를 진행했다.
+            발표 자료를 만들면서 단순히 내용을 정리하는 데 그치지 않고 왜 그런 결과가 나왔는지까지 이해하려고 노력했다. 예상보다 준비할 것이 많았지만 맡은 부분은 끝까지 책임지고 마무리했다. 중간에 모르는 부분은 학회 친구들과 의견을 나누면서 해결할 수 있었다.
+            아쉬운 점은 발표 준비를 미리 하지 않고 마감이 다가온 뒤에 집중해서 진행했다는 것이다. 자료를 더 잘 만들고 싶다는 생각 때문에 시작 자체가 늦어진 부분도 있었다. 또한 부담감을 혼자 해결하려고 해서 괜히 더 스트레스를 받은 것 같다.
+            """,
+            summary: "학회 발표와 전공 과제를 책임감 있게 마무리했지만, 발표 준비를 미리 시작하지 못해 부담과 스트레스가 커졌다.",
+            coreKeywords: ["학회 발표", "전공 과제", "결과 이해", "책임감", "마감 관리"],
+            emotionKeywords: ["책임감", "부담", "스트레스", "아쉬움"],
+            actionItems: ["발표 준비 미리 시작하기", "부담감을 주변과 나누기"],
+            fourLItemsRaw: [
+                "Liked:맡은 부분을 끝까지 책임지고 마무리한 점이 좋았다.",
+                "Learned:발표 자료를 만들며 결과가 나온 이유까지 이해하려고 노력했다.",
+                "Lacked:마감이 다가온 뒤에 발표 준비를 시작해 스트레스가 커진 점이 아쉬웠다.",
+                "Longed for:다음에는 준비를 미리 시작하고 부담감을 혼자 안고 가지 않고 싶다."
+            ].joined(separator: "|")
+        ),
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
+            date: makeDate(month: 6, day: 17),
+            transcript: """
+            오늘은 동아리 행사 준비와 시험 공부를 병행했다.
+            행사 준비 과정에서 예상치 못한 문제가 발생했지만 끝까지 확인하면서 해결했다. 시험 공부도 단순 암기보다 개념을 이해하는 방향으로 진행해서 만족스러웠다. 동아리 사람들과 역할을 나누고 서로 도와주면서 준비를 마칠 수 있었다.
+            하지만 공부 시간을 제대로 확보하지 못해 하루 일정이 많이 밀렸다. 계획을 세우기는 했지만 실제로는 그 순서대로 진행되지 못했다. 어려운 부분이 있었는데 혼자 해결하려다가 시간을 오래 사용한 것도 아쉬웠다.
+            """,
+            summary: "동아리 행사 준비와 시험 공부를 병행하며 문제를 해결했지만, 공부 시간 확보와 계획 실행이 부족했다.",
+            coreKeywords: ["동아리 행사", "시험 공부", "문제 해결", "개념 이해", "계획 실행"],
+            emotionKeywords: ["만족", "협력", "아쉬움", "부담"],
+            actionItems: ["공부 시간 먼저 확보하기", "어려운 부분은 빠르게 도움 요청하기"],
+            fourLItemsRaw: [
+                "Liked:동아리 사람들과 역할을 나누고 서로 도우며 준비를 마친 점이 좋았다.",
+                "Learned:시험 공부를 단순 암기보다 개념 이해 중심으로 진행했다.",
+                "Lacked:공부 시간을 확보하지 못하고 계획대로 진행하지 못한 점이 아쉬웠다.",
+                "Longed for:다음에는 어려운 부분에서 더 빠르게 도움을 요청하고 싶다."
+            ].joined(separator: "|")
+        ),
+        DevelopmentReflectionSample(
+            id: UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID(),
+            date: makeDate(month: 6, day: 19),
+            transcript: """
+            오늘은 팀 프로젝트 회의와 운동을 했다.
+            회의에서 맡은 역할에 대한 의견을 정리해서 공유했고, 필요한 작업도 책임지고 진행했다. 프로젝트를 진행하면서 새로운 기술을 접하게 되었는데 직접 찾아보며 배우는 과정이 재미있었다. 팀원들과 자주 소통하면서 방향을 맞춘 덕분에 큰 문제 없이 진행할 수 있었다.
+            반면에 프로젝트 결과물을 더 잘 만들고 싶어서 준비만 하다가 실제 작업 시작이 늦어졌다. 일정 관리가 부족해서 운동 시간도 예상보다 짧아졌다. 고민되는 부분이 있었는데 팀원들에게 바로 이야기하지 않고 혼자 생각한 시간이 길었던 점도 아쉽다.
+            """,
+            summary: "팀 프로젝트에서 역할을 책임지고 소통하며 진행했지만, 완성도를 의식해 실제 작업 시작이 늦어졌다.",
+            coreKeywords: ["팀 프로젝트", "역할 공유", "새 기술 학습", "소통", "일정 관리"],
+            emotionKeywords: ["재미", "책임감", "아쉬움", "부담"],
+            actionItems: ["실제 작업을 먼저 시작하기", "고민되는 부분은 바로 팀에 공유하기"],
+            fourLItemsRaw: [
+                "Liked:팀원들과 자주 소통하면서 방향을 맞추고 필요한 작업을 책임지고 진행한 점이 좋았다.",
+                "Learned:새로운 기술을 직접 찾아보며 배우는 과정이 재미있었다.",
+                "Lacked:결과물을 더 잘 만들고 싶어 준비만 하다가 실제 작업 시작이 늦어진 점이 아쉬웠다.",
+                "Longed for:다음에는 고민되는 부분을 바로 팀에 공유하고 실제 작업을 더 빨리 시작하고 싶다."
+            ].joined(separator: "|")
+        )
+    ]
+
+    static let insights: [InsightSample] = [
+        InsightSample(
+            id: UUID(uuidString: "20260610-1000-0000-0000-000000000001") ?? UUID(),
+            kind: "reflection",
+            title: "작업 전 범위와 흐름 정리",
+            description: "여러 회고에서 구현 전에 브랜치 상태, 작업 범위, 전체 데이터 흐름을 먼저 확인해야 한다는 반성이 반복되었습니다.",
+            count: 4,
+            sourceIDs: [
+                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
+                UUID(uuidString: "20260608-0000-0000-0000-000000000008") ?? UUID(),
+                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
+                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 10)
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260610-1000-0000-0000-000000000002") ?? UUID(),
+            kind: "reflection",
+            title: "빠른 공유와 질문",
+            description: "막히는 시간이 길어지거나 이슈가 생겼을 때 팀에 더 빨리 공유하고 의견을 구하려는 필요가 반복적으로 나타났습니다.",
+            count: 2,
+            sourceIDs: [
+                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
+                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 10)
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260610-1000-0000-0000-000000000003") ?? UUID(),
+            kind: "strength",
+            title: "끝까지 원인을 추적하는 힘",
+            description: "Git 충돌, 데이터 연결, 예상치 못한 오류를 커밋 기록과 데이터 흐름을 따라가며 해결하는 강점이 드러났습니다.",
+            count: 4,
+            sourceIDs: [
+                UUID(uuidString: "20260601-0000-0000-0000-000000000001") ?? UUID(),
+                UUID(uuidString: "20260602-0000-0000-0000-000000000002") ?? UUID(),
+                UUID(uuidString: "20260609-0000-0000-0000-000000000009") ?? UUID(),
+                UUID(uuidString: "20260610-0000-0000-0000-000000000010") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 10)
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260619-1000-0000-0000-000000000001") ?? UUID(),
+            kind: "reflection",
+            title: "시작을 미루는 완성도 부담",
+            description: "발표 자료와 프로젝트 결과물을 더 잘 만들고 싶다는 부담 때문에 시작이 늦어지는 패턴이 반복되었습니다.",
+            count: 2,
+            sourceIDs: [
+                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
+                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 19)
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260619-1000-0000-0000-000000000002") ?? UUID(),
+            kind: "reflection",
+            title: "혼자 오래 고민하는 습관",
+            description: "부담감이나 어려운 부분을 혼자 해결하려다 시간이 길어지고 스트레스가 커지는 모습이 여러 회고에서 나타났습니다.",
+            count: 3,
+            sourceIDs: [
+                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
+                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
+                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 19)
+        ),
+        InsightSample(
+            id: UUID(uuidString: "20260619-1000-0000-0000-000000000003") ?? UUID(),
+            kind: "strength",
+            title: "책임지고 끝까지 마무리하는 태도",
+            description: "발표, 행사 준비, 팀 프로젝트에서 맡은 역할을 끝까지 확인하고 책임감 있게 마무리하는 강점이 이어졌습니다.",
+            count: 3,
+            sourceIDs: [
+                UUID(uuidString: "20260615-0000-0000-0000-000000000015") ?? UUID(),
+                UUID(uuidString: "20260617-0000-0000-0000-000000000017") ?? UUID(),
+                UUID(uuidString: "20260619-0000-0000-0000-000000000019") ?? UUID()
+            ],
+            date: makeDate(month: 6, day: 19)
         )
     ]
 
