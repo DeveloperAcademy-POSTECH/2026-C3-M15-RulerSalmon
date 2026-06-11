@@ -106,21 +106,96 @@ struct SatisfactionTrendSection: View {
     }
 
     private var summaryTitle: String {
-        switch selectedMode {
-        case .weekly:
-            return "이번 주 만족도 흐름을 확인해요"
-        case .monthly:
-            return "6월은 후반부로 갈수록 더 안정적이었어요"
-        }
+        trendSummary.title
     }
 
     private var summaryDescription: String {
-        switch selectedMode {
-        case .weekly:
-            return "오늘에 가까워질수록 긍정 흐름이 커졌고, 6월 전체 상승 흐름의 시작점으로 보여요."
-        case .monthly:
-            return "일별 변동은 있었지만 전체 흐름은 완만하게 좋아졌고, 마지막 구간의 만족도가 높게 유지됐어요."
+        trendSummary.description
+    }
+
+    private var trendSummary: (title: String, description: String) {
+        let values = selectedPoints.compactMap(\.value).map(Double.init)
+
+        guard let firstValue = values.first, let lastValue = values.last else {
+            switch selectedMode {
+            case .weekly:
+                return (
+                    "이번 주 만족도 흐름을 기다리고 있어요",
+                    "아직 기록된 만족도 데이터가 부족해요. 회고가 쌓이면 주간 흐름을 보여드릴게요."
+                )
+            case .monthly:
+                return (
+                    "\(month)월 만족도 흐름을 기다리고 있어요",
+                    "아직 기록된 만족도 데이터가 부족해요. 회고가 쌓이면 월간 흐름을 보여드릴게요."
+                )
+            }
         }
+
+        let average = values.reduce(0, +) / Double(values.count)
+        let delta = lastValue - firstValue
+        let maxValue = values.max() ?? lastValue
+        let minValue = values.min() ?? lastValue
+        let range = maxValue - minValue
+        let lastSegmentAverage = averageOfLastSegment(in: values)
+
+        return (
+            title: trendSummaryTitle(delta: delta, average: average),
+            description: trendSummaryDescription(
+                delta: delta,
+                range: range,
+                lastValue: lastValue,
+                lastSegmentAverage: lastSegmentAverage
+            )
+        )
+    }
+
+    private func trendSummaryTitle(delta: Double, average: Double) -> String {
+        let periodName = selectedMode == .weekly ? "이번 주" : "\(month)월"
+
+        if delta >= 0.3 {
+            return "\(periodName)은 만족도가 올라가는 흐름이에요"
+        } else if delta <= -0.3 {
+            return "\(periodName)은 만족도가 내려가는 흐름이에요"
+        } else if average >= 3.8 {
+            return "\(periodName)은 만족도가 안정적으로 높았어요"
+        } else if average <= 2.4 {
+            return "\(periodName)은 만족도가 낮게 머문 편이에요"
+        } else {
+            return "\(periodName) 만족도는 큰 변화 없이 이어졌어요"
+        }
+    }
+
+    private func trendSummaryDescription(
+        delta: Double,
+        range: Double,
+        lastValue: Double,
+        lastSegmentAverage: Double
+    ) -> String {
+        let periodName = selectedMode == .weekly ? "주간" : "월간"
+        let fluctuationText = range >= 1.2 ? "중간중간 변동은 있었지만" : "큰 흔들림은 적었고"
+        let endingText: String
+
+        if lastSegmentAverage >= 3.8 || lastValue >= 3.8 {
+            endingText = "마지막 구간의 만족도가 높게 유지됐어요."
+        } else if lastSegmentAverage <= 2.4 || lastValue <= 2.4 {
+            endingText = "마지막 구간의 만족도는 낮은 편이었어요."
+        } else {
+            endingText = "마지막 구간은 보통 수준으로 마무리됐어요."
+        }
+
+        if delta >= 0.3 {
+            return "\(fluctuationText) \(periodName) 만족도는 시작보다 좋아졌고, \(endingText)"
+        } else if delta <= -0.3 {
+            return "\(fluctuationText) \(periodName) 만족도는 시작보다 낮아졌고, \(endingText)"
+        } else {
+            return "\(fluctuationText) \(periodName) 만족도는 비슷한 수준을 유지했고, \(endingText)"
+        }
+    }
+
+    private func averageOfLastSegment(in values: [Double]) -> Double {
+        let segmentCount = min(selectedMode == .weekly ? 2 : 7, values.count)
+        let segment = values.suffix(segmentCount)
+        return segment.reduce(0, +) / Double(segment.count)
     }
 
     var body: some View {
