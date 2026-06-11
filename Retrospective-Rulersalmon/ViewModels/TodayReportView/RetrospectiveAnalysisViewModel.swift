@@ -133,16 +133,18 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         let sentimentRecord = saveSentimentRecordIfNeeded()
         isCompleting = true
 
-        if let sentimentRecord {
-            await updateInsightsIfNeeded(with: sentimentRecord)
-        }
-
         do {
             try await Task.sleep(for: .milliseconds(600))
         } catch { }
 
         completedReport = report
         isShowingReport = true
+
+        if let sentimentRecordDate = sentimentRecord?.createdAt {
+            Task { [weak self] in
+                await self?.updateInsightsIfNeeded(containing: sentimentRecordDate)
+            }
+        }
     }
 
     private func saveReportIfNeeded(_ report: RetrospectiveReport) {
@@ -181,11 +183,11 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         return record
     }
 
-    private func updateInsightsIfNeeded(with sentimentRecord: SentimentRecord) async {
+    private func updateInsightsIfNeeded(containing date: Date) async {
         guard !didUpdateInsights else { return }
         didUpdateInsights = true
 
-        await regenerateScopedInsights(containing: sentimentRecord.createdAt)
+        await regenerateScopedInsights(containing: date)
     }
 
     private func regenerateScopedInsights(containing date: Date) async {
