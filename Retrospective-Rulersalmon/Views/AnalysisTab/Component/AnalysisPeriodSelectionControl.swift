@@ -81,6 +81,6 @@ private extension AnalysisWeekOption {
         let endMonth = String(format: "%02d", calendar.component(.month, from: endDate))
         let endDay = String(format: "%02d", calendar.component(.day, from: endDate))
 
-        return "\(startMonth).\(startDay)-\(endMonth).\(endDay)"
+        return "\(startMonth).\(startDay) - \(endMonth).\(endDay)"
     }
 }
