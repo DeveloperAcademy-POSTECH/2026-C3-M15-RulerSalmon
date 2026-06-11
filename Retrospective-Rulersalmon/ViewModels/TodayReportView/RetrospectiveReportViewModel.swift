@@ -33,6 +33,7 @@ struct ReportFourLCardContent {
 struct ReportKeywordSectionContent {
     let title: String
     let keywords: [String]
+    let emptyMessage: String
 }
 
 struct ReportActionItemRowContent: Identifiable {
@@ -84,7 +85,8 @@ final class RetrospectiveReportViewModel: ObservableObject {
     var keywordSection: ReportKeywordSectionContent {
         ReportKeywordSectionContent(
             title: keywordTitle,
-            keywords: report.keywords
+            keywords: report.keywords,
+            emptyMessage: emptyKeywordMessage
         )
     }
 
@@ -135,6 +137,10 @@ final class RetrospectiveReportViewModel: ObservableObject {
 
     private var keywordTitle: String {
         "핵심 키워드"
+    }
+
+    private var emptyKeywordMessage: String {
+        "핵심키워드가 도출되지 않았어요."
     }
 
     private var actionItemTitle: String {

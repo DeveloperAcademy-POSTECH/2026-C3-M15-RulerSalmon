@@ -16,7 +16,7 @@ struct ReflectionRefinementOutput {
 
 @Generable
 struct ReflectionTodaySummaryOutput {
-    @Guide(description: "오늘 회고 전체를 자연스럽게 요약한 한 문장입니다. 사용자가 말하지 않은 내용은 추가하지 않습니다.")
+    @Guide(description: "오늘 회고 전체를 자연스럽게 요약한 1~3문장입니다. 짧은 회고는 1문장으로 충분하며, 사용자가 말하지 않은 내용은 추가하지 않습니다.")
     var todaySummary: String
 }
 
@@ -56,7 +56,7 @@ struct FourLRefinedItem {
 
 extension ReflectionRefinementOutput {
     static let exampleFromChat = ReflectionRefinementOutput(
-        refinedReflection: "아침 운동을 계획대로 마쳐서 몸이 한결 가벼웠어요. 오후에는 집중이 잘 되지 않아 아쉬웠지만, 쉬는 시간을 나누어 쓰면 더 나아질 수 있다는 점을 알게 되었어요."
+        refinedReflection: "오늘은 아침 운동을 계획대로 마쳐서 몸이 한결 가벼웠어요. 오후에는 집중이 잘 되지 않아 아쉬웠지만, 쉬는 시간을 나누어 쓰면 더 나아질 수 있다는 점을 알게 되었어요."
     )
 }
 
