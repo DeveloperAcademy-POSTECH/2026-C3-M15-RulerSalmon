@@ -47,8 +47,8 @@ AI 멘토와 대화하며 하루를 회고하고, 4L 기반 리포트와 감정/
 
 ## :people_hugging: Authors
 
-|  |  |  |  |  |
-| --- | --- | --- | --- | --- |
-| <img src="https://avatars.githubusercontent.com/u/89850286?v=4" width="72" alt="IIIBreakeRIII" /> | <img src="https://avatars.githubusercontent.com/u/120252153?v=4" width="72" alt="chami3i" /> | <img src="https://avatars.githubusercontent.com/u/179007079?v=4" width="72" alt="dlsundn" /> | <img src="https://avatars.githubusercontent.com/u/118114594?v=4" width="72" alt="magic3ightball" /> | <img src="https://avatars.githubusercontent.com/u/275596808?v=4" width="72" alt="stevekoun" /> |
-| [IIIBreakeRIII](https://github.com/IIIbreakerIII) | [chami3i](https://github.com/chami3i) | [dlsundn](https://github.com/dlsundn) | [magic3ightball](https://github.com/magic3ightball) | [stevekoun](https://github.com/stevekoun) |
-| Dev/ Paul | - | - | Hyerim Jeong | - |
+|Paul|Chaem|Cindy|Arya|Steve|Darren|
+| --- | --- | --- | --- | --- | --- |
+| <img src="https://avatars.githubusercontent.com/u/89850286?v=4" width="72" alt="IIIBreakeRIII" /> | <img src="https://avatars.githubusercontent.com/u/120252153?v=4" width="72" alt="chami3i" /> | <img src="https://avatars.githubusercontent.com/u/179007079?v=4" width="72" alt="dlsundn" /> | <img src="https://avatars.githubusercontent.com/u/118114594?v=4" width="72" alt="magic3ightball" /> | <img src="https://avatars.githubusercontent.com/u/275596808?v=4" width="72" alt="stevekoun" /> | <img src="https://avatars.githubusercontent.com/u/237616088?v=4" width="72" alt="Darren" /> |
+| [IIIBreakeRIII](https://github.com/IIIbreakerIII) | [chami3i](https://github.com/chami3i) | [dlsundn](https://github.com/dlsundn) | [magic3ightball](https://github.com/magic3ightball) | [stevekoun](https://github.com/stevekoun) | [Darren](https://github.com/Darren-Oh) |
+| 류현소 | 홍채민 | 이선우 | 정혜림 | 권오상 | 오도안 |

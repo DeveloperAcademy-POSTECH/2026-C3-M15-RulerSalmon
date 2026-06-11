@@ -20,18 +20,19 @@ SwiftData는 Apple의 로컬 데이터 영속성 프레임워크. Swift 문법�
 - 회고 세션 메타데이터
 - 회고 리포트
 - 감정 분석 결과
-- 인사이트 집계 데이터
+- 주간 및 월간 인사이트 기록
 
 ## 실제 사용 위치
 - `App/Retrospective_RulersalmonApp.swift`
 - `Services/AppDataStore.swift`
 - `Models/SentimentRecord.swift`
 - `Models/ReflectionInsightRecord.swift`
+- `ViewModels/TodayReportView/RetrospectiveAnalysisViewModel.swift`
 - `ViewModels/AnalysisTab/AnalysisSwiftDataProvider.swift`
 
 ## 현재 데이터 모델 구조
 
-### 1. 사용자 프로필 저장
+### 사용자 프로필 저장
 - 닉네임
 - 직업
 - 연령대
@@ -39,24 +40,32 @@ SwiftData는 Apple의 로컬 데이터 영속성 프레임워크. Swift 문법�
 - 권한 허용 상태
 - 온보딩 완료 여부
 
-### 2. 회고 세션 메타데이터 저장
+### 회고 세션 메타데이터 저장
 - 세션 ID
 - 멘토 이름
 - 첫 사용자 발화
 - 최신 요약
 - 종료 여부
-- 생성 시각, 수정 시각
+- 생성 시각과 수정 시각
 
-### 3. 회고 리포트 저장
+### 회고 리포트 저장
 - 오늘의 회고 요약
 - 4L 정리 결과
 - 핵심 키워드
+- 감정 키워드
 - 액션 아이템
 - 전사문
 
-### 4. 감정 및 인사이트 저장
-- 감정 score와 비율 데이터
-- 월별 분석에 필요한 인사이트 집계 데이터
+### 감정 및 인사이트 저장
+- positive/negative percentage
+- satisfaction score
+- 감정 세그먼트 기반 원천 기록
+- 주간 및 월간 인사이트 집계 결과
+
+### 저장 스키마에만 남아 있는 회고 메모리 레코드
+- `StoredReflectionMemoryRecord` 모델 존재 상태
+- 현재 런타임 RAG 파이프라인에서는 직접 사용하지 않는 상태
+- 세션 중 메모리는 `ReflectionMemoryStore`의 인메모리 배열 사용 상태
 
 ## 현재 구현 구조
 
@@ -68,15 +77,18 @@ SwiftData는 Apple의 로컬 데이터 영속성 프레임워크. Swift 문법�
 ### 화면 연결 방식
 - 온보딩 완료 시 프로필 저장
 - 채팅 진행 시 세션 메타데이터 저장
-- 리포트 생성 완료 시 분석 결과 저장
+- 리포트 생성 완료 시 회고 리포트 저장
+- 리포트 저장 직후 감정 분석 결과 저장
+- 감정 기록 저장 이후 주간 및 월간 인사이트 재생성
 - 메인 탭과 분석 탭에서 저장된 결과 조회
 
 ## 이 앱에서 중요하게 보는 기술 포인트
 
 ### 영속 데이터와 휘발 데이터의 분리
 - 프로필, 세션 메타데이터, 리포트는 영속 저장 대상
-- RAG 세션 메모리는 휘발 유지 대상
-- 저장 대상과 비저장 대상을 분리해 context 비대화 방지
+- 감정 기록과 인사이트 기록은 영속 저장 대상
+- RAG 세션 메모리는 현재 `ReflectionMemoryStore` 기준 휘발 유지 대상
+- 저장 대상과 비저장 대상을 분리한 context 비대화 전략
 
 ### 화면 독립성 유지
 - 메인 화면, 아카이브 화면, 분석 화면이 저장 구조를 직접 다루지 않는 방식
@@ -86,10 +98,16 @@ SwiftData는 Apple의 로컬 데이터 영속성 프레임워크. Swift 문법�
 - 채팅 UI 전체 복원보다 세션 메타데이터와 리포트 복원 우선 구조
 - MVP 범위에 맞는 저장 단위 선택
 
+### 분석 탭용 집계 재사용
+- `sentimentRecords(year:month:)` 기반 월간 분석 조회 구조
+- `sentimentRecords(startDate:endDate:)` 기반 주간 분석 조회 구조
+- `replaceInsights` 기반 주간 및 월간 인사이트 재생성 구조
+
 ## 현재 한계와 고려 사항
 - 전체 채팅 히스토리 복원 비적용 상태
+- 저장 스키마에 남아 있으나 현재 미사용인 메모리 레코드 존재 상태
 - 스키마 확장 시 migration 고려 필요성
 - 저장 실패 로그와 디버그 경로 확인 구조 필요성
 
 ## 정리
-SwiftData는 이 앱에서 단순 로컬 저장소가 아니라, 온보딩 정보, 회고 세션 기록, 리포트, 분석 데이터를 다시 보여주기 위한 영속 계층
+SwiftData는 이 앱에서 단순 로컬 저장소가 아니라, 온보딩 정보, 회고 세션 기록, 회고 리포트, 감정 분석 결과, 주간 및 월간 인사이트를 다시 보여주기 위한 영속 계층

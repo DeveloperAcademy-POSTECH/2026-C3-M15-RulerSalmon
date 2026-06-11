@@ -1,4 +1,4 @@
-# Core ML
+# CoreML
 
 ## 개요
 Core ML은 Apple의 온디바이스 머신러닝 실행 프레임워크. 학습된 모델을 앱 번들에 포함하고 디바이스 내부에서 빠르게 추론하는 구조
@@ -7,7 +7,8 @@ Core ML은 Apple의 온디바이스 머신러닝 실행 프레임워크. 학습�
 - 로컬 추론 중심 구조
 - 모델 번들 포함 방식
 - 네트워크 비의존형 분류 작업 처리 구조
-- 생성형 모델이 아닌 분류형/점수형 추론에 강한 실행 계층
+- 생성형 모델이 아닌 분류형 및 점수형 추론에 강한 실행 계층
+- 모델별 런타임 차이를 허용하는 실행 구조
 
 ## 이 앱에서 Core ML이 필요한 이유
 - 회고 발화를 먼저 기계적으로 분류할 1차 분류 계층 필요성
@@ -28,14 +29,16 @@ Core ML은 Apple의 온디바이스 머신러닝 실행 프레임워크. 학습�
 
 ## 현재 사용 모델
 
-### 1. FourLClassifier
+### FourLClassifier
 - 회고 발화를 `Liked`, `Learned`, `Lacked`, `Longed for` 관점으로 분류하는 모델
-- `FourLService`에서 `NLModel` 형태로 로드해 사용
+- 앱 번들에는 `.mlmodel` 자산으로 포함
+- 실제 추론은 `FourLService`에서 `NaturalLanguage`의 `NLModel`로 로드해 사용
 - 문장 chunk 단위 분류 방식
 
-### 2. HowRUInt8
+### HowRUInt8
 - 회고 전사문의 감정 score 계산용 모델
-- `RetrospectiveSentimentAnalyzer`에서 로드해 사용
+- `RetrospectiveSentimentAnalyzer`에서 generated Core ML class로 로드해 사용
+- `MLModelConfiguration`의 `.cpuOnly` 설정 기반 실행
 - 세그먼트 단위 감정 score 추론 구조
 
 ## 현재 파이프라인에서의 사용 방식
@@ -44,7 +47,7 @@ Core ML은 Apple의 온디바이스 머신러닝 실행 프레임워크. 학습�
 1. 사용자 입력 수집
 2. `SentenceChunkerService`를 통한 의미 단위 분리
 3. `FourLService`에서 문장별 4L 분류
-4. 분류 confidence, secondary label, fourL total score 계산
+4. primary label, secondary label, fourL total confidence 계산
 5. Foundation Model 검토 단계로 결과 전달
 
 ### 감정 분석 파이프라인
@@ -53,6 +56,7 @@ Core ML은 Apple의 온디바이스 머신러닝 실행 프레임워크. 학습�
 3. `HowRUTokenizer`를 통한 모델 입력 변환
 4. `HowRUInt8` 추론 수행
 5. positive/negative percentage 및 keyword 집계
+6. 모델 실패 시 lexical fallback score 계산
 
 ## 이 앱에서 중요하게 보는 기술 포인트
 
@@ -66,6 +70,11 @@ Core ML은 Apple의 온디바이스 머신러닝 실행 프레임워크. 학습�
 - 감정 분석 모델 실패 시 lexical fallback 사용 구조
 - 4L 분류 모델 미존재 시 empty fallback 경로 제공
 
+### 모델별 런타임 차이
+- 4L 분류 모델은 `NLModel` 기반 경량 분류 구조
+- 감정 분석 모델은 generated Core ML class 기반 직접 추론 구조
+- 같은 모델 자산 계층 안에서도 사용 방식이 다름을 고려한 서비스 분리 구조
+
 ### 세밀한 입력 단위 처리
 - 긴 사용자 발화를 그대로 분류하지 않는 방식
 - chunk 단위 분리 후 개별 분류 수행 구조
@@ -77,4 +86,4 @@ Core ML은 Apple의 온디바이스 머신러닝 실행 프레임워크. 학습�
 - Core ML만으로 자연스러운 질문 생성 불가능
 
 ## 정리
-Core ML은 이 앱에서 회고 내용을 먼저 구조화하고 수치화하는 1차 분석 엔진 역할
+Core ML은 이 앱에서 회고 내용을 먼저 구조화하고 수치화하는 1차 분석 엔진 역할과 감정 score 산출 엔진 역할

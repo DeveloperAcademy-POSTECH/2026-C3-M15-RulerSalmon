@@ -10,47 +10,48 @@ NaturalLanguage는 Apple의 자연어 처리 프레임워크. 문장 분리, 토
 
 ## 이 앱에서 NaturalLanguage가 필요한 이유
 - 회고 입력이 한 문장으로 끝나지 않는 경우가 많다는 점
-- 한 번의 긴 발화를 더 작은 의미 단위로 나눌 필요성
-- 4L 분류와 감정 분석 모두 전처리 품질에 큰 영향을 받는다는 점
+- 분류 모델을 자연어 입력 위에서 다루기 위한 보조 계층 필요성
+- 감정 분석 결과를 키워드 단위로 다시 정리할 필요성
 
 ## 이 앱에서의 사용 역할
-- 문장 chunk 생성 역할
-- 4L 분류 입력 전처리 역할
+- `NLModel` 기반 4L 분류 실행 역할
+- `NLTokenizer` 기반 키워드 추출 보조 역할
 - 감정 분석 보조 전처리 역할
-- 키워드 추출 보조 역할
+- 자연어 관련 경량 분석 보조 역할
 
 ## 실제 사용 위치
 - `Services/Report/FourLService.swift`
-- `Services/Report/SentenceChunkerService.swift`
 - `Services/SentimentAnalysis/RetrospectiveSentimentAnalyzer.swift`
 
 ## 현재 파이프라인에서의 사용 방식
 
-### 1. 문장 단위 분리
-- 사용자의 긴 입력을 의미 단위 문장으로 나누는 구조
-- 하나의 긴 회고를 여러 개의 classification 대상 문장으로 바꾸는 방식
+### 4L 분류 실행
+- `FourLService`에서 `NLModel(contentsOf:)` 기반 분류 모델 로드
+- 문장 chunk별 predicted label hypotheses 계산 구조
+- primary label, secondary label, fourL total confidence 계산 구조
 
-### 2. 4L 분류 전처리
-- 분리된 문장을 `FourLClassifier` 입력 단위로 변환
-- 한 발화 안에서 `Liked`와 `Lacked`가 동시에 존재하는 경우를 더 잘 잡아내기 위한 구조
+### 키워드 추출 보조
+- `RetrospectiveSentimentAnalyzer`에서 `NLTokenizer(unit: .word)` 사용
+- 감정 세그먼트에서 단어 단위 토큰을 추출한 뒤 stopword를 제외하는 방식
+- positive 및 negative keyword 집계에 활용되는 구조
 
-### 3. 감정 분석 전처리
-- 전사문을 세그먼트로 나눠 부분 감정을 계산하는 구조
-- 회고 전체를 단일 감정으로 보지 않고 긍정/부정 단서가 섞이는 흐름을 반영하는 방식
+### 커스텀 전처리와의 혼합
+- 문장 분리 자체는 현재 `SentenceChunkerService`의 separator 기반 커스텀 처리 구조
+- NaturalLanguage는 현재 전체 문장 분리보다 모델 실행과 단어 토큰화 쪽에서 사용되는 구조
 
 ## 이 앱에서 중요하게 보는 기술 포인트
 
-### 긴 발화의 분해
-- 사용자 입력을 한 덩어리로 보지 않는 방식
-- chunk 단위 분석을 통한 4L 커버리지 확보
+### 긴 발화의 분해 방향성
+- 사용자 입력을 한 덩어리로 보지 않는 분석 방향성
+- chunk 단위 분석과 NaturalLanguage 기반 분류 조합 구조
 
 ### 분석 입력 품질 개선
-- 전처리 품질이 분류 품질에 직접 영향을 주는 구조
-- 문장 분리 품질이 4L 결과와 감정 score 안정성에 미치는 영향
+- hypotheses 기반 confidence 계산 안정성
+- 토큰 추출 품질이 감정 키워드 집계 결과에 미치는 영향
 
 ### 온디바이스 경량 처리
-- 네트워크 없는 환경에서도 바로 전처리 가능한 구조
-- 생성형 모델 호출 전에 가볍게 사용할 수 있는 로컬 분석 계층
+- 네트워크 없는 환경에서도 바로 사용할 수 있는 로컬 분석 계층
+- 생성형 모델 호출 전에 가볍게 사용할 수 있는 자연어 처리 보조 계층
 
 ## MVP에서 NaturalLanguage를 선택한 이유
 - 입력 전처리 품질 향상
@@ -58,9 +59,9 @@ NaturalLanguage는 Apple의 자연어 처리 프레임워크. 문장 분리, 토
 - Core ML이나 Foundation Models에 넣기 전 단계로서의 적합성
 
 ## 현재 한계와 고려 사항
-- 의미적 문맥 이해보다 전처리 보조 역할 중심 한계
-- 문장 분리 기준이 항상 사용자 의도와 완전히 일치하지는 않는 한계
-- 결국 후속 분류 및 생성 모델과 함께 사용할 때 가장 큰 효과
+- 의미적 문맥 이해보다 분류와 토큰화 보조 역할 중심 한계
+- 문장 분리 자체는 NaturalLanguage가 아니라 커스텀 separator 로직 기반 상태
+- 결국 후속 Core ML 및 Foundation Models와 함께 사용할 때 가장 큰 효과
 
 ## 정리
-NaturalLanguage는 이 앱에서 긴 회고 입력을 분석 가능한 단위로 바꿔주는 전처리 계층
+NaturalLanguage는 이 앱에서 4L 분류 실행과 감정 키워드 토큰화를 담당하는 경량 로컬 NLP 계층
