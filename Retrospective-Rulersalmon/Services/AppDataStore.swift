@@ -257,6 +257,7 @@ final class AppDataStore {
                     kind: "reflection",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: [sourceRecordID]
                 )
@@ -269,6 +270,7 @@ final class AppDataStore {
                     kind: "strength",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: [sourceRecordID]
                 )
@@ -300,6 +302,7 @@ final class AppDataStore {
                     kind: "reflection",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: sourceRecordIDs,
                     scopeRawValue: scope,
@@ -315,6 +318,7 @@ final class AppDataStore {
                     kind: "strength",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: sourceRecordIDs,
                     scopeRawValue: scope,

@@ -333,7 +333,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         for record in candidates {
             guard selectedCounts[record.kind, default: 0] < 2 else { continue }
 
-            let topicKey = coreInsightTopicKey(record.title)
+            let topicKey = normalizedInsightTopicKey(record)
             guard !selectedTopicKeys.contains(topicKey) else { continue }
 
             selectedRecords.append(record)
@@ -424,7 +424,19 @@ final class AnalysisHomeViewModel: ObservableObject {
             .lowercased()
     }
 
-    private func coreInsightTopicKey(_ title: String) -> String {
+    private func normalizedInsightTopicKey(_ record: ReflectionInsightRecord) -> String {
+        let normalizedTopicKey = normalizedInsightTitle(record.topicKey)
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+
+        if normalizedTopicKey != normalizedInsightTitle(record.title)
+            .filter({ !$0.isWhitespace && !$0.isPunctuation }) {
+            return normalizedTopicKey
+        }
+
+        return legacyCoreInsightTopicKey(record.title)
+    }
+
+    private func legacyCoreInsightTopicKey(_ title: String) -> String {
         let normalizedTitle = normalizedInsightTitle(title)
             .filter { !$0.isWhitespace && !$0.isPunctuation }
         let possessiveParts = normalizedTitle.split(separator: "의", maxSplits: 1).map(String.init)
