@@ -46,3 +46,26 @@ struct ChatBubbleView: View {
             .frame(minWidth: 12, alignment: .leading)
     }
 }
+
+struct ChatBubbleView_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Color.gray50
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                ChatBubbleView(
+                    message: ChatMessage(role: .assistant, text: "좋아, 오늘 회고를 같이 정리해보자. 먼저 어떤 장면이 가장 떠오르는지 말해줘."),
+                    bubbleShadowColor: Color.black.opacity(0.08)
+                )
+
+                ChatBubbleView(
+                    message: ChatMessage(role: .user, text: "오늘은 RAG 구조를 정리하면서 원하는 방향이 조금 더 선명해졌어."),
+                    bubbleShadowColor: Color.black.opacity(0.08)
+                )
+            }
+            .padding(24)
+        }
+        .previewDisplayName("Chat Bubble")
+    }
+}

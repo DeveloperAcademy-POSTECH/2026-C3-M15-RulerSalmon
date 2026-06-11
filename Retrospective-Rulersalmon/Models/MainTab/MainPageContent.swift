@@ -18,11 +18,21 @@ struct MainPageContent {
 }
 
 struct RetrospectiveItem: Identifiable, Hashable {
+    let id: UUID
     let date: String
     let title: String
+    let subtitle: String?
 
-    var id: String {
-        date + title
+    init(
+        id: UUID = UUID(),
+        date: String,
+        title: String,
+        subtitle: String? = nil
+    ) {
+        self.id = id
+        self.date = date
+        self.title = title
+        self.subtitle = subtitle
     }
 }
 
@@ -35,14 +45,14 @@ extension MainPageContent {
         mentorImageName: "Howard",
         mentorGreeting: "안녕하십니까! 하워드입니다!\n저와 함께 하루를 정리해 보시죠!",
         retrospectives: [
-            RetrospectiveItem(date: "6/10", title: "자신감 키우기"),
-            RetrospectiveItem(date: "6/9", title: "피드백 문화"),
-            RetrospectiveItem(date: "6/8", title: "목표 설정"),
-            RetrospectiveItem(date: "6/7", title: "발표 준비"),
-            RetrospectiveItem(date: "6/6", title: "협업 회고"),
-            RetrospectiveItem(date: "6/5", title: "집중 루틴"),
-            RetrospectiveItem(date: "6/4", title: "작게 회복한 하루"),
-            RetrospectiveItem(date: "6/3", title: "다음 액션 정리")
+            RetrospectiveItem(date: "6/10", title: "자신감 키우기", subtitle: "자아 존중감, 도전, 성공 경험"),
+            RetrospectiveItem(date: "6/9", title: "피드백 문화", subtitle: "개선, 발전, 협력"),
+            RetrospectiveItem(date: "6/8", title: "목표 설정", subtitle: "구체성, 측정 가능성, 가능성"),
+            RetrospectiveItem(date: "6/7", title: "발표 준비", subtitle: "대화, 이해, 조정"),
+            RetrospectiveItem(date: "6/6", title: "협업 회고", subtitle: "학습, 성장, 지속성"),
+            RetrospectiveItem(date: "6/5", title: "집중 루틴", subtitle: "우선순위, 계획, 효율성"),
+            RetrospectiveItem(date: "6/4", title: "작게 회복한 하루", subtitle: "명확성, 경청, 피드백"),
+            RetrospectiveItem(date: "6/3", title: "다음 액션 정리", subtitle: "영향력, 비전, 동기 부여")
         ]
     )
 }

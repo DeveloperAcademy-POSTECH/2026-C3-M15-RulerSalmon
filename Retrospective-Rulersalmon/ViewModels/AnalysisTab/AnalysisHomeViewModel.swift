@@ -103,10 +103,6 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
-    func availableRange(from reports: [StoredReflectionReport]) -> PeriodRange {
-        reportAvailableRange(from: reports) ?? availableRange
-    }
-
     func refresh(
         reports: [StoredReflectionReport],
         sentiments: [SentimentRecord],
@@ -118,8 +114,13 @@ final class AnalysisHomeViewModel: ObservableObject {
             normalizeSelectedPeriod(with: currentAvailableRange)
             normalizeSelectedWeek(from: sentiments)
         }
+
         emotionKeywordStatistics = emotionKeywords(from: reports)
-        insightItems = selectedSentimentCount(from: sentiments) >= 3 ? insightItems(from: insights) : []
+        insightItems = selectedSentimentCount(from: sentiments) >= 3 ? self.insights(from: insights) : []
+    }
+
+    func availableRange(from reports: [StoredReflectionReport]) -> PeriodRange {
+        reportAvailableRange(from: reports) ?? availableRange
     }
 
     func emotionKeywords(from reports: [StoredReflectionReport]) -> [EmotionKeyword] {
@@ -127,7 +128,7 @@ final class AnalysisHomeViewModel: ObservableObject {
 
         switch selectedMode {
         case .weekly:
-            selectedReports = reportsInSelectedWeek(from: reports)
+            selectedReports = reportsInSelectedWeek(from: reports, weekStartDate: selectedWeekStartDate)
         case .monthly:
             selectedReports = reportsInMonth(
                 from: reports,
@@ -139,8 +140,27 @@ final class AnalysisHomeViewModel: ObservableObject {
         return topEmotionKeywords(from: selectedReports)
     }
 
-    func showPeriodSheet() {
-        isPeriodSheetPresented = true
+    func insights(from records: [ReflectionInsightRecord]) -> [AnalysisInsightItem] {
+        let uniqueInsights = uniqueInsightsByTitle(filteredInsights(from: records))
+        let reflectionInsights = uniqueInsights
+            .filter { $0.kind == "reflection" }
+            .sorted(by: insightSort)
+            .prefix(2)
+        let strengthInsights = uniqueInsights
+            .filter { $0.kind == "strength" }
+            .sorted(by: insightSort)
+            .prefix(2)
+
+        return (Array(reflectionInsights) + Array(strengthInsights))
+            .map { record in
+                AnalysisInsightItem(
+                    id: record.id,
+                    kind: record.kind,
+                    title: record.title,
+                    description: record.insightDescription,
+                    count: record.count
+                )
+            }
     }
 
     func weekOptions() -> [AnalysisWeekOption] {
@@ -179,15 +199,19 @@ final class AnalysisHomeViewModel: ObservableObject {
             return
         }
 
-        let defaultStartDate = defaultWeekStartDate(calendar: calendar)
-
         if let selectedWeekStartDate,
            options.contains(where: { calendar.isDate($0.startDate, inSameDayAs: selectedWeekStartDate) }),
            !sentimentRecordsInWeek(records, startDate: selectedWeekStartDate, calendar: calendar).isEmpty {
             return
         }
 
-        selectedWeekStartDate = defaultStartDate ?? options.first?.startDate
+        selectedWeekStartDate = defaultWeekStartDate(from: records, calendar: calendar)
+            ?? referenceWeekStartDate(calendar: calendar)
+            ?? options.first?.startDate
+    }
+
+    func showPeriodSheet() {
+        isPeriodSheetPresented = true
     }
 
     func normalizeSelectedPeriod() {
@@ -217,34 +241,13 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
-    private func insightItems(from records: [ReflectionInsightRecord]) -> [AnalysisInsightItem] {
-        let uniqueInsights = uniqueInsightsByTitle(filteredInsights(from: records))
-        let reflectionInsights = uniqueInsights
-            .filter { $0.kind == "reflection" }
-            .sorted(by: insightSort)
-            .prefix(2)
-        let strengthInsights = uniqueInsights
-            .filter { $0.kind == "strength" }
-            .sorted(by: insightSort)
-            .prefix(2)
-
-        return (Array(strengthInsights) + Array(reflectionInsights))
-            .map { record in
-                AnalysisInsightItem(
-                    id: record.id,
-                    kind: record.kind,
-                    title: record.title,
-                    description: record.insightDescription,
-                    count: record.count
-                )
-            }
-    }
-
-    private func uniqueInsightsByTitle(_ records: [ReflectionInsightRecord]) -> [ReflectionInsightRecord] {
+    private func uniqueInsightsByTitle(
+        _ records: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
         var seenTitles = Set<String>()
 
         return records.filter { record in
-            let key = record.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let key = normalizedInsightTitle(record.title)
             guard !seenTitles.contains(key) else { return false }
 
             seenTitles.insert(key)
@@ -252,12 +255,21 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
-    private func insightSort(_ lhs: ReflectionInsightRecord, _ rhs: ReflectionInsightRecord) -> Bool {
+    private func insightSort(
+        _ lhs: ReflectionInsightRecord,
+        _ rhs: ReflectionInsightRecord
+    ) -> Bool {
         if lhs.count == rhs.count {
             return lhs.title < rhs.title
         }
 
         return lhs.count > rhs.count
+    }
+
+    private func normalizedInsightTitle(_ title: String) -> String {
+        title
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
     }
 
     private func filteredInsights(
@@ -272,13 +284,15 @@ final class AnalysisHomeViewModel: ObservableObject {
             }
 
             return records.filter {
-                $0.updatedAt >= selectedWeekStartDate &&
+                $0.scope == "weekly" &&
+                    $0.updatedAt >= selectedWeekStartDate &&
                     $0.updatedAt < endDate
             }
         case .monthly:
             return records.filter { record in
                 let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
-                return components.year == selectedYear &&
+                return record.scope == "monthly" &&
+                    components.year == selectedYear &&
                     components.month == selectedMonth
             }
         }
@@ -296,6 +310,19 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
+    private func reportsInSelectedWeek(
+        from reports: [StoredReflectionReport],
+        weekStartDate: Date?,
+        calendar: Calendar = .current
+    ) -> [StoredReflectionReport] {
+        guard let startDate = weekStartDate,
+              let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
+            return []
+        }
+
+        return reports.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
+    }
+
     private func recordsInMonth(
         from records: [SentimentRecord],
         year: Int,
@@ -306,30 +333,6 @@ final class AnalysisHomeViewModel: ObservableObject {
             let components = calendar.dateComponents([.year, .month], from: record.createdAt)
             return components.year == year && components.month == month
         }
-    }
-
-    private func reportsWithinDays(
-        from reports: [StoredReflectionReport],
-        days: Int,
-        calendar: Calendar = .current
-    ) -> [StoredReflectionReport] {
-        guard let cutoff = calendar.date(byAdding: .day, value: -days, to: Date()) else {
-            return []
-        }
-
-        return reports.filter { $0.createdAt >= cutoff }
-    }
-
-    private func reportsInSelectedWeek(
-        from reports: [StoredReflectionReport],
-        calendar: Calendar = .current
-    ) -> [StoredReflectionReport] {
-        let startDate = selectedWeekStartDate ?? weekStartDate(containing: referenceDate, calendar: calendar)
-        guard let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
-            return []
-        }
-
-        return reports.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
     }
 
     private func sentimentRecordsInWeek(
@@ -403,7 +406,25 @@ final class AnalysisHomeViewModel: ObservableObject {
         yearMonth.year * 100 + yearMonth.month
     }
 
-    private func defaultWeekStartDate(calendar: Calendar = .current) -> Date? {
+    private func defaultWeekStartDate(
+        from records: [SentimentRecord],
+        calendar: Calendar = .current
+    ) -> Date? {
+        let monthlyRecords = recordsInMonth(
+            from: records,
+            year: selectedYear,
+            month: selectedMonth,
+            calendar: calendar
+        )
+
+        guard let latestRecordDate = monthlyRecords.map(\.createdAt).max() else {
+            return nil
+        }
+
+        return weekStartDate(containing: latestRecordDate, calendar: calendar)
+    }
+
+    private func referenceWeekStartDate(calendar: Calendar = .current) -> Date? {
         let referenceComponents = calendar.dateComponents([.year, .month], from: referenceDate)
         guard referenceComponents.year == selectedYear,
               referenceComponents.month == selectedMonth else {

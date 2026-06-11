@@ -7,6 +7,12 @@
 import CoreGraphics
 import Foundation
 
+@MainActor
+protocol AnalysisDataProviding {
+    var availableRange: PeriodRange { get }
+    func data(year: Int, month: Int, weekStartDate: Date?, referenceDate: Date) -> MonthlyAnalysisData
+}
+
 struct YearMonth {
     let year: Int
     let month: Int
@@ -44,18 +50,10 @@ struct MonthlyAnalysisData {
     let monthlyEmotionKeywords: [EmotionKeyword]
     let weeklySatisfactionPoints: [SatisfactionPoint]
     let monthlySatisfactionPoints: [SatisfactionPoint]
+    let weeklyRangeStartDate: Date?
 
     var EmotionKeywords: [EmotionKeyword] {
         monthlyEmotionKeywords
-    }
-}
-
-struct AnalysisWeekOption: Identifiable, Hashable {
-    let startDate: Date
-    let title: String
-
-    var id: Date {
-        startDate
     }
 }
 
@@ -65,6 +63,15 @@ struct AnalysisInsightItem: Identifiable, Equatable {
     let title: String
     let description: String
     let count: Int
+}
+
+struct AnalysisWeekOption: Identifiable, Hashable {
+    let startDate: Date
+    let title: String
+
+    var id: Date {
+        startDate
+    }
 }
 
 struct EmotionKeyword: Identifiable {

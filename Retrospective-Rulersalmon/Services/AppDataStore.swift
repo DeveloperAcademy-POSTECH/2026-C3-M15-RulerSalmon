@@ -164,6 +164,10 @@ final class AppDataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    func loadStoredReport(id: UUID) -> StoredReflectionReport? {
+        reflectionReport(for: id)
+    }
+
     func deleteReport(id: UUID) {
         guard let report = reflectionReport(for: id) else { return }
         context.delete(report)
@@ -179,6 +183,148 @@ final class AppDataStore {
     func saveSentimentRecord(_ record: SentimentRecord) {
         context.insert(record)
         saveContext(reason: "saveSentimentRecord")
+    }
+
+    private func sentimentRecord(for id: UUID) -> SentimentRecord? {
+        let predicate = #Predicate<SentimentRecord> { $0.id == id }
+        let descriptor = FetchDescriptor<SentimentRecord>(predicate: predicate)
+        return try? context.fetch(descriptor).first
+    }
+
+    func allSentimentRecords() -> [SentimentRecord] {
+        let descriptor = FetchDescriptor<SentimentRecord>(
+            sortBy: [SortDescriptor(\.createdAt)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func allInsightRecords() -> [ReflectionInsightRecord] {
+        let descriptor = FetchDescriptor<ReflectionInsightRecord>(
+            sortBy: [
+                SortDescriptor(\.updatedAt, order: .reverse),
+                SortDescriptor(\.count, order: .reverse)
+            ]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    private func insightRecord(for id: UUID) -> ReflectionInsightRecord? {
+        let predicate = #Predicate<ReflectionInsightRecord> { $0.id == id }
+        let descriptor = FetchDescriptor<ReflectionInsightRecord>(predicate: predicate)
+        return try? context.fetch(descriptor).first
+    }
+
+    func insightRecords(year: Int, month: Int) -> [ReflectionInsightRecord] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+
+        let components = DateComponents(year: year, month: month)
+        guard
+            let startDate = calendar.date(from: components),
+            let endDate = calendar.date(byAdding: .month, value: 1, to: startDate)
+        else { return [] }
+
+        let predicate = #Predicate<ReflectionInsightRecord> { record in
+            record.updatedAt >= startDate && record.updatedAt < endDate
+        }
+
+        let descriptor = FetchDescriptor<ReflectionInsightRecord>(
+            predicate: predicate,
+            sortBy: [
+                SortDescriptor(\.updatedAt, order: .reverse),
+                SortDescriptor(\.count, order: .reverse)
+            ]
+        )
+
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func applyInsightUpdate(_ update: ReflectionInsightUpdate, sourceRecordID: UUID) {
+        let existingRecords = allInsightRecords()
+        let matchedIDs = Set(update.matchedInsightIDs)
+
+        existingRecords
+            .filter { matchedIDs.contains($0.id) }
+            .forEach { record in
+                record.addSourceRecord(id: sourceRecordID)
+                record.count = max(record.count + 1, record.sourceIDs.count)
+                record.updatedAt = .now
+            }
+
+        update.newReflectionPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "reflection",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: [sourceRecordID]
+                )
+            )
+        }
+
+        update.newStrengthPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "strength",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: [sourceRecordID]
+                )
+            )
+        }
+
+        saveContext(reason: "applyInsightUpdate")
+    }
+
+    func replaceInsights(
+        with result: ReflectionInsightResult,
+        scope: String,
+        periodStartDate: Date,
+        periodEndDate: Date,
+        updatedAt: Date,
+        sourceRecordIDs: [UUID]
+    ) {
+        allInsightRecords()
+            .filter { record in
+                record.scope == scope &&
+                    record.updatedAt >= periodStartDate &&
+                    record.updatedAt < periodEndDate
+            }
+            .forEach { context.delete($0) }
+
+        result.reflectionPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "reflection",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: sourceRecordIDs,
+                    scopeRawValue: scope,
+                    createdAt: updatedAt,
+                    updatedAt: updatedAt
+                )
+            )
+        }
+
+        result.strengthPoints.forEach { point in
+            context.insert(
+                ReflectionInsightRecord(
+                    kind: "strength",
+                    title: point.title,
+                    insightDescription: point.description,
+                    count: point.count,
+                    sourceRecordIDs: sourceRecordIDs,
+                    scopeRawValue: scope,
+                    createdAt: updatedAt,
+                    updatedAt: updatedAt
+                )
+            )
+        }
+
+        saveContext(reason: "replaceInsights")
     }
 
     func makeMainPageContent() -> MainPageContent {
@@ -235,15 +381,32 @@ final class AppDataStore {
     }
 
     private func recentRetrospectiveItems(limit: Int) -> [RetrospectiveItem] {
-        let descriptor = FetchDescriptor<StoredReflectionSession>(
+        let reportDescriptor = FetchDescriptor<StoredReflectionReport>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let reports = (try? context.fetch(reportDescriptor)) ?? []
+        if !reports.isEmpty {
+            return Array(reports.prefix(limit)).map { report in
+                RetrospectiveItem(
+                    id: report.id,
+                    date: report.createdAt.compactKoreanDate,
+                    title: String(report.todaySummary.prefix(20)),
+                    subtitle: splitKeywords(report.coreKeywordsRaw).joined(separator: ", ")
+                )
+            }
+        }
+
+        let sessionDescriptor = FetchDescriptor<StoredReflectionSession>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
-        let sessions = (try? context.fetch(descriptor)) ?? []
+        let sessions = (try? context.fetch(sessionDescriptor)) ?? []
 
         return Array(sessions.prefix(limit)).map { session in
             RetrospectiveItem(
+                id: session.id,
                 date: session.updatedAt.compactKoreanDate,
-                title: session.displayTitle
+                title: session.displayTitle,
+                subtitle: nil
             )
         }
     }
@@ -266,7 +429,7 @@ final class AppDataStore {
 
     private func encouragementMessage(for retrospectiveCount: Int) -> String {
         if retrospectiveCount == 0 {
-            return "오늘의 첫 회고를 가볍게 시작해 봐요."
+            return Self.firstRetrospectiveMessages.randomElement() ?? "오늘은 어떤 일이 있으셨는지 편하게 얘기해주세요."
         }
 
         return "지난 회고가 \(retrospectiveCount)개 쌓였어요.\n오늘도 흐름을 이어서 정리해 봐요."
@@ -283,6 +446,26 @@ final class AppDataStore {
         default:
             return "오늘 회고를 함께 정리해보자."
         }
+    }
+
+    private static let firstRetrospectiveMessages: [String] = [
+        "오늘은 어떤 일이 있으셨는지 편하게 얘기해주세요.",
+        "오늘 하루에서 가장 먼저 떠오르는 장면부터 들려주세요.",
+        "오늘 있었던 일 중 마음에 남은 순간을 편하게 말해주세요.",
+        "오늘 하루를 돌아보면서 가장 이야기하고 싶은 일을 꺼내주세요.",
+        "오늘은 어떤 흐름으로 하루가 지나갔는지 천천히 들려주세요.",
+        "오늘 있었던 일 중 좋았던 점이나 아쉬웠던 점부터 편하게 말해주세요.",
+        "오늘 하루를 지나며 어떤 생각이 들었는지 가볍게 이야기해주세요.",
+        "오늘 겪은 일 중 가장 기억에 남는 순간부터 시작해보아요.",
+        "오늘은 어떤 일이 있었는지 부담 없이 하나씩 꺼내주세요.",
+        "오늘 하루를 돌아보며 지금 가장 먼저 말하고 싶은 이야기를 들려주세요."
+    ]
+
+    private func splitKeywords(_ raw: String) -> [String] {
+        raw
+            .split(separator: "|")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 
     private func saveContext(reason: String) {
@@ -302,6 +485,7 @@ final class AppDataStore {
             print("[Storage][SwiftData] applicationSupport=\(applicationSupportURL.path)")
         }
     }
+
 }
 
 @Model
