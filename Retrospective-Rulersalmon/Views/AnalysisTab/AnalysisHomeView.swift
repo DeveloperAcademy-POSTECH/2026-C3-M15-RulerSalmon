@@ -42,11 +42,13 @@ struct AnalysisHomeView: View {
                         selectedMode: viewModel.selectedMode,
                         year: viewModel.selectedYear,
                         month: viewModel.selectedMonth,
-                        selectedWeekStartDate: $viewModel.selectedWeekStartDate,
-                        weekOptions: viewModel.weekOptions()
-                    ) {
-                        viewModel.showPeriodSheet()
-                    }
+                        selectedWeekStartDate: viewModel.selectedWeekStartDate,
+                        weekOptions: viewModel.weekOptions(),
+                        canMoveToPreviousPeriod: viewModel.canMoveToPreviousPeriod,
+                        canMoveToNextPeriod: viewModel.canMoveToNextPeriod,
+                        moveToPreviousPeriod: viewModel.moveToPreviousPeriod,
+                        moveToNextPeriod: viewModel.moveToNextPeriod
+                    )
 
                     SatisfactionPeriodSummaryCard(
                         score: viewModel.satisfactionScore,

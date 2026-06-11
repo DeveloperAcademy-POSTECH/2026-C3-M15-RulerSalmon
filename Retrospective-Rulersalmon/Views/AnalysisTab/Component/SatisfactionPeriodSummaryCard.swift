@@ -22,11 +22,11 @@ struct SatisfactionPeriodSummaryCard: View {
 
                 HStack(alignment: .lastTextBaseline, spacing: 0) {
                     Text(score)
-                        .font(.system(size: 26, weight: .heavy))
+                        .font(.system(size: 21, weight: .heavy))
                         .foregroundStyle(Color.blue500)
                     
                     Text(" / 5 ")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Color.gray600)
                 }
                 .layoutPriority(1)
