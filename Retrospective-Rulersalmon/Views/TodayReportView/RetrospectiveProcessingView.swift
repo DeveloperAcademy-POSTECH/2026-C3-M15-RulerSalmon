@@ -75,7 +75,7 @@ struct RetrospectiveProcessingView: View {
 }
 
 private enum ProcessingLayout {
-    static let screenPadding: CGFloat = 16
+    static let screenPadding: CGFloat = AppLayout.screenHorizontalPadding
     static let ringSize: CGFloat = 136
     static let ringLineWidth: CGFloat = 18
 }

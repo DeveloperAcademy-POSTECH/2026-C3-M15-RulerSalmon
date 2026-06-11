@@ -11,7 +11,7 @@ struct JobSelection: View {
     @Binding var selectedJob: Job
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("직업")
                 .font(.subheadline)
                 .fontWeight(.bold)

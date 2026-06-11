@@ -37,3 +37,21 @@ struct ProcessingBubbleView: View {
         }
     }
 }
+
+struct ProcessingBubbleView_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Color.gray50
+                .ignoresSafeArea()
+
+            VStack {
+                ProcessingBubbleView(
+                    bubbleShadowColor: Color.black.opacity(0.08)
+                )
+                Spacer()
+            }
+            .padding(24)
+        }
+        .previewDisplayName("Processing Bubble")
+    }
+}
