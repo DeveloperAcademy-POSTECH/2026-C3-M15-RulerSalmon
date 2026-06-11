@@ -36,6 +36,7 @@ private extension RetrospectiveReport {
     init(storedReport: StoredReflectionReport) {
         summary = storedReport.todaySummary
         transcript = storedReport.refinedReflection
+        transcriptMessages = storedReport.decodedConversationMessages
         fourLEntries = storedReport.fourLItemsRaw
             .split(separator: "|")
             .compactMap { segment -> FourLEntry? in
@@ -55,7 +56,49 @@ private extension RetrospectiveReport {
     }
 }
 
+private extension StoredReflectionReport {
+    var decodedConversationMessages: [ChatMessage] {
+        guard let data = conversationMessagesRaw.data(using: .utf8),
+              let messages = try? JSONDecoder().decode([ChatMessage].self, from: data) else {
+            return fallbackConversationMessages
+        }
+
+        let visibleMessages = messages.filter { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isNotEmpty }
+        return visibleMessages.isEmpty ? fallbackConversationMessages : visibleMessages
+    }
+
+    var fallbackConversationMessages: [ChatMessage] {
+        let paragraphs = refinedReflection.reflectionParagraphs
+
+        guard !paragraphs.isEmpty else { return [] }
+
+        return paragraphs.enumerated().flatMap { index, paragraph in
+            [
+                ChatMessage(role: .assistant, text: fallbackQuestion(at: index), date: createdAt),
+                ChatMessage(role: .user, text: paragraph, date: createdAt)
+            ]
+        }
+    }
+
+    func fallbackQuestion(at index: Int) -> String {
+        let questions = [
+            "이 날 가장 먼저 떠오른 장면은 무엇이었나요?",
+            "그 과정에서 좋았거나 배운 점은 무엇이었나요?",
+            "조금 아쉬웠거나 부족하게 느낀 부분은 무엇이었나요?",
+            "다음에는 어떤 방향으로 해보고 싶나요?"
+        ]
+
+        return questions[min(index, questions.count - 1)]
+    }
+}
+
 private extension String {
+    var reflectionParagraphs: [String] {
+        components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter(\.isNotEmpty)
+    }
+
     var fourLIcon: String {
         switch lowercased() {
         case "liked":

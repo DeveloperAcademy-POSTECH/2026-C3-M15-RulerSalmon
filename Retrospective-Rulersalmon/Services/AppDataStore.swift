@@ -504,7 +504,8 @@ final class AppDataStore {
                         fourLItemsRaw: sample.fourLItemsRaw,
                         coreKeywordsRaw: sample.coreKeywords.joined(separator: "|"),
                         emotionKeywordsRaw: sample.emotionKeywords.joined(separator: "|"),
-                        actionItemsRaw: sample.actionItems.joined(separator: "|")
+                        actionItemsRaw: sample.actionItems.joined(separator: "|"),
+                        conversationMessagesRaw: ""
                     )
                 )
                 didSeed = true
@@ -846,6 +847,7 @@ final class StoredReflectionReport {
     var coreKeywordsRaw: String
     var emotionKeywordsRaw: String
     var actionItemsRaw: String
+    var conversationMessagesRaw: String = ""
 
     init(
         id: UUID = UUID(),
@@ -855,7 +857,8 @@ final class StoredReflectionReport {
         fourLItemsRaw: String,
         coreKeywordsRaw: String,
         emotionKeywordsRaw: String,
-        actionItemsRaw: String
+        actionItemsRaw: String,
+        conversationMessagesRaw: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -865,5 +868,6 @@ final class StoredReflectionReport {
         self.coreKeywordsRaw = coreKeywordsRaw
         self.emotionKeywordsRaw = emotionKeywordsRaw
         self.actionItemsRaw = actionItemsRaw
+        self.conversationMessagesRaw = conversationMessagesRaw
     }
 }
