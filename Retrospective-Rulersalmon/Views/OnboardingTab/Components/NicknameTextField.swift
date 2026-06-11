@@ -10,6 +10,21 @@ import SwiftUI
 struct NicknameTextField: View {
     @Binding var nickname: String
     let title: String
+    let showsError: Bool
+    let errorTrigger: Int
+    @State private var isErrorAnimating = false
+
+    init(
+        nickname: Binding<String>,
+        title: String,
+        showsError: Bool = false,
+        errorTrigger: Int = 0
+    ) {
+        _nickname = nickname
+        self.title = title
+        self.showsError = showsError
+        self.errorTrigger = errorTrigger
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8){
@@ -41,7 +56,23 @@ struct NicknameTextField: View {
                 RoundedRectangle(cornerRadius : 16).fill(Color.white)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 16).stroke(Color.gray300)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        showsError ? Color.red : Color.gray300,
+                        lineWidth: showsError ? 2 : 1
+                    )
+            }
+            .offset(x: isErrorAnimating ? 5 : 0)
+            .animation(.easeInOut(duration: 0.16), value: showsError)
+            .onChange(of: errorTrigger) { _, _ in
+                guard showsError else { return }
+                withAnimation(.easeInOut(duration: 0.08).repeatCount(3, autoreverses: true)) {
+                    isErrorAnimating = true
+                }
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+                    isErrorAnimating = false
+                }
             }
             
             Caption(caption : "멘토가 대화에서 부르는 이름으로 사용돼요.")

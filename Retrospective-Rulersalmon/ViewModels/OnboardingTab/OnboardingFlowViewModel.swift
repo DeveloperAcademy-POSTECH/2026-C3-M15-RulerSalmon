@@ -27,6 +27,7 @@ final class OnboardingFlowViewModel: ObservableObject {
     @Published var selectedMentorID: Mentor.ID? = Mentor.sampleMentors.first?.id
     @Published var appleIntelligencePermissionGranted: Bool = false
     @Published var validationMessage: String?
+    @Published var validationAttemptID = 0
 
     private let dataStore: AppDataStore
 
@@ -47,6 +48,7 @@ final class OnboardingFlowViewModel: ObservableObject {
     func goToMentorSelection() {
         guard canProceedFromUserInfo else {
             validationMessage = "닉네임은 2자 이상 12자 이하로 입력해 주세요."
+            validationAttemptID += 1
             return
         }
 

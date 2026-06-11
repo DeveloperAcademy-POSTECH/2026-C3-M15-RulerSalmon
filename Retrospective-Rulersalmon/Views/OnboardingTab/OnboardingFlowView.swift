@@ -19,7 +19,8 @@ struct OnboardingFlowView: View {
                     selectedJob: $viewModel.selectedJob,
                     selectedAgeGroup: $viewModel.selectedAgeGroup,
                     validationMessage: viewModel.validationMessage,
-                    isNextEnabled: viewModel.canProceedFromUserInfo
+                    isNextEnabled: viewModel.canProceedFromUserInfo,
+                    validationAttemptID: viewModel.validationAttemptID
                 ) {
                     viewModel.goToMentorSelection()
                 }
