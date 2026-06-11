@@ -179,7 +179,7 @@ final class AnalysisHomeViewModel: ObservableObject {
             return
         }
 
-        let defaultStartDate = defaultWeekStartDate(from: records, calendar: calendar)
+        let defaultStartDate = defaultWeekStartDate(calendar: calendar)
 
         if let selectedWeekStartDate,
            options.contains(where: { calendar.isDate($0.startDate, inSameDayAs: selectedWeekStartDate) }),
@@ -403,17 +403,14 @@ final class AnalysisHomeViewModel: ObservableObject {
         yearMonth.year * 100 + yearMonth.month
     }
 
-    private func defaultWeekStartDate(
-        from records: [SentimentRecord],
-        calendar: Calendar = .current
-    ) -> Date? {
-        let monthlyRecords = recordsInMonth(from: records, year: selectedYear, month: selectedMonth, calendar: calendar)
-
-        guard let latestRecordDate = monthlyRecords.map(\.createdAt).max() else {
+    private func defaultWeekStartDate(calendar: Calendar = .current) -> Date? {
+        let referenceComponents = calendar.dateComponents([.year, .month], from: referenceDate)
+        guard referenceComponents.year == selectedYear,
+              referenceComponents.month == selectedMonth else {
             return nil
         }
 
-        return weekStartDate(containing: latestRecordDate, calendar: calendar)
+        return weekStartDate(containing: referenceDate, calendar: calendar)
     }
 
     private func weekTitle(startDate: Date, endDate: Date, calendar: Calendar) -> String {
