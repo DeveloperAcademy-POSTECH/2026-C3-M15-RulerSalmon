@@ -39,7 +39,10 @@ struct SatisfactionTrendSection: View {
                 return nil
             }
 
-            return SatisfactionAxisLabel(index: offset, title: weekdayString(from: date))
+            return SatisfactionAxisLabel(
+                index: offset,
+                title: "\(shortMonthDayString(from: date))\n\(weekdayString(from: date))"
+            )
         }
     }
 
@@ -81,6 +84,11 @@ struct SatisfactionTrendSection: View {
         let weekdaySymbols = ["일", "월", "화", "수", "목", "금", "토"]
         let weekdayIndex = calendar.component(.weekday, from: date) - 1
         return weekdaySymbols.indices.contains(weekdayIndex) ? weekdaySymbols[weekdayIndex] : ""
+    }
+
+    private func shortMonthDayString(from date: Date) -> String {
+        let calendar = analysisCalendar
+        return "\(calendar.component(.month, from: date)).\(calendar.component(.day, from: date))"
     }
 
     var body: some View {

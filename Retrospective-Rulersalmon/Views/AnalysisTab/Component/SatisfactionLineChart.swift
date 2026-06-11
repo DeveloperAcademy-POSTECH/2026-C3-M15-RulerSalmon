@@ -95,17 +95,53 @@ struct SatisfactionLineChart: View {
         }
 
         for label in xAxisLabels {
+            drawXAxisLabel(label, in: &context, size: size)
+        }
+    }
+
+    private func drawXAxisLabel(
+        _ label: SatisfactionAxisLabel,
+        in context: inout GraphicsContext,
+        size: CGSize
+    ) {
+        let lines = label.title.split(separator: "\n").map(String.init)
+        let x = chartX(for: label.index, in: size)
+
+        guard lines.count > 1 else {
             let text = context.resolve(
                 Text(label.title)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(Color.gray600)
             )
             context.draw(
                 text,
-                at: CGPoint(x: chartX(for: label.index, in: size), y: size.height - 6),
+                at: CGPoint(x: x, y: size.height - 6),
                 anchor: .bottom
             )
+            return
         }
+
+        let dateText = context.resolve(
+            Text(lines[0])
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(Color.gray600)
+        )
+        let weekdayText = context.resolve(
+            Text(lines[1])
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(Color.gray600)
+        )
+
+        context.draw(
+            dateText,
+            at: CGPoint(x: x, y: size.height - 22),
+            anchor: .center
+        )
+        context.draw(
+            weekdayText,
+            at: CGPoint(x: x, y: size.height - 9),
+            anchor: .center
+        )
     }
 
     private func chartPoint(index: Int, value: CGFloat, in size: CGSize) -> CGPoint {
@@ -141,7 +177,7 @@ struct SatisfactionLineChart: View {
     }
 
     private var chartBottomInset: CGFloat {
-        22
+        34
     }
 
     private func plotWidth(in size: CGSize) -> CGFloat {
@@ -160,4 +196,3 @@ struct SatisfactionLineChart: View {
         chartTopInset + plotHeight(in: size)
     }
 }
-
