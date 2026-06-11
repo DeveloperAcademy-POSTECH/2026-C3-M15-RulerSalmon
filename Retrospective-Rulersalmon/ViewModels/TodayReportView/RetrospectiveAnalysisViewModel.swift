@@ -77,9 +77,21 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         return 0.18
     }
 
+    var mentorName: String {
+        currentMentor.name
+    }
+
+    var mentorSubjectParticle: String {
+        currentMentor.subjectParticle
+    }
+
     func generateResults() {
         guard results.isEmpty, errorMessage == nil else { return }
         runAnalysis()
+    }
+
+    private var currentMentor: Mentor {
+        Mentor.resolvedMentor(storedName: dataStore.loadCurrentProfile()?.mentorName)
     }
 
     private func runAnalysis() {
@@ -146,7 +158,8 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
                 fourLItemsRaw: report.fourLEntries.map { "\($0.title):\($0.content)" }.joined(separator: "|"),
                 coreKeywordsRaw: report.keywords.joined(separator: "|"),
                 emotionKeywordsRaw: report.emotionKeywords.joined(separator: "|"),
-                actionItemsRaw: report.actionItems.joined(separator: "|")
+                actionItemsRaw: report.actionItems.joined(separator: "|"),
+                conversationMessagesRaw: encodedConversationMessages()
             )
         )
         didSaveReport = true
@@ -303,6 +316,7 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         return RetrospectiveReport(
             summary: summaryResult.todaySummary,
             transcript: summaryResult.refinedReflection,
+            transcriptMessages: messages,
             fourLEntries: fourLEntries,
             keywords: summaryResult.coreKeywords,
             emotionKeywords: summaryResult.emotionKeywords,
@@ -310,8 +324,17 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         )
     }
 
+    private func encodedConversationMessages() -> String {
+        guard let data = try? JSONEncoder().encode(messages),
+              let rawValue = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+
+        return rawValue
+    }
+
     private var fourLEntries: [FourLEntry] {
-        let order = ["Liked", "Longed for", "Lacked", "Learned"]
+        let order = ["Liked", "Learned", "Lacked", "Longed for"]
         let groupedResults = topResultsByFourL()
 
         return order.map { label in
