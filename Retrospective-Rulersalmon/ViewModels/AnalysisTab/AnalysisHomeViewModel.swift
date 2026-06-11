@@ -147,7 +147,11 @@ final class AnalysisHomeViewModel: ObservableObject {
         let filteredRecords = sentiments.map {
             filteredInsights(from: records, sentiments: $0)
         } ?? filteredInsights(from: records)
-        let uniqueInsights = uniqueInsightsByTitle(filteredRecords.filter(isDisplayableInsight))
+        let uniqueInsights = uniqueInsightsByCoreTopic(
+            filteredRecords
+                .filter(isDisplayableInsight)
+                .sorted(by: insightSort)
+        )
         let reflectionInsights = uniqueInsights
             .filter { $0.kind == "reflection" }
             .sorted(by: insightSort)
@@ -157,13 +161,20 @@ final class AnalysisHomeViewModel: ObservableObject {
             .sorted(by: insightSort)
             .prefix(2)
 
+        var fallbackTemplatePositions: [String: Int] = [:]
         return (Array(reflectionInsights) + Array(strengthInsights))
             .map { record in
-                AnalysisInsightItem(
+                let templatePosition = fallbackTemplatePositions[record.kind, default: 0]
+                fallbackTemplatePositions[record.kind] = templatePosition + 1
+
+                return AnalysisInsightItem(
                     id: record.id,
                     kind: record.kind,
                     title: record.title,
-                    description: record.insightDescription,
+                    description: displayDescription(
+                        for: record,
+                        templatePosition: templatePosition
+                    ),
                     count: record.count
                 )
             }
@@ -265,6 +276,20 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
+    private func uniqueInsightsByCoreTopic(
+        _ records: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        var seenTopics = Set<String>()
+
+        return uniqueInsightsByTitle(records).filter { record in
+            let key = coreInsightTopicKey(record.title)
+            guard !seenTopics.contains(key) else { return false }
+
+            seenTopics.insert(key)
+            return true
+        }
+    }
+
     private func insightSort(
         _ lhs: ReflectionInsightRecord,
         _ rhs: ReflectionInsightRecord
@@ -276,10 +301,106 @@ final class AnalysisHomeViewModel: ObservableObject {
         return lhs.count > rhs.count
     }
 
+    private func displayDescription(
+        for record: ReflectionInsightRecord,
+        templatePosition: Int
+    ) -> String {
+        guard isInformalToneDescription(record.insightDescription) else {
+            return record.insightDescription
+        }
+
+        switch record.kind {
+        case "reflection":
+            return reflectionFallbackDescription(
+                for: record,
+                templatePosition: templatePosition
+            )
+        case "strength":
+            return strengthFallbackDescription(
+                for: record,
+                templatePosition: templatePosition
+            )
+        default:
+            return record.insightDescription
+        }
+    }
+
+    private func isInformalToneDescription(_ description: String) -> Bool {
+        let informalFragments = [
+            "필요해",
+            "중요해",
+            "거야",
+            "돼",
+            "해.",
+            "좋아.",
+            "있어.",
+            "없어."
+        ]
+
+        return informalFragments.contains { description.contains($0) }
+    }
+
+    private func reflectionFallbackDescription(
+        for record: ReflectionInsightRecord,
+        templatePosition: Int
+    ) -> String {
+        let templates = [
+            "\(record.title)이 반복해서 나타나고 있어요. 다음에는 이 흐름을 조금 더 가볍게 조정할 방법을 하나 정해보면 좋겠어요.",
+            "\(record.title)과 관련된 아쉬움이 여러 번 보였어요. 다음 회고에서는 부담을 줄일 작은 기준을 먼저 세워보세요.",
+            "\(record.title)이 계속 신경 쓰이는 주제로 드러나고 있어요. 다음에는 시작하기 쉬운 방식으로 한 단계만 낮춰보는 것도 좋겠습니다."
+        ]
+
+        return templates[templatePosition % templates.count]
+    }
+
+    private func strengthFallbackDescription(
+        for record: ReflectionInsightRecord,
+        templatePosition: Int
+    ) -> String {
+        let templates = [
+            "\(record.title)이 반복해서 드러나고 있어요. 그 흐름을 꾸준히 만들어가고 계신 점이 참 좋아요.",
+            "\(record.title)에서 좋은 습관이 계속 보이고 있어요. 이미 잘 쌓아가고 계신 강점입니다.",
+            "\(record.title)이 여러 회고에서 자연스럽게 이어지고 있어요. 스스로의 리듬을 잘 만들어가고 계세요."
+        ]
+
+        return templates[templatePosition % templates.count]
+    }
+
     private func normalizedInsightTitle(_ title: String) -> String {
         title
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+    }
+
+    private func coreInsightTopicKey(_ title: String) -> String {
+        let normalizedTitle = normalizedInsightTitle(title)
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+        let possessiveParts = normalizedTitle.split(separator: "의", maxSplits: 1).map(String.init)
+        if let firstPart = possessiveParts.first, firstPart.count >= 2 {
+            return firstPart
+        }
+
+        let suffixes = [
+            "꾸준함",
+            "열정",
+            "중요성",
+            "필요성",
+            "향상",
+            "관리",
+            "습관",
+            "노력",
+            "반복",
+            "유지",
+            "개선",
+            "조정"
+        ]
+
+        let trimmedTopic = suffixes.reduce(normalizedTitle) { partialResult, suffix in
+            partialResult.hasSuffix(suffix)
+                ? String(partialResult.dropLast(suffix.count))
+                : partialResult
+        }
+        return trimmedTopic.isEmpty ? normalizedTitle : trimmedTopic
     }
 
     private func isDisplayableInsight(_ record: ReflectionInsightRecord) -> Bool {
@@ -369,11 +490,17 @@ final class AnalysisHomeViewModel: ObservableObject {
             let selectedMonthSourceIDs = Set(selectedMonthRecords.map { $0.id.uuidString })
             return records.filter { record in
                 let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
-                return record.scope == "monthly" &&
-                    (
-                        (components.year == selectedYear && components.month == selectedMonth) ||
-                        !record.sourceIDs.isDisjoint(with: selectedMonthSourceIDs)
-                    )
+                let isUpdatedInSelectedMonth = components.year == selectedYear && components.month == selectedMonth
+                let usesSelectedMonthRecords = !record.sourceIDs.isDisjoint(with: selectedMonthSourceIDs)
+
+                switch record.scope {
+                case "monthly":
+                    return isUpdatedInSelectedMonth || usesSelectedMonthRecords
+                case "weekly":
+                    return usesSelectedMonthRecords
+                default:
+                    return false
+                }
             }
         }
     }

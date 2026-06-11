@@ -498,7 +498,13 @@ final class ReflectionInsightService {
         - kind가 strength이면 strength 배열에 넣어.
         - count는 후보의 count 숫자를 그대로 써.
         - title은 후보 title을 그대로 쓰거나 더 자연스럽게 짧게 다듬어.
-        - 사용자를 비난하지 말고 다정한 제안형으로 말해.
+        - 같은 핵심 주제를 reflection과 strength 양쪽에 동시에 만들지 마. 더 지배적인 해석 하나만 선택해.
+        - 모든 description은 존댓말 해요체로 써. "필요해", "중요해", "할 수 있을 거야" 같은 반말은 절대 쓰지 마.
+        - reflection description은 반복되는 어려움/아쉬움을 짚고, 다음에 시도할 작은 조정을 다정하게 제안해.
+        - strength description은 이미 반복해서 드러난 강점/좋은 습관을 현재형으로 칭찬하고 인정해.
+        - strength description에는 조언이나 미래 가능성 표현을 쓰지 마. 사용자가 이미 잘하고 있는 점만 말해.
+        - description 문장 끝을 매번 똑같이 쓰지 말고 자연스럽게 다양화해.
+        - 사용자를 비난하지 마.
         - description은 한 회고의 구체적 사건이 아니라 반복되는 공통점을 말해.
         - 분석 대상은 reflection 본문뿐이야. id, index, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
         - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목" 같은 예시 문구를 절대 출력하지 마.
@@ -509,7 +515,9 @@ final class ReflectionInsightService {
         - strength: 강점 포인트 배열
         - 각 배열 항목은 title, description, count를 가진 객체
         - title은 2~8단어의 실제 인사이트 이름
-        - description은 반복되는 공통점과 다음에 시도할 방향을 담은 한 문장
+        - reflection description은 반복되는 어려움과 다음에 시도할 방향을 담은 한 문장
+        - strength description은 반복되는 강점과 칭찬/인정을 담은 한 문장
+        - strength description은 조언형이 아니라 칭찬형이어야 함
         - count는 서로 다른 회고에서 발견된 반복 횟수
 
         반복 후보:
@@ -542,6 +550,7 @@ final class ReflectionInsightService {
         - kind는 반드시 reflection 또는 strength 중 하나야.
         - reflection은 사용자가 다음에 돌아보거나 조정하면 좋은 반복 어려움, 아쉬움, 위험 신호야.
         - strength는 사용자가 유지하면 좋은 반복 강점, 습관, 성장 신호야.
+        - 같은 핵심 주제를 reflection과 strength 후보로 동시에 만들지 마. 긍정/부정 양면이 있으면 더 반복적이고 중요한 해석 하나만 선택해.
         - title은 2~8단어의 짧은 한국어 명사구로 써.
         - count는 해당 주제가 나타난 서로 다른 회고 개수야.
         - matched_keywords는 후보 판단에 실제로 근거가 된 핵심 단어 또는 짧은 표현을 최대 5개까지 써.
@@ -583,9 +592,15 @@ final class ReflectionInsightService {
         - 서로 다른 회고 \(minimumRepeatCount)개 이상에서 반복된 주제만 포함해.
         - reflection은 다음에 돌아보거나 조정하면 좋은 반복 어려움, 아쉬움, 위험 신호야.
         - strength는 유지하면 좋은 반복 강점, 습관, 성장 신호야.
-        - 사용자를 비난하지 말고 다정한 제안형으로 말해.
+        - 같은 핵심 주제를 reflection과 strength 양쪽에 동시에 만들지 마. 더 지배적인 해석 하나만 선택해.
+        - 모든 description은 존댓말 해요체로 써. "필요해", "중요해", "할 수 있을 거야" 같은 반말은 절대 쓰지 마.
+        - reflection description은 반복되는 어려움/아쉬움을 짚고, 다음에 시도할 작은 조정을 다정하게 제안해.
+        - strength description은 이미 반복해서 드러난 강점/좋은 습관을 현재형으로 칭찬하고 인정해.
+        - strength description에는 조언이나 미래 가능성 표현을 쓰지 마. 사용자가 이미 잘하고 있는 점만 말해.
+        - description 문장 끝을 매번 똑같이 쓰지 말고 자연스럽게 다양화해.
+        - 사용자를 비난하지 마.
         - 한 회고의 구체적 사건, 날짜, 사람, 물건, 회고 번호를 쓰지 마.
-        - description은 여러 회고의 공통점과 다음에 시도할 방향을 담은 한 문장으로 써.
+        - description은 여러 회고의 공통점을 담은 한 문장으로 써.
         - 분석 대상은 reflection 본문뿐이야. id, index, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
         - count는 해당 주제가 나타난 서로 다른 회고 개수야.
         - 회고가 서로 완전히 무관할 때만 빈 배열을 반환해.
@@ -654,10 +669,15 @@ final class ReflectionInsightService {
         - kind가 strength이면 new_strength 배열에 넣어.
         - count는 후보의 count 숫자를 그대로 써.
         - title은 후보 title을 그대로 쓰거나 더 자연스럽게 짧게 다듬어.
+        - 같은 핵심 주제를 new_reflection과 new_strength 양쪽에 동시에 만들지 마. 더 지배적인 해석 하나만 선택해.
         - 한 회고에만 해당하는 구체적 사건, 날짜, 사람, 물건, 회고 번호를 쓰지 마.
         - "회고1", "회고6", "이 회고에서" 같은 표현을 쓰지 마.
         - 분석 대상은 reflection 본문뿐이야. id, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
-        - description은 구체적 상황이 아니라 여러 회고의 공통점을 다정한 제안형으로 말해.
+        - 모든 description은 존댓말 해요체로 써. "필요해", "중요해", "할 수 있을 거야" 같은 반말은 절대 쓰지 마.
+        - reflection description은 구체적 상황이 아니라 반복되는 어려움과 다음에 시도할 방향을 다정한 제안형으로 말해.
+        - strength description은 구체적 상황이 아니라 반복되는 강점과 칭찬/인정을 담아 말해.
+        - strength description에는 조언이나 미래 가능성 표현을 쓰지 마. 사용자가 이미 잘하고 있는 점만 말해.
+        - description 문장 끝을 매번 똑같이 쓰지 말고 자연스럽게 다양화해.
         - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목", "구체적 사건이 아니라 반복되는 공통점 설명" 같은 예시 문구를 절대 출력하지 마.
 
         기존 인사이트:
@@ -680,7 +700,9 @@ final class ReflectionInsightService {
         - new_strength: 새 강점 포인트 배열
         - 새 포인트 배열 항목은 title, description, count를 가진 객체
         - title은 2~8단어의 실제 인사이트 이름
-        - description은 반복되는 공통점과 다음에 시도할 방향을 담은 한 문장
+        - reflection description은 반복되는 어려움과 다음에 시도할 방향을 담은 한 문장
+        - strength description은 반복되는 강점과 칭찬/인정을 담은 한 문장
+        - strength description은 조언형이 아니라 칭찬형이어야 함
         - count는 서로 다른 회고에서 발견된 반복 횟수
 
         기존 인사이트와 매칭되지 않는 후보는 빈 배열로 두지 마.
@@ -950,10 +972,10 @@ final class ReflectionInsightService {
         count: Int
     ) -> String {
         if kind == "strength" {
-            return "\(title)이 \(count)번의 회고에서 반복해서 드러났어요. 이 흐름을 계속 유지할 수 있는 작은 루틴을 이어가면 좋아요."
+            return "\(title)이 \(count)번의 회고에서 반복해서 드러났어요. 이 흐름을 꾸준히 만들어가고 계신 점을 정말 잘하고 계세요."
         }
 
-        return "\(title)이 \(count)번의 회고에서 반복해서 나타났어요. 다음 회고에서는 이 주제를 조금 더 가볍게 조정할 방법을 하나 정해보면 좋아요."
+        return "\(title)이 \(count)번의 회고에서 반복해서 나타났어요. 다음에는 이 흐름을 조금 더 가볍게 조정할 방법을 하나 정해보는 건 어떨까요?"
     }
 
     private func normalizedKey(_ text: String) -> String {
