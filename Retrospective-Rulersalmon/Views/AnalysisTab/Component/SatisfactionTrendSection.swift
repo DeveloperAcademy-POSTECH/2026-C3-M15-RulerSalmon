@@ -97,11 +97,6 @@ struct SatisfactionTrendSection: View {
             )
             .frame(height: AnalysisHomeLayout.chartHeight)
             .padding(.top, 14)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Color.gray200)
-                    .frame(height: 1)
-            }
         }
     }
 }
