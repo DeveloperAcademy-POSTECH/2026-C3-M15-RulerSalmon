@@ -16,7 +16,7 @@ struct SatisfactionChartModeSegmentedControl: View {
                     selectedMode = mode
                 } label: {
                     Text(mode.title)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(selectedMode == mode ? Color.gray900 : Color.gray600)
                         .frame(maxWidth: .infinity)
                         .frame(height: 32)
@@ -36,4 +36,3 @@ struct SatisfactionChartModeSegmentedControl: View {
         }
     }
 }
-

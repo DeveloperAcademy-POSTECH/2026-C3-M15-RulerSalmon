@@ -8,13 +8,15 @@ import SwiftUI
 
 struct SatisfactionTrendSection: View {
     let data: MonthlyAnalysisData
-    let year: Int
-    let month: Int
     let referenceDate: Date
-
-    @Binding var selectedMode: SatisfactionChartMode
+    let selectedMode: SatisfactionChartMode
     @Binding var selectedWeekStartDate: Date?
-    let weekOptions: [AnalysisWeekOption]
+    let canMoveToPreviousPeriod: Bool
+    let canMoveToNextPeriod: Bool
+    let moveToPreviousPeriod: () -> Void
+    let moveToNextPeriod: () -> Void
+
+    @State private var chartDragOffset: CGFloat = 0
 
     private var selectedPoints: [SatisfactionPoint] {
         switch selectedMode {
@@ -34,15 +36,6 @@ struct SatisfactionTrendSection: View {
         }
     }
 
-    private var chartRange: String {
-        switch selectedMode {
-        case .weekly:
-            return weeklyChartRange
-        case .monthly:
-            return "\(year)년 \(month)월"
-        }
-    }
-
     private var weeklyAxisLabels: [SatisfactionAxisLabel] {
         let calendar = analysisCalendar
         let startDate = currentWeekStartDate
@@ -52,7 +45,10 @@ struct SatisfactionTrendSection: View {
                 return nil
             }
 
-            return SatisfactionAxisLabel(index: offset, title: shortMonthDayString(from: date))
+            return SatisfactionAxisLabel(
+                index: offset,
+                title: "\(shortMonthDayString(from: date))\n\(weekdayString(from: date))"
+            )
         }
     }
 
@@ -68,22 +64,6 @@ struct SatisfactionTrendSection: View {
             .map { day in
                 SatisfactionAxisLabel(index: day - 1, title: "\(day)일")
             }
-    }
-
-    private var weeklyChartRange: String {
-        guard
-            let firstLabel = weeklyAxisLabels.first?.title,
-            let lastLabel = weeklyAxisLabels.last?.title
-        else {
-            return ""
-        }
-
-        return "\(firstLabel) ~ \(lastLabel)"
-    }
-
-    private func shortMonthDayString(from date: Date) -> String {
-        let calendar = analysisCalendar
-        return "\(calendar.component(.month, from: date)).\(calendar.component(.day, from: date))"
     }
 
     private var currentWeekStartDate: Date {
@@ -105,47 +85,54 @@ struct SatisfactionTrendSection: View {
         return calendar
     }
 
-    private var summaryTitle: String {
-        switch selectedMode {
-        case .weekly:
-            return "이번 주 만족도 흐름을 확인해요"
-        case .monthly:
-            return "6월은 후반부로 갈수록 더 안정적이었어요"
-        }
+    private func weekdayString(from date: Date) -> String {
+        let calendar = analysisCalendar
+        let weekdaySymbols = ["일", "월", "화", "수", "목", "금", "토"]
+        let weekdayIndex = calendar.component(.weekday, from: date) - 1
+        return weekdaySymbols.indices.contains(weekdayIndex) ? weekdaySymbols[weekdayIndex] : ""
     }
 
-    private var summaryDescription: String {
-        switch selectedMode {
-        case .weekly:
-            return "오늘에 가까워질수록 긍정 흐름이 커졌고, 6월 전체 상승 흐름의 시작점으로 보여요."
-        case .monthly:
-            return "일별 변동은 있었지만 전체 흐름은 완만하게 좋아졌고, 마지막 구간의 만족도가 높게 유지됐어요."
-        }
+    private func shortMonthDayString(from date: Date) -> String {
+        let calendar = analysisCalendar
+        return "\(calendar.component(.month, from: date)).\(calendar.component(.day, from: date))"
+    }
+
+    private var chartDragGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else {
+                    chartDragOffset = 0
+                    return
+                }
+
+                let canMove = value.translation.width > 0 ? canMoveToPreviousPeriod : canMoveToNextPeriod
+                chartDragOffset = canMove ? value.translation.width * 0.25 : value.translation.width * 0.08
+            }
+            .onEnded { value in
+                defer {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        chartDragOffset = 0
+                    }
+                }
+
+                guard abs(value.translation.width) > abs(value.translation.height),
+                      abs(value.translation.width) >= 48 else {
+                    return
+                }
+
+                if value.translation.width > 0, canMoveToPreviousPeriod {
+                    moveToPreviousPeriod()
+                } else if value.translation.width < 0, canMoveToNextPeriod {
+                    moveToNextPeriod()
+                }
+            }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center) {
-                Text("만족도 흐름")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(Color.gray900)
-
-                Spacer()
-
-                if selectedMode == .weekly {
-                    WeekSelectionPicker(
-                        selectedWeekStartDate: $selectedWeekStartDate,
-                        weekOptions: weekOptions
-                    )
-                    .frame(width: 112, height: 32, alignment: .trailing)
-                } else {
-                    Text(chartRange)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.gray600)
-                }
-            }
-
-            SatisfactionChartModeSegmentedControl(selectedMode: $selectedMode)
+            Text("만족도 흐름")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Color.gray900)
 
             SatisfactionLineChart(
                 points: selectedPoints,
@@ -155,30 +142,10 @@ struct SatisfactionTrendSection: View {
             )
             .frame(height: AnalysisHomeLayout.chartHeight)
             .padding(.top, 14)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Color.gray200)
-                    .frame(height: 1)
-            }
-
-            VStack(alignment: .leading, spacing: 7) {
-                Text(summaryTitle)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(Color.gray900)
-                    .lineSpacing(2)
-
-                Text(summaryDescription)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.gray600)
-                    .lineSpacing(3)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, AnalysisHomeLayout.cardPadding)
-            .padding(.vertical, 14)
-            .background {
-                RoundedRectangle(cornerRadius: AnalysisHomeLayout.cardCornerRadius)
-                    .fill(Color.gray50)
-            }
+            .contentShape(Rectangle())
+            .offset(x: chartDragOffset)
+            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: chartDragOffset)
+            .gesture(chartDragGesture)
         }
     }
 }

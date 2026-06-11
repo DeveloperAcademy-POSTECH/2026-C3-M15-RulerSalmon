@@ -24,29 +24,45 @@ struct AnalysisHomeView: View {
                 .ignoresSafeArea(.all)
 
             ScrollView(showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 32) {
-                    PeriodSelectorButton(
-                        year: viewModel.selectedYear,
-                        month: viewModel.selectedMonth
-                    ) {
-                        viewModel.showPeriodSheet()
-                    }
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    Text("회고 분석")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(Color.gray900)
 
-                    MonthlySatisfactionSummaryCard(
-                        label: viewModel.satisfactionLabel,
-                        score: viewModel.satisfactionScore,
-                        title: viewModel.satisfactionTitle
-                    )
+                    SatisfactionChartModeSegmentedControl(selectedMode: $viewModel.selectedMode)
 
                     SatisfactionTrendSection(
                         data: viewModel.selectedData,
+                        referenceDate: viewModel.analysisReferenceDate,
+                        selectedMode: viewModel.selectedMode,
+                        selectedWeekStartDate: $viewModel.selectedWeekStartDate,
+                        canMoveToPreviousPeriod: viewModel.canMoveToPreviousPeriod,
+                        canMoveToNextPeriod: viewModel.canMoveToNextPeriod,
+                        moveToPreviousPeriod: viewModel.moveToPreviousPeriod,
+                        moveToNextPeriod: viewModel.moveToNextPeriod
+                    )
+
+                    AnalysisPeriodSelectionControl(
+                        selectedMode: viewModel.selectedMode,
                         year: viewModel.selectedYear,
                         month: viewModel.selectedMonth,
-                        referenceDate: viewModel.analysisReferenceDate,
-                        selectedMode: $viewModel.selectedMode,
-                        selectedWeekStartDate: $viewModel.selectedWeekStartDate,
-                        weekOptions: viewModel.weekOptions()
+                        selectedWeekStartDate: viewModel.selectedWeekStartDate,
+                        weekOptions: viewModel.weekOptions(),
+                        canMoveToPreviousPeriod: viewModel.canMoveToPreviousPeriod,
+                        canMoveToNextPeriod: viewModel.canMoveToNextPeriod,
+                        moveToPreviousPeriod: viewModel.moveToPreviousPeriod,
+                        moveToNextPeriod: viewModel.moveToNextPeriod
                     )
+
+                    SatisfactionPeriodSummaryCard(
+                        score: viewModel.satisfactionScore,
+                        summary: SatisfactionTrendSummary.make(
+                            data: viewModel.selectedData,
+                            selectedMode: viewModel.selectedMode,
+                            month: viewModel.selectedMonth
+                        )
+                    )
+
                     SentimentRatioSection(
                         positivePercentage: viewModel.positivePercentage,
                         negativePercentage: viewModel.negativePercentage
@@ -98,13 +114,6 @@ struct AnalysisHomeView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("회고 분석")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Color.gray900)
-            }
-        }
         .toolbarBackground(Color.white, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
     }

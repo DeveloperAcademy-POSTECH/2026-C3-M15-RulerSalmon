@@ -15,6 +15,7 @@ final class AnalysisHomeViewModel: ObservableObject {
     @Published var selectedWeekStartDate: Date?
     @Published var isPeriodSheetPresented = false
     @Published private(set) var currentAvailableRange: PeriodRange
+    @Published private(set) var savedDateRange: ClosedRange<Date>?
     @Published private(set) var emotionKeywordStatistics: [EmotionKeyword] = []
     @Published private(set) var insightItems: [AnalysisInsightItem] = []
 
@@ -85,6 +86,36 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
+    var canMoveToPreviousPeriod: Bool {
+        switch selectedMode {
+        case .weekly:
+            guard let currentWeekStartDate = currentWeekStartDate,
+                  let earliestWeekStartDate = earliestSelectableWeekStartDate else {
+                return false
+            }
+
+            return currentWeekStartDate > earliestWeekStartDate
+        case .monthly:
+            return yearMonthValue(YearMonth(year: selectedYear, month: selectedMonth)) >
+                yearMonthValue(currentAvailableRange.start)
+        }
+    }
+
+    var canMoveToNextPeriod: Bool {
+        switch selectedMode {
+        case .weekly:
+            guard let currentWeekStartDate = currentWeekStartDate,
+                  let latestWeekStartDate = latestSelectableWeekStartDate else {
+                return false
+            }
+
+            return currentWeekStartDate < latestWeekStartDate
+        case .monthly:
+            return yearMonthValue(YearMonth(year: selectedYear, month: selectedMonth)) <
+                yearMonthValue(currentAvailableRange.end)
+        }
+    }
+
     var positivePercentage: Double {
         switch selectedMode {
         case .weekly:
@@ -110,6 +141,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         shouldNormalizeSelection: Bool = true
     ) {
         currentAvailableRange = availableRange(from: reports)
+        savedDateRange = makeSavedDateRange(from: reports)
         if shouldNormalizeSelection {
             normalizeSelectedPeriod(with: currentAvailableRange)
             normalizeSelectedWeek(from: sentiments)
@@ -121,6 +153,15 @@ final class AnalysisHomeViewModel: ObservableObject {
 
     func availableRange(from reports: [StoredReflectionReport]) -> PeriodRange {
         reportAvailableRange(from: reports) ?? availableRange
+    }
+
+    func makeSavedDateRange(from reports: [StoredReflectionReport]) -> ClosedRange<Date>? {
+        guard let startDate = reports.map(\.createdAt).min(),
+              let endDate = reports.map(\.createdAt).max() else {
+            return nil
+        }
+
+        return startDate...endDate
     }
 
     func emotionKeywords(from reports: [StoredReflectionReport]) -> [EmotionKeyword] {
@@ -189,7 +230,14 @@ final class AnalysisHomeViewModel: ObservableObject {
         var startDate = weekStartDate(containing: monthStartDate, calendar: calendar)
         var options: [AnalysisWeekOption] = []
 
-        while startDate < nextMonthDate {
+        let latestSelectableWeekStartDate = weekStartDate(containing: referenceDate, calendar: calendar)
+
+        while weekIntersectsMonth(
+            startDate: startDate,
+            monthStartDate: monthStartDate,
+            nextMonthDate: nextMonthDate,
+            calendar: calendar
+        ) && startDate <= latestSelectableWeekStartDate {
             let endDate = calendar.date(byAdding: .day, value: 6, to: startDate) ?? startDate
             options.append(
                 AnalysisWeekOption(
@@ -221,13 +269,21 @@ final class AnalysisHomeViewModel: ObservableObject {
             return
         }
 
-        selectedWeekStartDate = defaultWeekStartDate(from: records, calendar: calendar)
-            ?? referenceWeekStartDate(calendar: calendar)
-            ?? options.first?.startDate
+        selectedWeekStartDate = defaultWeekStartDate(from: records, options: options, calendar: calendar)
+            ?? referenceWeekStartDate(in: options, calendar: calendar)
+            ?? options.last?.startDate
     }
 
     func showPeriodSheet() {
         isPeriodSheetPresented = true
+    }
+
+    func moveToPreviousPeriod() {
+        moveSelectedPeriod(by: -1)
+    }
+
+    func moveToNextPeriod() {
+        moveSelectedPeriod(by: 1)
     }
 
     func normalizeSelectedPeriod() {
@@ -245,6 +301,111 @@ final class AnalysisHomeViewModel: ObservableObject {
 
         selectedYear = range.end.year
         selectedMonth = range.end.month
+    }
+
+    private func moveSelectedPeriod(by value: Int) {
+        switch selectedMode {
+        case .weekly:
+            moveSelectedWeek(by: value)
+        case .monthly:
+            moveSelectedMonth(by: value)
+        }
+    }
+
+    private func moveSelectedWeek(by value: Int) {
+        let calendar = analysisCalendar
+        guard let currentWeekStartDate,
+              let targetWeekStartDate = calendar.date(byAdding: .day, value: value * 7, to: currentWeekStartDate),
+              isWeekStartDateSelectable(targetWeekStartDate, calendar: calendar) else {
+            return
+        }
+
+        selectedWeekStartDate = targetWeekStartDate
+        updateSelectedMonth(containing: targetWeekStartDate, calendar: calendar)
+    }
+
+    private func moveSelectedMonth(by value: Int) {
+        let calendar = analysisCalendar
+        guard let currentMonthDate = calendar.date(from: DateComponents(year: selectedYear, month: selectedMonth, day: 1)),
+              let targetMonthDate = calendar.date(byAdding: .month, value: value, to: currentMonthDate) else {
+            return
+        }
+
+        let components = calendar.dateComponents([.year, .month], from: targetMonthDate)
+        guard let targetYear = components.year,
+              let targetMonth = components.month,
+              currentAvailableRange.contains(year: targetYear, month: targetMonth) else {
+            return
+        }
+
+        selectedYear = targetYear
+        selectedMonth = targetMonth
+    }
+
+    private func updateSelectedMonth(containing weekStartDate: Date, calendar: Calendar) {
+        let components = calendar.dateComponents([.year, .month], from: weekStartDate)
+        guard let year = components.year,
+              let month = components.month,
+              currentAvailableRange.contains(year: year, month: month) else {
+            return
+        }
+
+        selectedYear = year
+        selectedMonth = month
+    }
+
+    private func isWeekStartDateSelectable(_ weekStartDate: Date, calendar: Calendar) -> Bool {
+        guard let earliestSelectableWeekStartDate,
+              let latestSelectableWeekStartDate else {
+            return false
+        }
+
+        return weekStartDate >= earliestSelectableWeekStartDate &&
+            weekStartDate <= latestSelectableWeekStartDate
+    }
+
+    private var currentWeekStartDate: Date? {
+        if let selectedWeekStartDate {
+            return analysisCalendar.startOfDay(for: selectedWeekStartDate)
+        }
+
+        return weekOptions().last?.startDate
+    }
+
+    private var earliestSelectableWeekStartDate: Date? {
+        let calendar = analysisCalendar
+        if let firstSavedDate = savedDateRange?.lowerBound {
+            return weekStartDate(containing: firstSavedDate, calendar: calendar)
+        }
+
+        guard let startMonthDate = calendar.date(from: DateComponents(
+            year: currentAvailableRange.start.year,
+            month: currentAvailableRange.start.month,
+            day: 1
+        )) else {
+            return nil
+        }
+
+        return weekStartDate(containing: startMonthDate, calendar: calendar)
+    }
+
+    private var latestSelectableWeekStartDate: Date? {
+        let calendar = analysisCalendar
+        if let lastSavedDate = savedDateRange?.upperBound {
+            return weekStartDate(containing: lastSavedDate, calendar: calendar)
+        }
+
+        guard let endMonthDate = calendar.date(from: DateComponents(
+            year: currentAvailableRange.end.year,
+            month: currentAvailableRange.end.month,
+            day: 1
+        )),
+              let nextMonthDate = calendar.date(byAdding: .month, value: 1, to: endMonthDate),
+              let lastDayOfEndMonth = calendar.date(byAdding: .day, value: -1, to: nextMonthDate) else {
+            return nil
+        }
+
+        return weekStartDate(containing: lastDayOfEndMonth, calendar: calendar)
     }
 
     private func selectedSentimentCount(from records: [SentimentRecord]) -> Int {
@@ -718,6 +879,7 @@ final class AnalysisHomeViewModel: ObservableObject {
 
     private func defaultWeekStartDate(
         from records: [SentimentRecord],
+        options: [AnalysisWeekOption],
         calendar: Calendar = .current
     ) -> Date? {
         let monthlyRecords = recordsInMonth(
@@ -727,25 +889,44 @@ final class AnalysisHomeViewModel: ObservableObject {
             calendar: calendar
         )
 
-        guard let latestRecordDate = monthlyRecords.map(\.createdAt).max() else {
-            return nil
-        }
-
-        return weekStartDate(containing: latestRecordDate, calendar: calendar)
+        return options
+            .last { option in
+                !sentimentRecordsInWeek(monthlyRecords, startDate: option.startDate, calendar: calendar).isEmpty
+            }?
+            .startDate
     }
 
-    private func referenceWeekStartDate(calendar: Calendar = .current) -> Date? {
+    private func referenceWeekStartDate(
+        in options: [AnalysisWeekOption],
+        calendar: Calendar = .current
+    ) -> Date? {
         let referenceComponents = calendar.dateComponents([.year, .month], from: referenceDate)
         guard referenceComponents.year == selectedYear,
               referenceComponents.month == selectedMonth else {
             return nil
         }
 
-        return weekStartDate(containing: referenceDate, calendar: calendar)
+        let startDate = weekStartDate(containing: referenceDate, calendar: calendar)
+        return options.first {
+            calendar.isDate($0.startDate, inSameDayAs: startDate)
+        }?.startDate
     }
 
     private func weekTitle(startDate: Date, endDate: Date, calendar: Calendar) -> String {
         "\(shortMonthDayString(from: startDate, calendar: calendar)) ~ \(shortMonthDayString(from: endDate, calendar: calendar))"
+    }
+
+    private func weekIntersectsMonth(
+        startDate: Date,
+        monthStartDate: Date,
+        nextMonthDate: Date,
+        calendar: Calendar
+    ) -> Bool {
+        guard let nextWeekStartDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
+            return false
+        }
+
+        return startDate < nextMonthDate && nextWeekStartDate > monthStartDate
     }
 
     private func shortMonthDayString(from date: Date, calendar: Calendar) -> String {
