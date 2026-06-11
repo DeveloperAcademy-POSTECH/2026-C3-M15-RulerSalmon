@@ -21,6 +21,7 @@ struct ReportSummaryCardContent {
     let title: String
     let summary: String
     let transcript: String
+    let transcriptMessages: [ChatMessage]
     let transcriptLinkTitle: String
 }
 
@@ -68,6 +69,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
             title: summaryTitle,
             summary: report.summary,
             transcript: report.transcript,
+            transcriptMessages: report.transcriptMessages,
             transcriptLinkTitle: transcriptLinkTitle
         )
     }
@@ -101,7 +103,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
     }
 
     var transcriptNavigationTitle: String {
-        "전사문"
+        "대화 내역"
     }
 
     private var navigationTitle: String {
@@ -145,7 +147,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
     }
 
     private var transcriptLinkTitle: String {
-        "전사문 보기"
+        "대화 내역 보기"
     }
 
     private var emptyActionItemMessage: String {

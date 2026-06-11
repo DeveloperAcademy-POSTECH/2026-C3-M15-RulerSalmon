@@ -28,7 +28,11 @@ struct RetrospectiveAnalysisView: View {
                     description: Text(errorMessage)
                 )
             } else {
-                RetrospectiveProcessingView(progress: .constant(viewModel.progress))
+                RetrospectiveProcessingView(
+                    progress: .constant(viewModel.progress),
+                    mentorName: viewModel.mentorName,
+                    mentorSubjectParticle: viewModel.mentorSubjectParticle
+                )
             }
         }
         .task {
