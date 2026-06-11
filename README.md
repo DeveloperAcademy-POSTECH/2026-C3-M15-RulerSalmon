@@ -37,7 +37,7 @@ AI 멘토와 대화하며 하루를 회고하고, 4L 기반 리포트와 감정/
 
 - [Foundation Models](Docs/FoundationModels.md)
 - [SwiftData](Docs/SwiftData.md)
-- [Core ML](Docs/CoreML.md)
+- [CoreML](Docs/CoreML.md)
 - [NaturalLanguage](Docs/NaturalLanguage.md)
 
 ### Appendix
