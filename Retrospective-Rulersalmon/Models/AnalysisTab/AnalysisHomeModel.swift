@@ -50,6 +50,23 @@ struct MonthlyAnalysisData {
     }
 }
 
+struct AnalysisWeekOption: Identifiable, Hashable {
+    let startDate: Date
+    let title: String
+
+    var id: Date {
+        startDate
+    }
+}
+
+struct AnalysisInsightItem: Identifiable, Equatable {
+    let id: UUID
+    let kind: String
+    let title: String
+    let description: String
+    let count: Int
+}
+
 struct EmotionKeyword: Identifiable {
     let id = UUID()
     let title: String

@@ -26,9 +26,9 @@ struct AnalysisSwiftDataProvider: AnalysisDataProviding {
         AnalysisMockDataProvider().availableRange
     }
     
-    func data(year: Int, month: Int, referenceDate: Date) -> MonthlyAnalysisData {
+    func data(year: Int, month: Int, weekStartDate: Date?, referenceDate: Date) -> MonthlyAnalysisData {
         let monthlyRecords = store.sentimentRecords(year: year, month: month)
-        let weeklyStartDate = weekStartDate(containing: referenceDate)
+        let weeklyStartDate = weekStartDate ?? self.weekStartDate(containing: referenceDate)
         let weeklyRecords = store.sentimentRecords(
             startDate: weeklyStartDate,
             endDate: weekEndDate(startingAt: weeklyStartDate)
