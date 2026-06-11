@@ -189,7 +189,14 @@ final class AnalysisHomeViewModel: ObservableObject {
         var startDate = weekStartDate(containing: monthStartDate, calendar: calendar)
         var options: [AnalysisWeekOption] = []
 
-        while startDate < nextMonthDate {
+        let latestSelectableWeekStartDate = weekStartDate(containing: referenceDate, calendar: calendar)
+
+        while weekIntersectsMonth(
+            startDate: startDate,
+            monthStartDate: monthStartDate,
+            nextMonthDate: nextMonthDate,
+            calendar: calendar
+        ) && startDate <= latestSelectableWeekStartDate {
             let endDate = calendar.date(byAdding: .day, value: 6, to: startDate) ?? startDate
             options.append(
                 AnalysisWeekOption(
@@ -221,9 +228,9 @@ final class AnalysisHomeViewModel: ObservableObject {
             return
         }
 
-        selectedWeekStartDate = defaultWeekStartDate(from: records, calendar: calendar)
-            ?? referenceWeekStartDate(calendar: calendar)
-            ?? options.first?.startDate
+        selectedWeekStartDate = defaultWeekStartDate(from: records, options: options, calendar: calendar)
+            ?? referenceWeekStartDate(in: options, calendar: calendar)
+            ?? options.last?.startDate
     }
 
     func showPeriodSheet() {
@@ -718,6 +725,7 @@ final class AnalysisHomeViewModel: ObservableObject {
 
     private func defaultWeekStartDate(
         from records: [SentimentRecord],
+        options: [AnalysisWeekOption],
         calendar: Calendar = .current
     ) -> Date? {
         let monthlyRecords = recordsInMonth(
@@ -727,25 +735,44 @@ final class AnalysisHomeViewModel: ObservableObject {
             calendar: calendar
         )
 
-        guard let latestRecordDate = monthlyRecords.map(\.createdAt).max() else {
-            return nil
-        }
-
-        return weekStartDate(containing: latestRecordDate, calendar: calendar)
+        return options
+            .last { option in
+                !sentimentRecordsInWeek(monthlyRecords, startDate: option.startDate, calendar: calendar).isEmpty
+            }?
+            .startDate
     }
 
-    private func referenceWeekStartDate(calendar: Calendar = .current) -> Date? {
+    private func referenceWeekStartDate(
+        in options: [AnalysisWeekOption],
+        calendar: Calendar = .current
+    ) -> Date? {
         let referenceComponents = calendar.dateComponents([.year, .month], from: referenceDate)
         guard referenceComponents.year == selectedYear,
               referenceComponents.month == selectedMonth else {
             return nil
         }
 
-        return weekStartDate(containing: referenceDate, calendar: calendar)
+        let startDate = weekStartDate(containing: referenceDate, calendar: calendar)
+        return options.first {
+            calendar.isDate($0.startDate, inSameDayAs: startDate)
+        }?.startDate
     }
 
     private func weekTitle(startDate: Date, endDate: Date, calendar: Calendar) -> String {
         "\(shortMonthDayString(from: startDate, calendar: calendar)) ~ \(shortMonthDayString(from: endDate, calendar: calendar))"
+    }
+
+    private func weekIntersectsMonth(
+        startDate: Date,
+        monthStartDate: Date,
+        nextMonthDate: Date,
+        calendar: Calendar
+    ) -> Bool {
+        guard let nextWeekStartDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
+            return false
+        }
+
+        return startDate < nextMonthDate && nextWeekStartDate > monthStartDate
     }
 
     private func shortMonthDayString(from date: Date, calendar: Calendar) -> String {
