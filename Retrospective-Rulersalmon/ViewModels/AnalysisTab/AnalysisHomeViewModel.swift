@@ -147,7 +147,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         let filteredRecords = sentiments.map {
             filteredInsights(from: records, sentiments: $0)
         } ?? filteredInsights(from: records)
-        let uniqueInsights = uniqueInsightsByTitle(filteredRecords)
+        let uniqueInsights = uniqueInsightsByTitle(filteredRecords.filter(isDisplayableInsight))
         let reflectionInsights = uniqueInsights
             .filter { $0.kind == "reflection" }
             .sorted(by: insightSort)
@@ -280,6 +280,43 @@ final class AnalysisHomeViewModel: ObservableObject {
         title
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+    }
+
+    private func isDisplayableInsight(_ record: ReflectionInsightRecord) -> Bool {
+        let normalizedTitle = normalizedInsightTitle(record.title)
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+        let blockedTitles = [
+            "date",
+            "날짜",
+            "일자",
+            "satisfaction",
+            "satisfactionscore",
+            "score",
+            "만족도",
+            "count",
+            "횟수",
+            "반복횟수",
+            "positive",
+            "negative",
+            "긍정",
+            "부정",
+            "percentage",
+            "percent",
+            "비율",
+            "index",
+            "id",
+            "kind",
+            "title",
+            "description",
+            "matchedkeywords",
+            "keywords",
+            "candidate",
+            "candidates",
+            "reflection",
+            "strength"
+        ]
+
+        return !blockedTitles.contains(normalizedTitle)
     }
 
     private func filteredInsights(

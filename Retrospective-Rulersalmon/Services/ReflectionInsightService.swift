@@ -472,11 +472,7 @@ final class ReflectionInsightService {
     ) -> String {
         let recordText = records.map { record in
             """
-            - date: \(formatDate(record.createdAt))
-              positive: \(formatPercentage(record.positivePercentage))%
-              negative: \(formatPercentage(record.negativePercentage))%
-              satisfaction: \(formatScore(record.satisfactionScore))/5
-              reflection: \(record.transcript)
+            - reflection: \(record.transcript)
             """
         }
         .joined(separator: "\n")
@@ -504,6 +500,7 @@ final class ReflectionInsightService {
         - title은 후보 title을 그대로 쓰거나 더 자연스럽게 짧게 다듬어.
         - 사용자를 비난하지 말고 다정한 제안형으로 말해.
         - description은 한 회고의 구체적 사건이 아니라 반복되는 공통점을 말해.
+        - 분석 대상은 reflection 본문뿐이야. id, index, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
         - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목" 같은 예시 문구를 절대 출력하지 마.
 
         출력은 반드시 JSON 객체 하나만 사용해. Markdown, 표, 코드블록, 다른 설명은 쓰지 마.
@@ -531,10 +528,6 @@ final class ReflectionInsightService {
             """
             - id: \(record.id.uuidString)
               index: \(index + 1)
-              date: \(formatDate(record.createdAt))
-              positive: \(formatPercentage(record.positivePercentage))%
-              negative: \(formatPercentage(record.negativePercentage))%
-              satisfaction: \(formatScore(record.satisfactionScore))/5
               reflection: \(record.transcript)
             """
         }
@@ -552,6 +545,7 @@ final class ReflectionInsightService {
         - title은 2~8단어의 짧은 한국어 명사구로 써.
         - count는 해당 주제가 나타난 서로 다른 회고 개수야.
         - matched_keywords는 후보 판단에 실제로 근거가 된 핵심 단어 또는 짧은 표현을 최대 5개까지 써.
+        - 분석 대상은 reflection 본문뿐이야. id, index, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 후보로 만들지 마.
         - 한 회고에만 등장한 사건, 사람, 물건, 날짜는 후보로 만들지 마.
         - 같은 의미의 후보는 하나로 합쳐.
         - 회고가 서로 완전히 무관할 때만 candidates를 빈 배열로 반환해.
@@ -575,10 +569,6 @@ final class ReflectionInsightService {
             """
             - id: \(record.id.uuidString)
               index: \(index + 1)
-              date: \(formatDate(record.createdAt))
-              positive: \(formatPercentage(record.positivePercentage))%
-              negative: \(formatPercentage(record.negativePercentage))%
-              satisfaction: \(formatScore(record.satisfactionScore))/5
               reflection: \(record.transcript)
             """
         }
@@ -596,6 +586,7 @@ final class ReflectionInsightService {
         - 사용자를 비난하지 말고 다정한 제안형으로 말해.
         - 한 회고의 구체적 사건, 날짜, 사람, 물건, 회고 번호를 쓰지 마.
         - description은 여러 회고의 공통점과 다음에 시도할 방향을 담은 한 문장으로 써.
+        - 분석 대상은 reflection 본문뿐이야. id, index, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
         - count는 해당 주제가 나타난 서로 다른 회고 개수야.
         - 회고가 서로 완전히 무관할 때만 빈 배열을 반환해.
         - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목" 같은 예시 문구를 절대 출력하지 마.
@@ -634,7 +625,6 @@ final class ReflectionInsightService {
         let recordText = allRecords.sorted { $0.createdAt < $1.createdAt }.map { record in
             """
             - id: \(record.id.uuidString)
-              date: \(formatDate(record.createdAt))
               reflection: \(record.transcript)
             """
         }
@@ -666,6 +656,7 @@ final class ReflectionInsightService {
         - title은 후보 title을 그대로 쓰거나 더 자연스럽게 짧게 다듬어.
         - 한 회고에만 해당하는 구체적 사건, 날짜, 사람, 물건, 회고 번호를 쓰지 마.
         - "회고1", "회고6", "이 회고에서" 같은 표현을 쓰지 마.
+        - 분석 대상은 reflection 본문뿐이야. id, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
         - description은 구체적 상황이 아니라 여러 회고의 공통점을 다정한 제안형으로 말해.
         - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목", "구체적 사건이 아니라 반복되는 공통점 설명" 같은 예시 문구를 절대 출력하지 마.
 
@@ -674,7 +665,6 @@ final class ReflectionInsightService {
 
         새로 저장된 회고:
         - id: \(newRecord.id.uuidString)
-          date: \(formatDate(newRecord.createdAt))
           reflection: \(newRecord.transcript)
 
         전체 회고:
@@ -825,7 +815,8 @@ final class ReflectionInsightService {
         guard parts.count >= 3,
               !parts[0].isEmpty,
               !parts[1].isEmpty,
-              !isPlaceholderPoint(title: parts[0], description: parts[1]) else {
+              !isPlaceholderPoint(title: parts[0], description: parts[1]),
+              !isMetadataInsight(title: parts[0], description: parts[1]) else {
             return nil
         }
 
@@ -915,6 +906,7 @@ final class ReflectionInsightService {
                   candidate.count >= minimumRepeatCount,
                   !title.isEmpty,
                   !isPlaceholderPoint(title: title, description: title),
+                  !isMetadataInsight(title: title, description: title),
                   !seenTitles.contains(key) else {
                 return nil
             }
@@ -993,6 +985,51 @@ final class ReflectionInsightService {
 
         return englishPlaceholders.contains { fragment in
             normalizedTitle.contains(fragment) || normalizedDescription.contains(fragment)
+        }
+    }
+
+    private func isMetadataInsight(title: String, description: String) -> Bool {
+        let normalizedTitle = normalizedKey(title)
+        let normalizedDescription = normalizedKey(description)
+        let metadataTitles = [
+            "date",
+            "날짜",
+            "일자",
+            "satisfaction",
+            "satisfactionscore",
+            "score",
+            "만족도",
+            "count",
+            "횟수",
+            "반복횟수",
+            "positive",
+            "negative",
+            "긍정",
+            "부정",
+            "percentage",
+            "percent",
+            "비율",
+            "index",
+            "id",
+            "kind",
+            "title",
+            "description",
+            "matchedkeywords",
+            "keywords",
+            "candidate",
+            "candidates",
+            "reflection",
+            "strength"
+        ]
+
+        if metadataTitles.contains(normalizedTitle) {
+            return true
+        }
+
+        return metadataTitles.contains { metadata in
+            normalizedDescription == metadata ||
+                normalizedDescription.hasPrefix("\(metadata)이") ||
+                normalizedDescription.hasPrefix("\(metadata)가")
         }
     }
 
