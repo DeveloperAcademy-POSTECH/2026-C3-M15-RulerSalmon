@@ -147,22 +147,21 @@ final class AnalysisHomeViewModel: ObservableObject {
         let filteredRecords = sentiments.map {
             filteredInsights(from: records, sentiments: $0)
         } ?? filteredInsights(from: records)
-        let uniqueInsights = uniqueInsightsByCoreTopic(
-            filteredRecords
-                .filter(isDisplayableInsight)
-                .sorted(by: insightSort)
-        )
-        let reflectionInsights = uniqueInsights
-            .filter { $0.kind == "reflection" }
-            .sorted(by: insightSort)
-            .prefix(2)
-        let strengthInsights = uniqueInsights
-            .filter { $0.kind == "strength" }
-            .sorted(by: insightSort)
-            .prefix(2)
+        let selectedInsights: [ReflectionInsightRecord]
+        if selectedMode == .monthly {
+            let fallbackRecords = sentiments.map {
+                weeklyFallbackInsights(from: records, sentiments: $0)
+            } ?? weeklyFallbackInsights(from: records)
+            selectedInsights = monthlyInsightsWithWeeklyFallback(
+                monthlyRecords: filteredRecords,
+                weeklyRecords: fallbackRecords
+            )
+        } else {
+            selectedInsights = topInsightRecords(from: filteredRecords)
+        }
 
         var fallbackTemplatePositions: [String: Int] = [:]
-        return (Array(reflectionInsights) + Array(strengthInsights))
+        return selectedInsights
             .map { record in
                 let templatePosition = fallbackTemplatePositions[record.kind, default: 0]
                 fallbackTemplatePositions[record.kind] = templatePosition + 1
@@ -276,17 +275,70 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
-    private func uniqueInsightsByCoreTopic(
-        _ records: [ReflectionInsightRecord]
+    private func topInsightRecords(
+        from records: [ReflectionInsightRecord]
     ) -> [ReflectionInsightRecord] {
-        var seenTopics = Set<String>()
+        selectInsightRecords(
+            primaryRecords: records,
+            fallbackRecords: []
+        )
+    }
 
-        return uniqueInsightsByTitle(records).filter { record in
-            let key = coreInsightTopicKey(record.title)
-            guard !seenTopics.contains(key) else { return false }
+    private func monthlyInsightsWithWeeklyFallback(
+        monthlyRecords: [ReflectionInsightRecord],
+        weeklyRecords: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        selectInsightRecords(
+            primaryRecords: monthlyRecords,
+            fallbackRecords: weeklyRecords
+        )
+    }
 
-            seenTopics.insert(key)
-            return true
+    private func selectInsightRecords(
+        primaryRecords: [ReflectionInsightRecord],
+        fallbackRecords: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        var selectedRecords: [ReflectionInsightRecord] = []
+        var selectedTopicKeys = Set<String>()
+        var selectedCounts: [String: Int] = [:]
+
+        appendInsightRecords(
+            from: primaryRecords,
+            to: &selectedRecords,
+            selectedTopicKeys: &selectedTopicKeys,
+            selectedCounts: &selectedCounts
+        )
+        appendInsightRecords(
+            from: fallbackRecords,
+            to: &selectedRecords,
+            selectedTopicKeys: &selectedTopicKeys,
+            selectedCounts: &selectedCounts
+        )
+
+        return selectedRecords.filter { $0.kind == "reflection" } +
+            selectedRecords.filter { $0.kind == "strength" }
+    }
+
+    private func appendInsightRecords(
+        from records: [ReflectionInsightRecord],
+        to selectedRecords: inout [ReflectionInsightRecord],
+        selectedTopicKeys: inout Set<String>,
+        selectedCounts: inout [String: Int]
+    ) {
+        let candidates = uniqueInsightsByTitle(records)
+            .filter(isDisplayableInsight)
+            .filter { $0.kind == "reflection" || $0.kind == "strength" }
+            .sorted(by: insightSort)
+
+        for record in candidates {
+            guard selectedCounts[record.kind, default: 0] < 2 else { continue }
+
+            let topicKey = coreInsightTopicKey(record.title)
+            guard !selectedTopicKeys.contains(topicKey) else { continue }
+
+            selectedRecords.append(record)
+            selectedTopicKeys.insert(topicKey)
+            selectedCounts[record.kind, default: 0] += 1
         }
     }
 
@@ -376,15 +428,26 @@ final class AnalysisHomeViewModel: ObservableObject {
         let normalizedTitle = normalizedInsightTitle(title)
             .filter { !$0.isWhitespace && !$0.isPunctuation }
         let possessiveParts = normalizedTitle.split(separator: "의", maxSplits: 1).map(String.init)
-        if let firstPart = possessiveParts.first, firstPart.count >= 2 {
+        if possessiveParts.count > 1,
+           let firstPart = possessiveParts.first,
+           firstPart.count >= 2 {
             return firstPart
         }
 
+        let prefixes = [
+            "꾸준한",
+            "꾸준히",
+            "지속적인",
+            "반복적인",
+            "긍정적인"
+        ]
         let suffixes = [
+            "긍정적인효과",
             "꾸준함",
             "열정",
             "중요성",
             "필요성",
+            "효과",
             "향상",
             "관리",
             "습관",
@@ -395,7 +458,12 @@ final class AnalysisHomeViewModel: ObservableObject {
             "조정"
         ]
 
-        let trimmedTopic = suffixes.reduce(normalizedTitle) { partialResult, suffix in
+        let prefixTrimmedTopic = prefixes.reduce(normalizedTitle) { partialResult, prefix in
+            partialResult.hasPrefix(prefix)
+                ? String(partialResult.dropFirst(prefix.count))
+                : partialResult
+        }
+        let trimmedTopic = suffixes.reduce(prefixTrimmedTopic) { partialResult, suffix in
             partialResult.hasSuffix(suffix)
                 ? String(partialResult.dropLast(suffix.count))
                 : partialResult
@@ -438,6 +506,35 @@ final class AnalysisHomeViewModel: ObservableObject {
         ]
 
         return !blockedTitles.contains(normalizedTitle)
+    }
+
+    private func weeklyFallbackInsights(
+        from records: [ReflectionInsightRecord],
+        sentiments: [SentimentRecord] = [],
+        calendar: Calendar = .current
+    ) -> [ReflectionInsightRecord] {
+        let selectedMonthRecords = recordsInMonth(
+            from: sentiments,
+            year: selectedYear,
+            month: selectedMonth,
+            calendar: calendar
+        )
+        guard sentiments.isEmpty || selectedMonthRecords.count >= 3 else {
+            return []
+        }
+
+        let selectedMonthSourceIDs = Set(selectedMonthRecords.map { $0.id.uuidString })
+        return records.filter { record in
+            guard record.scope == "weekly" else { return false }
+
+            if !selectedMonthSourceIDs.isEmpty,
+               !record.sourceIDs.isDisjoint(with: selectedMonthSourceIDs) {
+                return true
+            }
+
+            let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
+            return components.year == selectedYear && components.month == selectedMonth
+        }
     }
 
     private func filteredInsights(
@@ -493,14 +590,8 @@ final class AnalysisHomeViewModel: ObservableObject {
                 let isUpdatedInSelectedMonth = components.year == selectedYear && components.month == selectedMonth
                 let usesSelectedMonthRecords = !record.sourceIDs.isDisjoint(with: selectedMonthSourceIDs)
 
-                switch record.scope {
-                case "monthly":
-                    return isUpdatedInSelectedMonth || usesSelectedMonthRecords
-                case "weekly":
-                    return usesSelectedMonthRecords
-                default:
-                    return false
-                }
+                return record.scope == "monthly" &&
+                    (isUpdatedInSelectedMonth || usesSelectedMonthRecords)
             }
         }
     }
