@@ -17,6 +17,7 @@ struct ReflectionSummaryResult: Equatable {
 
 final class ReflectionSummaryService {
     private let reflectionModelService: ReflectionFoundationModelService
+    private let insufficientSummaryMessage = "요약할 내용이 아직 충분하지 않아요. 조금 더 자세히 회고를 남겨보면 오늘의 흐름을 정리해드릴게요."
 
     init(reflectionModelService: ReflectionFoundationModelService = ReflectionFoundationModelService()) {
         self.reflectionModelService = reflectionModelService
@@ -28,6 +29,7 @@ final class ReflectionSummaryService {
         refinedTexts: [UUID: String]
     ) async -> ReflectionSummaryResult? {
         let userOnlyText = makeUserOnlyText(from: messages)
+        let fourLOnlyText = makeFourLOnlyText(from: results, refinedTexts: refinedTexts)
         let longedForText = makeLongedForText(from: results, refinedTexts: refinedTexts)
         let lackedText = makeLackedText(from: results, refinedTexts: refinedTexts)
 
@@ -35,12 +37,24 @@ final class ReflectionSummaryService {
             let refinementOutput = try await reflectionModelService.generateRefinedReflection(
                 userOnlyText: userOnlyText
             )
-            let summaryOutput = try await reflectionModelService.generateTodaySummary(
-                userOnlyText: userOnlyText
-            )
-            let coreKeywordOutput = try await reflectionModelService.generateCoreKeywords(
-                userOnlyText: userOnlyText
-            )
+            let todaySummary: String
+            if hasEnoughSummaryContent(from: results) {
+                let summaryOutput = try await reflectionModelService.generateTodaySummary(
+                    userOnlyText: fourLOnlyText
+                )
+                todaySummary = summaryOutput.todaySummary.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                todaySummary = insufficientSummaryMessage
+            }
+            let coreKeywords: [String]
+            if fourLOnlyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                coreKeywords = []
+            } else {
+                let coreKeywordOutput = try await reflectionModelService.generateCoreKeywords(
+                    userOnlyText: fourLOnlyText
+                )
+                coreKeywords = cleanedKeywords(coreKeywordOutput.coreKeywords)
+            }
             let emotionKeywordOutput = try await reflectionModelService.generateEmotionKeywords(
                 userOnlyText: userOnlyText
             )
@@ -58,9 +72,9 @@ final class ReflectionSummaryService {
 
             return ReflectionSummaryResult(
                 refinedReflection: refinementOutput.refinedReflection.trimmingCharacters(in: .whitespacesAndNewlines),
-                todaySummary: summaryOutput.todaySummary.trimmingCharacters(in: .whitespacesAndNewlines),
+                todaySummary: todaySummary,
                 actionItems: actionItems,
-                coreKeywords: cleanedKeywords(coreKeywordOutput.coreKeywords),
+                coreKeywords: coreKeywords,
                 emotionKeywords: cleanedKeywords(emotionKeywordOutput.emotionKeywords)
             )
         } catch {
@@ -74,6 +88,45 @@ final class ReflectionSummaryService {
             .filter { $0.role == .user }
             .map(\.text)
             .joined(separator: "\n")
+    }
+
+    private func makeFourLOnlyText(
+        from results: [FourLClassificationResult],
+        refinedTexts: [UUID: String]
+    ) -> String {
+        results
+            .filter(\.isFourLRelated)
+            .map { result in refinedTexts[result.id] ?? result.text }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
+
+    private func hasEnoughSummaryContent(from results: [FourLClassificationResult]) -> Bool {
+        let fourLTexts = results
+            .filter(\.isFourLRelated)
+            .map(\.text)
+            .map(normalizedForLengthCheck)
+            .filter { !$0.isEmpty }
+
+        let meaningfulSentenceCount = fourLTexts
+            .filter { meaningfulCharacterCount($0) >= 10 }
+            .count
+        let totalMeaningfulCharacters = fourLTexts
+            .map(meaningfulCharacterCount)
+            .reduce(0, +)
+
+        return meaningfulSentenceCount >= 1 && totalMeaningfulCharacters >= 16
+    }
+
+    private func normalizedForLengthCheck(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func meaningfulCharacterCount(_ text: String) -> Int {
+        text
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+            .count
     }
 
     private func makeLongedForText(

@@ -7,6 +7,12 @@
 import CoreGraphics
 import Foundation
 
+@MainActor
+protocol AnalysisDataProviding {
+    var availableRange: PeriodRange { get }
+    func data(year: Int, month: Int, weekStartDate: Date?, referenceDate: Date) -> MonthlyAnalysisData
+}
+
 struct YearMonth {
     let year: Int
     let month: Int

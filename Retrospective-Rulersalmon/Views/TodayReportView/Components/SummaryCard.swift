@@ -24,7 +24,8 @@ struct SummaryCard: View {
                 NavigationLink {
                     RetrospectiveTranscriptView(
                         title: transcriptNavigationTitle,
-                        transcript: content.transcript
+                        transcript: content.transcript,
+                        messages: content.transcriptMessages
                     )
                 } label: {
                     HStack(spacing: 4) {
@@ -67,9 +68,10 @@ struct SummaryCard_Previews: PreviewProvider {
                     title: "오늘 회고 요약",
                     summary: RetrospectiveReport.mock.summary,
                     transcript: RetrospectiveReport.mock.transcript,
-                    transcriptLinkTitle: "전사문 보기"
+                    transcriptMessages: RetrospectiveReport.mock.transcriptMessages,
+                    transcriptLinkTitle: "대화 내역 보기"
                 ),
-                transcriptNavigationTitle: "전사문"
+                transcriptNavigationTitle: "대화 내역"
             )
             .padding(.horizontal, ReportLayout.screenPadding)
         }

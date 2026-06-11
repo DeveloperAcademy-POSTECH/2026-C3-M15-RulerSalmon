@@ -13,6 +13,7 @@ struct UserInfoView: View {
     @Binding var selectedAgeGroup: AgeGroup
     let validationMessage: String?
     let isNextEnabled: Bool
+    let validationAttemptID: Int
     let onNext: () -> Void
     
     var body: some View {
@@ -29,7 +30,9 @@ struct UserInfoView: View {
                 UserInfoCard(
                     nickname: $nickname,
                     selectedJob: $selectedJob,
-                    selectedAgeGroup: $selectedAgeGroup
+                    selectedAgeGroup: $selectedAgeGroup,
+                    showsNicknameError: validationMessage != nil && !isNextEnabled,
+                    nicknameErrorTrigger: validationAttemptID
                 )
 
                 if let validationMessage {
@@ -41,7 +44,6 @@ struct UserInfoView: View {
                 
                 Spacer()
                 AcceptButton(labelText: "정보 저장하기", action: onNext)
-                    .disabled(!isNextEnabled)
     
             }
             .padding(.top, 40)
@@ -59,6 +61,7 @@ struct UserInfoView_Previews: PreviewProvider {
             selectedAgeGroup: .constant(.twenties),
             validationMessage: nil,
             isNextEnabled: false,
+            validationAttemptID: 0,
             onNext: {}
         )
     }

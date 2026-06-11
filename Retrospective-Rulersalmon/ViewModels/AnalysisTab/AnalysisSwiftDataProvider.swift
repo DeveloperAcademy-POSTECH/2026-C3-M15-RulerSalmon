@@ -22,8 +22,7 @@ struct AnalysisSwiftDataProvider: AnalysisDataProviding {
     }
     
     var availableRange: PeriodRange {
-        //TODO: 일단 현재 목업 range와 동일하게 두고, 나중에 실제 저장된 record의 min/max 날짜로 바꾸면 됨
-        AnalysisMockDataProvider().availableRange
+        availableRange(from: store.allSentimentRecords())
     }
     
     func data(year: Int, month: Int, weekStartDate: Date?, referenceDate: Date) -> MonthlyAnalysisData {
@@ -127,6 +126,33 @@ struct AnalysisSwiftDataProvider: AnalysisDataProviding {
         let weekday = calendar.component(.weekday, from: day)
         let daysFromMonday = (weekday + 5) % 7
         return calendar.date(byAdding: .day, value: -daysFromMonday, to: day) ?? day
+    }
+
+    private func availableRange(from records: [SentimentRecord]) -> PeriodRange {
+        let calendar = analysisCalendar
+        let yearMonths = records.map { record in
+            let components = calendar.dateComponents([.year, .month], from: record.createdAt)
+            return YearMonth(
+                year: components.year ?? calendar.component(.year, from: Date()),
+                month: components.month ?? calendar.component(.month, from: Date())
+            )
+        }
+
+        guard let start = yearMonths.min(by: { yearMonthValue($0) < yearMonthValue($1) }),
+              let end = yearMonths.max(by: { yearMonthValue($0) < yearMonthValue($1) }) else {
+            let current = calendar.dateComponents([.year, .month], from: Date())
+            let fallback = YearMonth(
+                year: current.year ?? 2026,
+                month: current.month ?? 1
+            )
+            return PeriodRange(start: fallback, end: fallback)
+        }
+
+        return PeriodRange(start: start, end: end)
+    }
+
+    private func yearMonthValue(_ yearMonth: YearMonth) -> Int {
+        yearMonth.year * 100 + yearMonth.month
     }
 
     private var analysisCalendar: Calendar {

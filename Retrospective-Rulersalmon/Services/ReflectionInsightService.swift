@@ -22,6 +22,7 @@ struct ReflectionInsightPoint: Identifiable, Equatable {
     let title: String
     let description: String
     let count: Int
+    let topicKey: String?
 }
 
 struct ReflectionInsightSourceRecord: Identifiable, Equatable {
@@ -67,19 +68,70 @@ final class ReflectionInsightService {
         case strength
     }
 
-    private struct TopicPattern {
-        let kind: String
-        let title: String
-        let keywords: [String]
-        let defaultDescription: String
-    }
-
     private struct PatternCandidate {
         let kind: String
         let title: String
+        let topicKey: String
         let count: Int
         let matchedKeywords: [String]
         let defaultDescription: String
+    }
+
+    private struct CandidatePayload: Decodable {
+        let candidates: [CandidatePayloadPoint]
+    }
+
+    private struct CandidatePayloadPoint: Decodable {
+        let kind: String
+        let title: String
+        let topicKey: String?
+        let count: Int
+        let matchedKeywords: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case kind
+            case title
+            case topicKey
+            case topicKeySnake = "topic_key"
+            case count
+            case matchedKeywords
+            case matchedKeywordsSnake = "matched_keywords"
+            case keywords
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            kind = try container.decode(String.self, forKey: .kind)
+            title = try container.decode(String.self, forKey: .title)
+            topicKey = (try? container.decode(String.self, forKey: .topicKeySnake)) ??
+                (try? container.decode(String.self, forKey: .topicKey))
+
+            if let intCount = try? container.decode(Int.self, forKey: .count) {
+                count = intCount
+            } else {
+                let stringCount = try container.decode(String.self, forKey: .count)
+                count = Int(stringCount.filter(\.isNumber)) ?? 0
+            }
+
+            if let keywords = try? container.decode([String].self, forKey: .matchedKeywordsSnake) {
+                matchedKeywords = keywords
+            } else if let keywords = try? container.decode([String].self, forKey: .matchedKeywords) {
+                matchedKeywords = keywords
+            } else if let keywords = try? container.decode([String].self, forKey: .keywords) {
+                matchedKeywords = keywords
+            } else if let keywordText = try? container.decode(String.self, forKey: .matchedKeywordsSnake) {
+                matchedKeywords = Self.splitKeywords(keywordText)
+            } else {
+                matchedKeywords = []
+            }
+        }
+
+        private static func splitKeywords(_ text: String) -> [String] {
+            text
+                .components(separatedBy: CharacterSet(charactersIn: ",，、/|"))
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
     }
 
     private struct InsightPayload: Decodable {
@@ -91,6 +143,31 @@ final class ReflectionInsightService {
         let title: String
         let description: String
         let count: Int
+        let topicKey: String?
+
+        enum CodingKeys: String, CodingKey {
+            case title
+            case description
+            case count
+            case topicKey
+            case topicKeySnake = "topic_key"
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            title = try container.decode(String.self, forKey: .title)
+            description = try container.decode(String.self, forKey: .description)
+
+            if let intCount = try? container.decode(Int.self, forKey: .count) {
+                count = intCount
+            } else {
+                let stringCount = try container.decode(String.self, forKey: .count)
+                count = Int(stringCount.filter(\.isNumber)) ?? 0
+            }
+
+            topicKey = (try? container.decode(String.self, forKey: .topicKeySnake)) ??
+                (try? container.decode(String.self, forKey: .topicKey))
+        }
     }
 
     private struct IncrementalInsightPayload: Decodable {
@@ -107,38 +184,6 @@ final class ReflectionInsightService {
 
     private let foundationModelService: FoundationModelServicing
     private let calendar: Calendar
-    private let topicPatterns: [TopicPattern] = [
-        TopicPattern(
-            kind: "reflection",
-            title: "시간 관리",
-            keywords: ["시간", "일정", "마감", "늦", "지연", "우선순위", "계획", "미룸", "딜레이", "촉박"],
-            defaultDescription: "시간 관리와 일정 조율의 어려움이 반복되고 있어요. 다음 회고에서는 가장 먼저 처리할 일을 하나만 정해보면 좋아요."
-        ),
-        TopicPattern(
-            kind: "strength",
-            title: "운동 습관",
-            keywords: ["운동", "헬스", "러닝", "산책", "요가", "필라테스", "꾸준", "뿌듯", "체력"],
-            defaultDescription: "꾸준히 몸을 움직이고 스스로 뿌듯함을 느끼는 흐름이 반복되고 있어요. 지속 가능한 루틴을 만드는 점이 강점이에요."
-        ),
-        TopicPattern(
-            kind: "reflection",
-            title: "집중과 컨디션",
-            keywords: ["집중", "피곤", "지침", "컨디션", "휴식", "몰입", "부담", "긴장"],
-            defaultDescription: "집중과 컨디션 관리의 어려움이 반복되고 있어요. 무리해서 밀기보다 회복 시간을 먼저 확보해보면 좋아요."
-        ),
-        TopicPattern(
-            kind: "strength",
-            title: "협업 적응력",
-            keywords: ["팀", "팀원", "소통", "협업", "피드백", "리뷰", "회의", "공유"],
-            defaultDescription: "팀과 소통하고 피드백을 받아들이는 모습이 반복되고 있어요. 협업 상황에 적응하는 힘이 강점으로 보여요."
-        ),
-        TopicPattern(
-            kind: "strength",
-            title: "학습 정리",
-            keywords: ["배웠", "학습", "깨달", "알게", "성장", "이해", "경험"],
-            defaultDescription: "회고에서 배운 점을 발견하고 정리하는 흐름이 반복되고 있어요. 경험을 학습으로 바꾸는 능력이 강점이에요."
-        )
-    ]
 
     init(
         foundationModelService: FoundationModelServicing = FoundationModelService(),
@@ -157,7 +202,7 @@ final class ReflectionInsightService {
         guard allRecords.count >= minimumRepeatCount else {
             return .empty
         }
-        let candidates = makePatternCandidates(
+        let candidates = try await makePatternCandidates(
             from: allRecords,
             minimumRepeatCount: minimumRepeatCount
         )
@@ -242,12 +287,26 @@ final class ReflectionInsightService {
         guard recentRecords.count >= minimumRepeatCount else {
             return .empty
         }
-        let candidates = makePatternCandidates(
+        let candidates = try await makePatternCandidates(
             from: recentRecords,
             minimumRepeatCount: minimumRepeatCount
         )
         guard !candidates.isEmpty else {
-            return .empty
+            let directPrompt = makeDirectInsightPrompt(
+                records: recentRecords,
+                days: days,
+                minimumRepeatCount: minimumRepeatCount
+            )
+            let directResponse = try await foundationModelService.respond(to: directPrompt)
+
+            #if DEBUG
+            print("[ReflectionInsightService] direct response: \(directResponse)")
+            #endif
+
+            return parse(
+                directResponse,
+                minimumRepeatCount: minimumRepeatCount
+            )
         }
 
         let prompt = makePrompt(
@@ -310,41 +369,31 @@ final class ReflectionInsightService {
     private func makePatternCandidates(
         from records: [ReflectionInsightSourceRecord],
         minimumRepeatCount: Int
-    ) -> [PatternCandidate] {
-        topicPatterns.compactMap { pattern in
-            let matchingRecords = records.filter { record in
-                containsAnyKeyword(
-                    in: record.transcript,
-                    keywords: pattern.keywords
-                )
-            }
-            guard matchingRecords.count >= minimumRepeatCount else {
-                return nil
-            }
-
-            let matchedKeywords = pattern.keywords.filter { keyword in
-                matchingRecords.contains { record in
-                    record.transcript.localizedCaseInsensitiveContains(keyword)
-                }
-            }
-
-            return PatternCandidate(
-                kind: pattern.kind,
-                title: pattern.title,
-                count: matchingRecords.count,
-                matchedKeywords: Array(matchedKeywords.prefix(5)),
-                defaultDescription: pattern.defaultDescription
-            )
-        }
+    ) async throws -> [PatternCandidate] {
+        try await makeFoundationModelCandidates(
+            from: records,
+            minimumRepeatCount: minimumRepeatCount
+        )
     }
 
-    private func containsAnyKeyword(
-        in text: String,
-        keywords: [String]
-    ) -> Bool {
-        keywords.contains { keyword in
-            text.localizedCaseInsensitiveContains(keyword)
-        }
+    private func makeFoundationModelCandidates(
+        from records: [ReflectionInsightSourceRecord],
+        minimumRepeatCount: Int
+    ) async throws -> [PatternCandidate] {
+        let prompt = makeCandidatePrompt(
+            records: records,
+            minimumRepeatCount: minimumRepeatCount
+        )
+        let response = try await foundationModelService.respond(to: prompt)
+
+        #if DEBUG
+        print("[ReflectionInsightService] candidate response: \(response)")
+        #endif
+
+        return parseCandidateResponse(
+            response,
+            minimumRepeatCount: minimumRepeatCount
+        )
     }
 
     private func stableResult(
@@ -385,18 +434,19 @@ final class ReflectionInsightService {
             return ReflectionInsightPoint(
                 title: point.title,
                 description: point.description,
-                count: candidate.count
+                count: candidate.count,
+                topicKey: candidate.topicKey
             )
         }
-        let existingKeys = Set(existingInsights.map { normalizedKey($0.title) })
+        let existingKeys = Set(existingInsights.map { normalizedKey($0.topicKey) })
         points.removeAll { point in
-            existingKeys.contains(normalizedKey(point.title))
+            existingKeys.contains(normalizedKey(point.topicKey ?? point.title))
         }
 
         for candidate in candidates {
-            let candidateKey = normalizedKey(candidate.title)
+            let candidateKey = normalizedKey(candidate.topicKey)
             let alreadyIncluded = points.contains { point in
-                normalizedKey(point.title) == candidateKey
+                normalizedKey(point.topicKey ?? point.title) == candidateKey
             }
             let alreadyExisting = existingKeys.contains(candidateKey)
 
@@ -408,24 +458,25 @@ final class ReflectionInsightService {
                 ReflectionInsightPoint(
                     title: candidate.title,
                     description: candidate.defaultDescription,
-                    count: candidate.count
+                    count: candidate.count,
+                    topicKey: candidate.topicKey
                 )
             )
         }
 
-        return uniquePointsByTitle(points).sorted { first, second in
+        return uniquePointsByTopic(points).sorted { first, second in
             if first.count == second.count { return first.title < second.title }
             return first.count > second.count
         }
     }
 
-    private func uniquePointsByTitle(
+    private func uniquePointsByTopic(
         _ points: [ReflectionInsightPoint]
     ) -> [ReflectionInsightPoint] {
         var seenKeys = Set<String>()
 
         return points.filter { point in
-            let key = normalizedKey(point.title)
+            let key = normalizedKey(point.topicKey ?? point.title)
             guard !seenKeys.contains(key) else { return false }
 
             seenKeys.insert(key)
@@ -438,10 +489,13 @@ final class ReflectionInsightService {
         in candidates: [PatternCandidate]
     ) -> PatternCandidate? {
         let pointKey = normalizedKey(point.title)
+        let pointTopicKey = point.topicKey.map(normalizedKey)
 
         return candidates.first { candidate in
             let candidateKey = normalizedKey(candidate.title)
-            return pointKey == candidateKey ||
+            let candidateTopicKey = normalizedKey(candidate.topicKey)
+            return pointTopicKey == Optional(candidateTopicKey) ||
+                pointKey == candidateKey ||
                 pointKey.contains(candidateKey) ||
                 candidateKey.contains(pointKey)
         }
@@ -453,20 +507,11 @@ final class ReflectionInsightService {
         candidates: [PatternCandidate],
         minimumRepeatCount: Int
     ) -> String {
-        let recordText = records.map { record in
-            """
-            - date: \(formatDate(record.createdAt))
-              positive: \(formatPercentage(record.positivePercentage))%
-              negative: \(formatPercentage(record.negativePercentage))%
-              satisfaction: \(formatScore(record.satisfactionScore))/5
-              reflection: \(record.transcript)
-            """
-        }
-        .joined(separator: "\n")
         let candidateText = candidates.map { candidate in
             """
             - kind: \(candidate.kind)
               title: \(candidate.title)
+              topic_key: \(candidate.topicKey)
               count: \(candidate.count)
               matched_keywords: \(candidate.matchedKeywords.joined(separator: ", "))
             """
@@ -475,31 +520,114 @@ final class ReflectionInsightService {
 
         return """
         너는 한국어 회고 앱의 분석 엔진이야.
-        앱이 최근 \(days)일 회고 \(records.count)개에서 반복 후보를 이미 계산했어.
-        너는 아래 후보를 사용자에게 보여줄 자연스러운 인사이트 문장으로 바꿔줘.
+        최근 \(days)일 회고 \(records.count)개에서 추출된 반복 후보를 사용자에게 보여줄 인사이트 문장으로 바꿔줘.
 
         기준:
-        - 아래 후보는 모두 서로 다른 회고 \(minimumRepeatCount)개 이상에서 반복된 패턴이야.
         - 후보를 누락하지 마.
-        - kind가 reflection이면 reflection 배열에 넣어.
-        - kind가 strength이면 strength 배열에 넣어.
-        - count는 후보의 count 숫자를 그대로 써.
-        - title은 후보 title을 그대로 쓰거나 더 자연스럽게 짧게 다듬어.
-        - 사용자를 비난하지 말고 다정한 제안형으로 말해.
-        - description은 한 회고의 구체적 사건이 아니라 반복되는 공통점을 말해.
-        - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목" 같은 예시 문구를 절대 출력하지 마.
+        - kind, topic_key, count는 후보 값을 그대로 써.
+        - title은 후보 title을 그대로 쓰거나 짧게 다듬어.
+        - description은 한 문장, 존댓말 해요체로 써.
+        - reflection은 반복된 어려움/아쉬움과 다음에 시도할 작은 조정을 제안해.
+        - strength는 이미 잘하고 있는 강점/습관을 현재형으로 칭찬해. 조언형으로 쓰지 마.
+        - 같은 topic_key를 reflection과 strength 양쪽에 동시에 만들지 마.
+        - 메타데이터 이름이나 JSON 키 이름을 title/description에 쓰지 마.
 
         출력은 반드시 JSON 객체 하나만 사용해. Markdown, 표, 코드블록, 다른 설명은 쓰지 마.
         JSON 키:
         - reflection: 반성 포인트 배열
         - strength: 강점 포인트 배열
-        - 각 배열 항목은 title, description, count를 가진 객체
-        - title은 2~8단어의 실제 인사이트 이름
-        - description은 반복되는 공통점과 다음에 시도할 방향을 담은 한 문장
-        - count는 서로 다른 회고에서 발견된 반복 횟수
+        - 각 배열 항목은 title, topic_key, description, count를 가진 객체
 
         반복 후보:
         \(candidateText)
+        """
+    }
+
+    private func makeCandidatePrompt(
+        records: [ReflectionInsightSourceRecord],
+        minimumRepeatCount: Int
+    ) -> String {
+        let recordText = records.enumerated().map { index, record in
+            """
+            - id: \(record.id.uuidString)
+              index: \(index + 1)
+              reflection: \(record.transcript)
+            """
+        }
+        .joined(separator: "\n")
+
+        return """
+        너는 한국어 회고 앱의 반복 패턴 추출 엔진이야.
+        아래 회고들에서 서로 다른 회고 \(minimumRepeatCount)개 이상에 반복해서 나타나는 주제를 후보로 뽑아줘.
+        같은 단어가 반복되지 않아도 의미, 감정, 행동, 어려움, 습관이 비슷하면 반복 주제로 봐.
+
+        후보 추출 기준:
+        - kind는 반드시 reflection 또는 strength 중 하나야.
+        - reflection은 사용자가 다음에 돌아보거나 조정하면 좋은 반복 어려움, 아쉬움, 위험 신호야.
+        - strength는 사용자가 유지하면 좋은 반복 강점, 습관, 성장 신호야.
+        - 같은 핵심 주제를 reflection과 strength 후보로 동시에 만들지 마. 긍정/부정 양면이 있으면 더 반복적이고 중요한 해석 하나만 선택해.
+        - title은 2~8단어의 짧은 한국어 명사구로 써.
+        - topic_key는 같은 핵심 주제를 묶는 1~3단어의 중립 명사구로 써. 예: "꾸준한 운동", "운동의 긍정적인 효과"는 둘 다 "운동".
+        - count는 해당 주제가 나타난 서로 다른 회고 개수야.
+        - matched_keywords는 후보 판단에 실제로 근거가 된 핵심 단어 또는 짧은 표현을 최대 5개까지 써.
+        - 분석 대상은 reflection 본문뿐이야. id, index, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 후보로 만들지 마.
+        - 한 회고에만 등장한 사건, 사람, 물건, 날짜는 후보로 만들지 마.
+        - 같은 의미의 후보는 하나로 합쳐.
+        - 회고가 서로 완전히 무관할 때만 candidates를 빈 배열로 반환해.
+
+        출력은 반드시 JSON 객체 하나만 사용해. Markdown, 코드블록, 다른 설명은 쓰지 마.
+        JSON 키:
+        - candidates: 후보 배열
+        - 각 후보는 kind, title, topic_key, count, matched_keywords를 가진 객체
+
+        회고:
+        \(recordText)
+        """
+    }
+
+    private func makeDirectInsightPrompt(
+        records: [ReflectionInsightSourceRecord],
+        days: Int,
+        minimumRepeatCount: Int
+    ) -> String {
+        let recordText = records.enumerated().map { index, record in
+            """
+            - id: \(record.id.uuidString)
+              index: \(index + 1)
+              reflection: \(record.transcript)
+            """
+        }
+        .joined(separator: "\n")
+
+        return """
+        너는 한국어 회고 앱의 인사이트 분석 엔진이야.
+        최근 \(days)일 회고 \(records.count)개에서 반복되는 reflection/strength 인사이트를 직접 만들어줘.
+        같은 단어가 반복되지 않아도 의미, 감정, 행동, 어려움, 습관이 비슷하면 반복으로 봐.
+
+        기준:
+        - 서로 다른 회고 \(minimumRepeatCount)개 이상에서 반복된 주제만 포함해.
+        - reflection은 다음에 돌아보거나 조정하면 좋은 반복 어려움, 아쉬움, 위험 신호야.
+        - strength는 유지하면 좋은 반복 강점, 습관, 성장 신호야.
+        - 같은 핵심 주제를 reflection과 strength 양쪽에 동시에 만들지 마. 더 지배적인 해석 하나만 선택해.
+        - 모든 description은 존댓말 해요체로 써. "필요해", "중요해", "할 수 있을 거야" 같은 반말은 절대 쓰지 마.
+        - reflection description은 반복되는 어려움/아쉬움을 짚고, 다음에 시도할 작은 조정을 다정하게 제안해.
+        - strength description은 이미 반복해서 드러난 강점/좋은 습관을 현재형으로 칭찬하고 인정해.
+        - strength description에는 조언이나 미래 가능성 표현을 쓰지 마. 사용자가 이미 잘하고 있는 점만 말해.
+        - description 문장 끝을 매번 똑같이 쓰지 말고 자연스럽게 다양화해.
+        - 사용자를 비난하지 마.
+        - 한 회고의 구체적 사건, 날짜, 사람, 물건, 회고 번호를 쓰지 마.
+        - description은 여러 회고의 공통점을 담은 한 문장으로 써.
+        - 분석 대상은 reflection 본문뿐이야. id, index, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
+        - count는 해당 주제가 나타난 서로 다른 회고 개수야.
+        - 회고가 서로 완전히 무관할 때만 빈 배열을 반환해.
+        - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목" 같은 예시 문구를 절대 출력하지 마.
+        - topic_key는 같은 핵심 주제를 묶는 1~3단어의 중립 명사구로 써.
+
+        출력은 반드시 JSON 객체 하나만 사용해. Markdown, 코드블록, 다른 설명은 쓰지 마.
+        JSON 키:
+        - reflection: 반성 포인트 배열
+        - strength: 강점 포인트 배열
+        - 각 배열 항목은 title, topic_key, description, count를 가진 객체
 
         회고:
         \(recordText)
@@ -529,7 +657,6 @@ final class ReflectionInsightService {
         let recordText = allRecords.sorted { $0.createdAt < $1.createdAt }.map { record in
             """
             - id: \(record.id.uuidString)
-              date: \(formatDate(record.createdAt))
               reflection: \(record.transcript)
             """
         }
@@ -538,6 +665,7 @@ final class ReflectionInsightService {
             """
             - kind: \(candidate.kind)
               title: \(candidate.title)
+              topic_key: \(candidate.topicKey)
               count: \(candidate.count)
               matched_keywords: \(candidate.matchedKeywords.joined(separator: ", "))
             """
@@ -559,9 +687,15 @@ final class ReflectionInsightService {
         - kind가 strength이면 new_strength 배열에 넣어.
         - count는 후보의 count 숫자를 그대로 써.
         - title은 후보 title을 그대로 쓰거나 더 자연스럽게 짧게 다듬어.
+        - 같은 핵심 주제를 new_reflection과 new_strength 양쪽에 동시에 만들지 마. 더 지배적인 해석 하나만 선택해.
         - 한 회고에만 해당하는 구체적 사건, 날짜, 사람, 물건, 회고 번호를 쓰지 마.
         - "회고1", "회고6", "이 회고에서" 같은 표현을 쓰지 마.
-        - description은 구체적 상황이 아니라 여러 회고의 공통점을 다정한 제안형으로 말해.
+        - 분석 대상은 reflection 본문뿐이야. id, date, positive, negative, satisfaction, score, count 같은 메타데이터 이름이나 JSON 키 이름을 title이나 description에 절대 쓰지 마.
+        - 모든 description은 존댓말 해요체로 써. "필요해", "중요해", "할 수 있을 거야" 같은 반말은 절대 쓰지 마.
+        - reflection description은 구체적 상황이 아니라 반복되는 어려움과 다음에 시도할 방향을 다정한 제안형으로 말해.
+        - strength description은 구체적 상황이 아니라 반복되는 강점과 칭찬/인정을 담아 말해.
+        - strength description에는 조언이나 미래 가능성 표현을 쓰지 마. 사용자가 이미 잘하고 있는 점만 말해.
+        - description 문장 끝을 매번 똑같이 쓰지 말고 자연스럽게 다양화해.
         - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목", "구체적 사건이 아니라 반복되는 공통점 설명" 같은 예시 문구를 절대 출력하지 마.
 
         기존 인사이트:
@@ -569,7 +703,6 @@ final class ReflectionInsightService {
 
         새로 저장된 회고:
         - id: \(newRecord.id.uuidString)
-          date: \(formatDate(newRecord.createdAt))
           reflection: \(newRecord.transcript)
 
         전체 회고:
@@ -584,8 +717,11 @@ final class ReflectionInsightService {
         - new_reflection: 새 반성 포인트 배열
         - new_strength: 새 강점 포인트 배열
         - 새 포인트 배열 항목은 title, description, count를 가진 객체
+        - 새 포인트 배열 항목은 title, topic_key, description, count를 가진 객체
         - title은 2~8단어의 실제 인사이트 이름
-        - description은 반복되는 공통점과 다음에 시도할 방향을 담은 한 문장
+        - reflection description은 반복되는 어려움과 다음에 시도할 방향을 담은 한 문장
+        - strength description은 반복되는 강점과 칭찬/인정을 담은 한 문장
+        - strength description은 조언형이 아니라 칭찬형이어야 함
         - count는 서로 다른 회고에서 발견된 반복 횟수
 
         기존 인사이트와 매칭되지 않는 후보는 빈 배열로 두지 마.
@@ -648,8 +784,8 @@ final class ReflectionInsightService {
         }
 
         return ReflectionInsightResult(
-            reflectionPoints: uniquePointsByTitle(reflectionPoints),
-            strengthPoints: uniquePointsByTitle(strengthPoints)
+            reflectionPoints: uniquePointsByTopic(reflectionPoints),
+            strengthPoints: uniquePointsByTopic(strengthPoints)
         )
     }
 
@@ -709,18 +845,21 @@ final class ReflectionInsightService {
                 payloadPoint.description,
                 String(payloadPoint.count)
             ],
-            minimumRepeatCount: minimumRepeatCount
+            minimumRepeatCount: minimumRepeatCount,
+            topicKey: payloadPoint.topicKey
         )
     }
 
     private func makePoint(
         from parts: [String],
-        minimumRepeatCount: Int
+        minimumRepeatCount: Int,
+        topicKey: String? = nil
     ) -> ReflectionInsightPoint? {
         guard parts.count >= 3,
               !parts[0].isEmpty,
               !parts[1].isEmpty,
-              !isPlaceholderPoint(title: parts[0], description: parts[1]) else {
+              !isPlaceholderPoint(title: parts[0], description: parts[1]),
+              !isMetadataInsight(title: parts[0], description: parts[1]) else {
             return nil
         }
 
@@ -732,7 +871,8 @@ final class ReflectionInsightService {
         return ReflectionInsightPoint(
             title: parts[0],
             description: parts[1],
-            count: count
+            count: count,
+            topicKey: normalizedTopicKey(topicKey, fallbackTitle: parts[0])
         )
     }
 
@@ -761,8 +901,8 @@ final class ReflectionInsightService {
         }
 
         return ReflectionInsightResult(
-            reflectionPoints: uniquePointsByTitle(reflectionPoints),
-            strengthPoints: uniquePointsByTitle(strengthPoints)
+            reflectionPoints: uniquePointsByTopic(reflectionPoints),
+            strengthPoints: uniquePointsByTopic(strengthPoints)
         )
     }
 
@@ -780,6 +920,101 @@ final class ReflectionInsightService {
         }
 
         return try? JSONDecoder().decode(IncrementalInsightPayload.self, from: data)
+    }
+
+    private func parseCandidateResponse(
+        _ response: String,
+        minimumRepeatCount: Int
+    ) -> [PatternCandidate] {
+        guard let jsonRange = response.range(
+            of: #"\{[\s\S]*\}"#,
+            options: .regularExpression
+        ) else {
+            return []
+        }
+
+        let jsonText = String(response[jsonRange])
+        guard let data = jsonText.data(using: .utf8),
+              let payload = try? JSONDecoder().decode(CandidatePayload.self, from: data) else {
+            return []
+        }
+
+        var seenTopicKeys = Set<String>()
+
+        return payload.candidates.compactMap { candidate -> PatternCandidate? in
+            let kind = normalizedKind(candidate.kind)
+            let title = candidate.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let topicKey = normalizedTopicKey(candidate.topicKey, fallbackTitle: title)
+            let key = normalizedKey(topicKey)
+
+            guard let kind,
+                  candidate.count >= minimumRepeatCount,
+                  !title.isEmpty,
+                  !topicKey.isEmpty,
+                  !isPlaceholderPoint(title: title, description: title),
+                  !isMetadataInsight(title: title, description: title),
+                  !seenTopicKeys.contains(key) else {
+                return nil
+            }
+
+            seenTopicKeys.insert(key)
+
+            return PatternCandidate(
+                kind: kind,
+                title: title,
+                topicKey: topicKey,
+                count: candidate.count,
+                matchedKeywords: Array(candidate.matchedKeywords
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                    .prefix(5)),
+                defaultDescription: defaultDescription(
+                    for: kind,
+                    title: title,
+                    count: candidate.count
+                )
+            )
+        }
+    }
+
+    private func normalizedKind(_ kind: String) -> String? {
+        let normalizedKind = normalizedKey(kind)
+
+        if normalizedKind == "reflection" || normalizedKind.contains("반성") {
+            return "reflection"
+        }
+
+        if normalizedKind == "strength" || normalizedKind.contains("강점") {
+            return "strength"
+        }
+
+        return nil
+    }
+
+    private func defaultDescription(
+        for kind: String,
+        title: String,
+        count: Int
+    ) -> String {
+        if kind == "strength" {
+            return "\(title)이 \(count)번의 회고에서 반복해서 드러났어요. 이 흐름을 꾸준히 만들어가고 계신 점을 정말 잘하고 계세요."
+        }
+
+        return "\(title)이 \(count)번의 회고에서 반복해서 나타났어요. 다음에는 이 흐름을 조금 더 가볍게 조정할 방법을 하나 정해보는 건 어떨까요?"
+    }
+
+    private func normalizedTopicKey(
+        _ topicKey: String?,
+        fallbackTitle: String
+    ) -> String {
+        let trimmedTopicKey = topicKey?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let trimmedTopicKey, !trimmedTopicKey.isEmpty {
+            return trimmedTopicKey
+        }
+
+        return fallbackTitle.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func normalizedKey(_ text: String) -> String {
@@ -811,6 +1046,51 @@ final class ReflectionInsightService {
 
         return englishPlaceholders.contains { fragment in
             normalizedTitle.contains(fragment) || normalizedDescription.contains(fragment)
+        }
+    }
+
+    private func isMetadataInsight(title: String, description: String) -> Bool {
+        let normalizedTitle = normalizedKey(title)
+        let normalizedDescription = normalizedKey(description)
+        let metadataTitles = [
+            "date",
+            "날짜",
+            "일자",
+            "satisfaction",
+            "satisfactionscore",
+            "score",
+            "만족도",
+            "count",
+            "횟수",
+            "반복횟수",
+            "positive",
+            "negative",
+            "긍정",
+            "부정",
+            "percentage",
+            "percent",
+            "비율",
+            "index",
+            "id",
+            "kind",
+            "title",
+            "description",
+            "matchedkeywords",
+            "keywords",
+            "candidate",
+            "candidates",
+            "reflection",
+            "strength"
+        ]
+
+        if metadataTitles.contains(normalizedTitle) {
+            return true
+        }
+
+        return metadataTitles.contains { metadata in
+            normalizedDescription == metadata ||
+                normalizedDescription.hasPrefix("\(metadata)이") ||
+                normalizedDescription.hasPrefix("\(metadata)가")
         }
     }
 
