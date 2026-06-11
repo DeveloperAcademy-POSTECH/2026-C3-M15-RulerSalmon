@@ -89,10 +89,12 @@ struct RetrospectiveSentimentAnalyzer {
         guard !segments.isEmpty else { return .empty }
 
         let positiveEvidence = segments.reduce(0) { partial, segment in
-            partial + max(segment.score, 0)
+            guard segment.label == .positive else { return partial }
+            return partial + max(segment.score, 0)
         }
         let negativeEvidence = segments.reduce(0) { partial, segment in
-            partial + abs(min(segment.score, 0))
+            guard segment.label == .negative else { return partial }
+            return partial + abs(min(segment.score, 0))
         }
         let evidenceTotal = positiveEvidence + negativeEvidence
 
