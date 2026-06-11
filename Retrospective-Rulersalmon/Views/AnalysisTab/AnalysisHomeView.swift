@@ -35,7 +35,11 @@ struct AnalysisHomeView: View {
                         data: viewModel.selectedData,
                         referenceDate: viewModel.analysisReferenceDate,
                         selectedMode: viewModel.selectedMode,
-                        selectedWeekStartDate: $viewModel.selectedWeekStartDate
+                        selectedWeekStartDate: $viewModel.selectedWeekStartDate,
+                        canMoveToPreviousPeriod: viewModel.canMoveToPreviousPeriod,
+                        canMoveToNextPeriod: viewModel.canMoveToNextPeriod,
+                        moveToPreviousPeriod: viewModel.moveToPreviousPeriod,
+                        moveToNextPeriod: viewModel.moveToNextPeriod
                     )
 
                     AnalysisPeriodSelectionControl(

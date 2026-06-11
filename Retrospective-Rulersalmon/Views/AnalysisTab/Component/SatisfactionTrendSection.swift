@@ -11,6 +11,12 @@ struct SatisfactionTrendSection: View {
     let referenceDate: Date
     let selectedMode: SatisfactionChartMode
     @Binding var selectedWeekStartDate: Date?
+    let canMoveToPreviousPeriod: Bool
+    let canMoveToNextPeriod: Bool
+    let moveToPreviousPeriod: () -> Void
+    let moveToNextPeriod: () -> Void
+
+    @State private var chartDragOffset: CGFloat = 0
 
     private var selectedPoints: [SatisfactionPoint] {
         switch selectedMode {
@@ -91,6 +97,37 @@ struct SatisfactionTrendSection: View {
         return "\(calendar.component(.month, from: date)).\(calendar.component(.day, from: date))"
     }
 
+    private var chartDragGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else {
+                    chartDragOffset = 0
+                    return
+                }
+
+                let canMove = value.translation.width > 0 ? canMoveToPreviousPeriod : canMoveToNextPeriod
+                chartDragOffset = canMove ? value.translation.width * 0.25 : value.translation.width * 0.08
+            }
+            .onEnded { value in
+                defer {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        chartDragOffset = 0
+                    }
+                }
+
+                guard abs(value.translation.width) > abs(value.translation.height),
+                      abs(value.translation.width) >= 48 else {
+                    return
+                }
+
+                if value.translation.width > 0, canMoveToPreviousPeriod {
+                    moveToPreviousPeriod()
+                } else if value.translation.width < 0, canMoveToNextPeriod {
+                    moveToNextPeriod()
+                }
+            }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("만족도 흐름")
@@ -105,6 +142,10 @@ struct SatisfactionTrendSection: View {
             )
             .frame(height: AnalysisHomeLayout.chartHeight)
             .padding(.top, 14)
+            .contentShape(Rectangle())
+            .offset(x: chartDragOffset)
+            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: chartDragOffset)
+            .gesture(chartDragGesture)
         }
     }
 }
