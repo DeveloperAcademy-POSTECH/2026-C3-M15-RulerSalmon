@@ -32,7 +32,8 @@ struct UserInfoEditView: View {
             selectedJob: $viewModel.selectedJob,
             selectedAgeGroup: $viewModel.selectedAgeGroup,
             validationMessage: viewModel.validationMessage,
-            isNextEnabled: viewModel.canSaveUserInfo
+            isNextEnabled: viewModel.canSaveUserInfo,
+            validationAttemptID: viewModel.validationAttemptID
         ) {
             if viewModel.saveUserInfo() {
                 onSaved()

@@ -11,10 +11,31 @@ struct UserInfoCard: View {
     @Binding var nickname: String
     @Binding var selectedJob: Job
     @Binding var selectedAgeGroup: AgeGroup
+    let showsNicknameError: Bool
+    let nicknameErrorTrigger: Int
+
+    init(
+        nickname: Binding<String>,
+        selectedJob: Binding<Job>,
+        selectedAgeGroup: Binding<AgeGroup>,
+        showsNicknameError: Bool = false,
+        nicknameErrorTrigger: Int = 0
+    ) {
+        _nickname = nickname
+        _selectedJob = selectedJob
+        _selectedAgeGroup = selectedAgeGroup
+        self.showsNicknameError = showsNicknameError
+        self.nicknameErrorTrigger = nicknameErrorTrigger
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
-            NicknameTextField(nickname: $nickname , title : "닉네임")
+            NicknameTextField(
+                nickname: $nickname,
+                title: "닉네임",
+                showsError: showsNicknameError,
+                errorTrigger: nicknameErrorTrigger
+            )
             JobSelection(selectedJob: $selectedJob)
             AgePicker(selectedAgeGroup: $selectedAgeGroup)
         }

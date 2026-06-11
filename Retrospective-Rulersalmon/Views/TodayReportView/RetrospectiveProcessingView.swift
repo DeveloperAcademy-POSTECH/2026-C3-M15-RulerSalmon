@@ -12,10 +12,16 @@ struct RetrospectiveProcessingView: View {
     @State private var displayedProgress: Double = 0
 
     let mentorName: String
+    let mentorSubjectParticle: String
 
-    init(progress: Binding<Double> = .constant(0.96), mentorName: String = "하워드") {
+    init(
+        progress: Binding<Double> = .constant(0.96),
+        mentorName: String = "Howard",
+        mentorSubjectParticle: String = "가"
+    ) {
         _progress = progress
         self.mentorName = mentorName
+        self.mentorSubjectParticle = mentorSubjectParticle
     }
 
     var body: some View {
@@ -35,7 +41,7 @@ struct RetrospectiveProcessingView: View {
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
 
-                    Text("\(mentorName)가 회고 카드와\n인사이트를 정리하고 있어요.")
+                    Text("\(mentorName)\(mentorSubjectParticle) 회고 카드와\n인사이트를 정리하고 있어요.")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(Color.gray600)
                         .multilineTextAlignment(.center)

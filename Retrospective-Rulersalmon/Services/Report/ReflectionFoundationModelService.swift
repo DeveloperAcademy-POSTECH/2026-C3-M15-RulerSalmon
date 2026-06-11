@@ -56,7 +56,9 @@ final class ReflectionFoundationModelService {
 
     func generateTodaySummary(userOnlyText: String) async throws -> ReflectionTodaySummaryOutput {
         let prompt = Prompt {
-            "아래 회고를 오늘의 요약 3문장으로 정리해줘."
+            "아래 회고를 오늘의 요약으로 정리해줘."
+            "요약은 최대 3문장까지만 작성해."
+            "회고가 짧거나 핵심이 하나라면 1문장으로만 작성해."
             "Here is an example of the desired output format, but don't copy its content or topic:"
             ReflectionTodaySummaryOutput.exampleThreeLineSummary
 
@@ -116,7 +118,7 @@ final class ReflectionFoundationModelService {
         lackedText: String
     ) async throws -> ReflectionActionItemOutput {
         let prompt = Prompt {
-            "Longed for 회고와 Lacked 회고를 바탕으로 내일 실천 가능한 Action Item을 제안해줘."
+            "Longed for 회고와 Lacked 회고를 바탕으로 내일 실천 가능한 행동을 제안해줘."
             "Here is an example of the desired output format, but don't copy its content or topic:"
             ReflectionActionItemOutput.exampleActionItems
 
@@ -150,20 +152,27 @@ final class ReflectionFoundationModelService {
             "사용자의 채팅형 회고를 자연스럽고 따뜻한 2~4문장 결과문으로 정리해."
             "사용자가 말하지 않은 사건, 감정, 계획은 추가하지 마."
             "과장하지 말고 원문의 의미를 보존해."
+            "명백한 오타, 띄어쓰기, 조사, 어색한 문법은 자연스럽게 고쳐."
+            "오타가 애매하면 추측해서 새 의미를 만들지 마."
         }
 
         static let summary = Instructions {
             "너는 한국어 회고 요약 전문가야."
-            "사용자의 전체 회고를 정확히 3개의 짧은 요약 문장으로 정리해."
-            "각 요약 문장은 서로 다른 핵심 내용을 담아야 해."
+            "사용자의 전체 회고를 1~3개의 짧은 요약 문장으로 정리해."
+            "회고가 짧거나 핵심이 하나라면 1문장으로만 작성해."
+            "여러 문장을 작성할 때는 각 요약 문장이 서로 다른 핵심 내용을 담아야 해."
             "예시에 있는 단어와 주제를 복사하지 마."
             "새로운 사건, 감정, 계획은 만들지 마."
+            "명백한 오타, 띄어쓰기, 조사, 어색한 문법은 자연스럽게 고쳐."
+            "오타가 애매하면 추측해서 새 의미를 만들지 마."
         }
 
         static let coreKeyword = Instructions {
             "너는 회고문에서 핵심키워드만 추출하는 분석기야."
             "핵심키워드는 사건, 활동, 주제, 작업, 배운 내용을 나타내는 단어 또는 짧은 명사구야."
             "감정, 기분, 마음 상태를 나타내는 단어는 절대 포함하지 마."
+            "명백한 오타와 띄어쓰기는 자연스러운 표기로 고쳐서 키워드를 작성해."
+            "오타가 애매하면 추측해서 새로운 키워드를 만들지 마."
             "각 키워드는 2어절 이하로 작성하고 최대 5개까지만 추출해."
             "같은 의미의 키워드는 한 번만 출력해."
             "예시에 있는 단어와 주제를 복사하지 마."
@@ -180,7 +189,7 @@ final class ReflectionFoundationModelService {
         }
 
         static let actionItem = Instructions {
-            "너는 Longed for와 Lacked 회고를 바탕으로 내일 실천 가능한 Action Item을 제안하는 코치야."
+            "너는 Longed for와 Lacked 회고를 바탕으로 내일 실천 가능한 행동을 제안하는 코치야."
             "Action Item은 반드시 사용자의 Longed for 또는 Lacked 회고에 근거해야 해."
             "사용자가 말하지 않은 프로젝트나 상황을 새로 만들지 마."
             "짧고 구체적인 '~하기' 형식으로 작성하고 최대 3개까지만 제안해."

@@ -25,6 +25,7 @@ final class AppDataStore {
                 ReflectionInsightRecord.self
             )
             logStorageLocation()
+            seedDevelopmentReflectionDataIfNeeded()
         } catch {
             fatalError("Failed to initialize SwiftData container: \(error)")
         }
@@ -494,6 +495,49 @@ final class AppDataStore {
         }
     }
 
+    private func seedDevelopmentReflectionDataIfNeeded() {
+        #if DEBUG
+        let samples = DevelopmentReflectionSample.samples
+        let analyzer = RetrospectiveSentimentAnalyzer()
+        var didSeed = false
+
+        for sample in samples {
+            if reflectionReport(for: sample.id) == nil {
+                context.insert(
+                    StoredReflectionReport(
+                        id: sample.id,
+                        createdAt: sample.date,
+                        todaySummary: sample.summary,
+                        refinedReflection: sample.transcript,
+                        fourLItemsRaw: sample.fourLItemsRaw,
+                        coreKeywordsRaw: sample.coreKeywords.joined(separator: "|"),
+                        emotionKeywordsRaw: sample.emotionKeywords.joined(separator: "|"),
+                        actionItemsRaw: sample.actionItems.joined(separator: "|"),
+                        conversationMessagesRaw: ""
+                    )
+                )
+                didSeed = true
+            }
+
+            if sentimentRecord(for: sample.id) == nil {
+                let result = analyzer.analyze(sample.transcript)
+                context.insert(
+                    SentimentRecord(
+                        id: sample.id,
+                        createdAt: sample.date,
+                        transcript: sample.transcript,
+                        result: result
+                    )
+                )
+                didSeed = true
+            }
+        }
+
+        if didSeed {
+            saveContext(reason: "seedDevelopmentReflectionDataIfNeeded")
+        }
+    }
+
 }
 
 @Model
@@ -629,6 +673,7 @@ final class StoredReflectionReport {
     var coreKeywordsRaw: String
     var emotionKeywordsRaw: String
     var actionItemsRaw: String
+    var conversationMessagesRaw: String = ""
 
     init(
         id: UUID = UUID(),
@@ -638,7 +683,8 @@ final class StoredReflectionReport {
         fourLItemsRaw: String,
         coreKeywordsRaw: String,
         emotionKeywordsRaw: String,
-        actionItemsRaw: String
+        actionItemsRaw: String,
+        conversationMessagesRaw: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -648,5 +694,6 @@ final class StoredReflectionReport {
         self.coreKeywordsRaw = coreKeywordsRaw
         self.emotionKeywordsRaw = emotionKeywordsRaw
         self.actionItemsRaw = actionItemsRaw
+        self.conversationMessagesRaw = conversationMessagesRaw
     }
 }
