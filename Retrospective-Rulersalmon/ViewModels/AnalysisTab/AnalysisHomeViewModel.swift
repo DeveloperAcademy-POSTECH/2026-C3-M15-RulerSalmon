@@ -14,6 +14,9 @@ final class AnalysisHomeViewModel: ObservableObject {
     @Published var selectedMode: SatisfactionChartMode = .weekly
     @Published var selectedWeekStartDate: Date?
     @Published var isPeriodSheetPresented = false
+    @Published private(set) var currentAvailableRange: PeriodRange
+    @Published private(set) var emotionKeywordStatistics: [EmotionKeyword] = []
+    @Published private(set) var insightItems: [AnalysisInsightItem] = []
 
     private let referenceDate: Date
     private let dataProvider: AnalysisDataProviding
@@ -34,6 +37,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         self.selectedYear = calendar.component(.year, from: selectedDate)
         self.selectedMonth = calendar.component(.month, from: selectedDate)
         self.dataProvider = dataProvider
+        self.currentAvailableRange = dataProvider.availableRange
         normalizeSelectedPeriod()
     }
 
@@ -52,6 +56,67 @@ final class AnalysisHomeViewModel: ObservableObject {
 
     var availableRange: PeriodRange {
         dataProvider.availableRange
+    }
+
+    var satisfactionLabel: String {
+        switch selectedMode {
+        case .weekly:
+            return "이번 주 만족도"
+        case .monthly:
+            return "\(selectedMonth)월 만족도"
+        }
+    }
+
+    var satisfactionScore: String {
+        switch selectedMode {
+        case .weekly:
+            return selectedData.weeklyScore
+        case .monthly:
+            return selectedData.monthlyScore
+        }
+    }
+
+    var satisfactionTitle: String {
+        switch selectedMode {
+        case .weekly:
+            return selectedData.weeklyTitle
+        case .monthly:
+            return selectedData.monthlyTitle
+        }
+    }
+
+    var positivePercentage: Double {
+        switch selectedMode {
+        case .weekly:
+            return selectedData.weeklyPositivePercentage
+        case .monthly:
+            return selectedData.monthlyPositivePercentage
+        }
+    }
+
+    var negativePercentage: Double {
+        switch selectedMode {
+        case .weekly:
+            return selectedData.weeklyNegativePercentage
+        case .monthly:
+            return selectedData.monthlyNegativePercentage
+        }
+    }
+
+    func refresh(
+        reports: [StoredReflectionReport],
+        sentiments: [SentimentRecord],
+        insights: [ReflectionInsightRecord],
+        shouldNormalizeSelection: Bool = true
+    ) {
+        currentAvailableRange = availableRange(from: reports)
+        if shouldNormalizeSelection {
+            normalizeSelectedPeriod(with: currentAvailableRange)
+            normalizeSelectedWeek(from: sentiments)
+        }
+
+        emotionKeywordStatistics = emotionKeywords(from: reports)
+        insightItems = shouldShowInsights(from: sentiments) ? self.insights(from: insights, sentiments: sentiments) : []
     }
 
     func availableRange(from reports: [StoredReflectionReport]) -> PeriodRange {
@@ -75,58 +140,43 @@ final class AnalysisHomeViewModel: ObservableObject {
         return topEmotionKeywords(from: selectedReports)
     }
 
-    func insights(from records: [ReflectionInsightRecord]) -> [AnalysisInsightItem] {
-        let uniqueInsights = uniqueInsightsByTitle(filteredInsights(from: records))
-        let reflectionInsights = uniqueInsights
-            .filter { $0.kind == "reflection" }
-            .sorted(by: insightSort)
-            .prefix(2)
-        let strengthInsights = uniqueInsights
-            .filter { $0.kind == "strength" }
-            .sorted(by: insightSort)
-            .prefix(2)
+    func insights(
+        from records: [ReflectionInsightRecord],
+        sentiments: [SentimentRecord]? = nil
+    ) -> [AnalysisInsightItem] {
+        let filteredRecords = sentiments.map {
+            filteredInsights(from: records, sentiments: $0)
+        } ?? filteredInsights(from: records)
+        let selectedInsights: [ReflectionInsightRecord]
+        if selectedMode == .monthly {
+            let fallbackRecords = sentiments.map {
+                weeklyFallbackInsights(from: records, sentiments: $0)
+            } ?? weeklyFallbackInsights(from: records)
+            selectedInsights = monthlyInsightsWithWeeklyFallback(
+                monthlyRecords: filteredRecords,
+                weeklyRecords: fallbackRecords
+            )
+        } else {
+            selectedInsights = topInsightRecords(from: filteredRecords)
+        }
 
-        return (Array(reflectionInsights) + Array(strengthInsights))
+        var fallbackTemplatePositions: [String: Int] = [:]
+        return selectedInsights
             .map { record in
-                AnalysisInsightItem(
+                let templatePosition = fallbackTemplatePositions[record.kind, default: 0]
+                fallbackTemplatePositions[record.kind] = templatePosition + 1
+
+                return AnalysisInsightItem(
                     id: record.id,
                     kind: record.kind,
                     title: record.title,
-                    description: record.insightDescription,
+                    description: displayDescription(
+                        for: record,
+                        templatePosition: templatePosition
+                    ),
                     count: record.count
                 )
             }
-    }
-
-    private func uniqueInsightsByTitle(
-        _ records: [ReflectionInsightRecord]
-    ) -> [ReflectionInsightRecord] {
-        var seenTitles = Set<String>()
-
-        return records.filter { record in
-            let key = normalizedInsightTitle(record.title)
-            guard !seenTitles.contains(key) else { return false }
-
-            seenTitles.insert(key)
-            return true
-        }
-    }
-
-    private func insightSort(
-        _ lhs: ReflectionInsightRecord,
-        _ rhs: ReflectionInsightRecord
-    ) -> Bool {
-        if lhs.count == rhs.count {
-            return lhs.title < rhs.title
-        }
-
-        return lhs.count > rhs.count
-    }
-
-    private func normalizedInsightTitle(_ title: String) -> String {
-        title
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
     }
 
     func weekOptions() -> [AnalysisWeekOption] {
@@ -158,6 +208,7 @@ final class AnalysisHomeViewModel: ObservableObject {
     }
 
     func normalizeSelectedWeek(from records: [SentimentRecord]) {
+        let calendar = analysisCalendar
         let options = weekOptions()
         guard !options.isEmpty else {
             selectedWeekStartDate = nil
@@ -165,11 +216,14 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
 
         if let selectedWeekStartDate,
-           options.contains(where: { Calendar.current.isDate($0.startDate, inSameDayAs: selectedWeekStartDate) }) {
+           options.contains(where: { calendar.isDate($0.startDate, inSameDayAs: selectedWeekStartDate) }),
+           !sentimentRecordsInWeek(records, startDate: selectedWeekStartDate, calendar: calendar).isEmpty {
             return
         }
 
-        selectedWeekStartDate = defaultWeekStartDate(from: records) ?? options.first?.startDate
+        selectedWeekStartDate = defaultWeekStartDate(from: records, calendar: calendar)
+            ?? referenceWeekStartDate(calendar: calendar)
+            ?? options.first?.startDate
     }
 
     func showPeriodSheet() {
@@ -193,6 +247,367 @@ final class AnalysisHomeViewModel: ObservableObject {
         selectedMonth = range.end.month
     }
 
+    private func selectedSentimentCount(from records: [SentimentRecord]) -> Int {
+        switch selectedMode {
+        case .weekly:
+            guard let startDate = selectedWeekStartDate else { return 0 }
+            return sentimentRecordsInWeek(records, startDate: startDate, calendar: analysisCalendar).count
+        case .monthly:
+            return recordsInMonth(from: records, year: selectedYear, month: selectedMonth).count
+        }
+    }
+
+    private func shouldShowInsights(from records: [SentimentRecord]) -> Bool {
+        selectedSentimentCount(from: records) >= 3
+    }
+
+    private func uniqueInsightsByTitle(
+        _ records: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        var seenTitles = Set<String>()
+
+        return records.filter { record in
+            let key = normalizedInsightTitle(record.title)
+            guard !seenTitles.contains(key) else { return false }
+
+            seenTitles.insert(key)
+            return true
+        }
+    }
+
+    private func topInsightRecords(
+        from records: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        selectInsightRecords(
+            primaryRecords: records,
+            fallbackRecords: []
+        )
+    }
+
+    private func monthlyInsightsWithWeeklyFallback(
+        monthlyRecords: [ReflectionInsightRecord],
+        weeklyRecords: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        selectInsightRecords(
+            primaryRecords: monthlyRecords,
+            fallbackRecords: weeklyRecords
+        )
+    }
+
+    private func selectInsightRecords(
+        primaryRecords: [ReflectionInsightRecord],
+        fallbackRecords: [ReflectionInsightRecord]
+    ) -> [ReflectionInsightRecord] {
+        var selectedRecords: [ReflectionInsightRecord] = []
+        var selectedTopicKeys = Set<String>()
+        var selectedCounts: [String: Int] = [:]
+
+        appendInsightRecords(
+            from: primaryRecords,
+            to: &selectedRecords,
+            selectedTopicKeys: &selectedTopicKeys,
+            selectedCounts: &selectedCounts
+        )
+        appendInsightRecords(
+            from: fallbackRecords,
+            to: &selectedRecords,
+            selectedTopicKeys: &selectedTopicKeys,
+            selectedCounts: &selectedCounts
+        )
+
+        return selectedRecords.filter { $0.kind == "reflection" } +
+            selectedRecords.filter { $0.kind == "strength" }
+    }
+
+    private func appendInsightRecords(
+        from records: [ReflectionInsightRecord],
+        to selectedRecords: inout [ReflectionInsightRecord],
+        selectedTopicKeys: inout Set<String>,
+        selectedCounts: inout [String: Int]
+    ) {
+        let candidates = uniqueInsightsByTitle(records)
+            .filter(isDisplayableInsight)
+            .filter { $0.kind == "reflection" || $0.kind == "strength" }
+            .sorted(by: insightSort)
+
+        for record in candidates {
+            guard selectedCounts[record.kind, default: 0] < 2 else { continue }
+
+            let topicKey = normalizedInsightTopicKey(record)
+            guard !selectedTopicKeys.contains(topicKey) else { continue }
+
+            selectedRecords.append(record)
+            selectedTopicKeys.insert(topicKey)
+            selectedCounts[record.kind, default: 0] += 1
+        }
+    }
+
+    private func insightSort(
+        _ lhs: ReflectionInsightRecord,
+        _ rhs: ReflectionInsightRecord
+    ) -> Bool {
+        if lhs.count == rhs.count {
+            return lhs.title < rhs.title
+        }
+
+        return lhs.count > rhs.count
+    }
+
+    private func displayDescription(
+        for record: ReflectionInsightRecord,
+        templatePosition: Int
+    ) -> String {
+        guard isInformalToneDescription(record.insightDescription) else {
+            return record.insightDescription
+        }
+
+        switch record.kind {
+        case "reflection":
+            return reflectionFallbackDescription(
+                for: record,
+                templatePosition: templatePosition
+            )
+        case "strength":
+            return strengthFallbackDescription(
+                for: record,
+                templatePosition: templatePosition
+            )
+        default:
+            return record.insightDescription
+        }
+    }
+
+    private func isInformalToneDescription(_ description: String) -> Bool {
+        let informalFragments = [
+            "필요해",
+            "중요해",
+            "거야",
+            "돼",
+            "해.",
+            "좋아.",
+            "있어.",
+            "없어."
+        ]
+
+        return informalFragments.contains { description.contains($0) }
+    }
+
+    private func reflectionFallbackDescription(
+        for record: ReflectionInsightRecord,
+        templatePosition: Int
+    ) -> String {
+        let templates = [
+            "\(record.title)이 반복해서 나타나고 있어요. 다음에는 이 흐름을 조금 더 가볍게 조정할 방법을 하나 정해보면 좋겠어요.",
+            "\(record.title)과 관련된 아쉬움이 여러 번 보였어요. 다음 회고에서는 부담을 줄일 작은 기준을 먼저 세워보세요.",
+            "\(record.title)이 계속 신경 쓰이는 주제로 드러나고 있어요. 다음에는 시작하기 쉬운 방식으로 한 단계만 낮춰보는 것도 좋겠습니다."
+        ]
+
+        return templates[templatePosition % templates.count]
+    }
+
+    private func strengthFallbackDescription(
+        for record: ReflectionInsightRecord,
+        templatePosition: Int
+    ) -> String {
+        let templates = [
+            "\(record.title)이 반복해서 드러나고 있어요. 그 흐름을 꾸준히 만들어가고 계신 점이 참 좋아요.",
+            "\(record.title)에서 좋은 습관이 계속 보이고 있어요. 이미 잘 쌓아가고 계신 강점입니다.",
+            "\(record.title)이 여러 회고에서 자연스럽게 이어지고 있어요. 스스로의 리듬을 잘 만들어가고 계세요."
+        ]
+
+        return templates[templatePosition % templates.count]
+    }
+
+    private func normalizedInsightTitle(_ title: String) -> String {
+        title
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private func normalizedInsightTopicKey(_ record: ReflectionInsightRecord) -> String {
+        let normalizedTopicKey = normalizedInsightTitle(record.topicKey)
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+
+        if normalizedTopicKey != normalizedInsightTitle(record.title)
+            .filter({ !$0.isWhitespace && !$0.isPunctuation }) {
+            return normalizedTopicKey
+        }
+
+        return legacyCoreInsightTopicKey(record.title)
+    }
+
+    private func legacyCoreInsightTopicKey(_ title: String) -> String {
+        let normalizedTitle = normalizedInsightTitle(title)
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+        let possessiveParts = normalizedTitle.split(separator: "의", maxSplits: 1).map(String.init)
+        if possessiveParts.count > 1,
+           let firstPart = possessiveParts.first,
+           firstPart.count >= 2 {
+            return firstPart
+        }
+
+        let prefixes = [
+            "꾸준한",
+            "꾸준히",
+            "지속적인",
+            "반복적인",
+            "긍정적인"
+        ]
+        let suffixes = [
+            "긍정적인효과",
+            "꾸준함",
+            "열정",
+            "중요성",
+            "필요성",
+            "효과",
+            "향상",
+            "관리",
+            "습관",
+            "노력",
+            "반복",
+            "유지",
+            "개선",
+            "조정"
+        ]
+
+        let prefixTrimmedTopic = prefixes.reduce(normalizedTitle) { partialResult, prefix in
+            partialResult.hasPrefix(prefix)
+                ? String(partialResult.dropFirst(prefix.count))
+                : partialResult
+        }
+        let trimmedTopic = suffixes.reduce(prefixTrimmedTopic) { partialResult, suffix in
+            partialResult.hasSuffix(suffix)
+                ? String(partialResult.dropLast(suffix.count))
+                : partialResult
+        }
+        return trimmedTopic.isEmpty ? normalizedTitle : trimmedTopic
+    }
+
+    private func isDisplayableInsight(_ record: ReflectionInsightRecord) -> Bool {
+        let normalizedTitle = normalizedInsightTitle(record.title)
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+        let blockedTitles = [
+            "date",
+            "날짜",
+            "일자",
+            "satisfaction",
+            "satisfactionscore",
+            "score",
+            "만족도",
+            "count",
+            "횟수",
+            "반복횟수",
+            "positive",
+            "negative",
+            "긍정",
+            "부정",
+            "percentage",
+            "percent",
+            "비율",
+            "index",
+            "id",
+            "kind",
+            "title",
+            "description",
+            "matchedkeywords",
+            "keywords",
+            "candidate",
+            "candidates",
+            "reflection",
+            "strength"
+        ]
+
+        return !blockedTitles.contains(normalizedTitle)
+    }
+
+    private func weeklyFallbackInsights(
+        from records: [ReflectionInsightRecord],
+        sentiments: [SentimentRecord] = [],
+        calendar: Calendar = .current
+    ) -> [ReflectionInsightRecord] {
+        let selectedMonthRecords = recordsInMonth(
+            from: sentiments,
+            year: selectedYear,
+            month: selectedMonth,
+            calendar: calendar
+        )
+        guard sentiments.isEmpty || selectedMonthRecords.count >= 3 else {
+            return []
+        }
+
+        let selectedMonthSourceIDs = Set(selectedMonthRecords.map { $0.id.uuidString })
+        return records.filter { record in
+            guard record.scope == "weekly" else { return false }
+
+            if !selectedMonthSourceIDs.isEmpty,
+               !record.sourceIDs.isDisjoint(with: selectedMonthSourceIDs) {
+                return true
+            }
+
+            let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
+            return components.year == selectedYear && components.month == selectedMonth
+        }
+    }
+
+    private func filteredInsights(
+        from records: [ReflectionInsightRecord],
+        calendar: Calendar = .current
+    ) -> [ReflectionInsightRecord] {
+        filteredInsights(from: records, sentiments: [], calendar: calendar)
+    }
+
+    private func filteredInsights(
+        from records: [ReflectionInsightRecord],
+        sentiments: [SentimentRecord],
+        calendar: Calendar = .current
+    ) -> [ReflectionInsightRecord] {
+        switch selectedMode {
+        case .weekly:
+            guard let selectedWeekStartDate,
+                  let endDate = calendar.date(byAdding: .day, value: 7, to: selectedWeekStartDate) else {
+                return []
+            }
+
+            let selectedWeekRecords = sentimentRecordsInWeek(
+                sentiments,
+                startDate: selectedWeekStartDate,
+                calendar: calendar
+            )
+            guard sentiments.isEmpty || selectedWeekRecords.count >= 3 else {
+                return []
+            }
+
+            let selectedWeekSourceIDs = Set(selectedWeekRecords.map { $0.id.uuidString })
+            return records.filter {
+                $0.scope == "weekly" &&
+                    (
+                        ($0.updatedAt >= selectedWeekStartDate && $0.updatedAt < endDate) ||
+                        !$0.sourceIDs.isDisjoint(with: selectedWeekSourceIDs)
+                    )
+            }
+        case .monthly:
+            let selectedMonthRecords = recordsInMonth(
+                from: sentiments,
+                year: selectedYear,
+                month: selectedMonth,
+                calendar: calendar
+            )
+            guard sentiments.isEmpty || selectedMonthRecords.count >= 3 else {
+                return []
+            }
+
+            let selectedMonthSourceIDs = Set(selectedMonthRecords.map { $0.id.uuidString })
+            return records.filter { record in
+                let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
+                let isUpdatedInSelectedMonth = components.year == selectedYear && components.month == selectedMonth
+                let usesSelectedMonthRecords = !record.sourceIDs.isDisjoint(with: selectedMonthSourceIDs)
+
+                return record.scope == "monthly" &&
+                    (isUpdatedInSelectedMonth || usesSelectedMonthRecords)
+            }
+        }
+    }
+
     private func reportsInMonth(
         from reports: [StoredReflectionReport],
         year: Int,
@@ -210,50 +625,36 @@ final class AnalysisHomeViewModel: ObservableObject {
         weekStartDate: Date?,
         calendar: Calendar = .current
     ) -> [StoredReflectionReport] {
-        guard let startDate = weekStartDate else { return [] }
-        guard let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
+        guard let startDate = weekStartDate,
+              let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
             return []
         }
 
         return reports.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
     }
 
-    private func filteredInsights(
-        from records: [ReflectionInsightRecord],
+    private func recordsInMonth(
+        from records: [SentimentRecord],
+        year: Int,
+        month: Int,
         calendar: Calendar = .current
-    ) -> [ReflectionInsightRecord] {
-        switch selectedMode {
-        case .weekly:
-            guard let selectedWeekStartDate,
-                  let endDate = calendar.date(byAdding: .day, value: 7, to: selectedWeekStartDate) else {
-                return []
-            }
-
-            return records.filter {
-                $0.scope == "weekly" &&
-                    $0.updatedAt >= selectedWeekStartDate &&
-                    $0.updatedAt < endDate
-            }
-        case .monthly:
-            return records.filter { record in
-                let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
-                return record.scope == "monthly" &&
-                    components.year == selectedYear &&
-                    components.month == selectedMonth
-            }
+    ) -> [SentimentRecord] {
+        records.filter { record in
+            let components = calendar.dateComponents([.year, .month], from: record.createdAt)
+            return components.year == year && components.month == month
         }
     }
 
-    private func reportsWithinDays(
-        from reports: [StoredReflectionReport],
-        days: Int,
-        calendar: Calendar = .current
-    ) -> [StoredReflectionReport] {
-        guard let cutoff = calendar.date(byAdding: .day, value: -days, to: Date()) else {
+    private func sentimentRecordsInWeek(
+        _ records: [SentimentRecord],
+        startDate: Date,
+        calendar: Calendar
+    ) -> [SentimentRecord] {
+        guard let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
             return []
         }
 
-        return reports.filter { $0.createdAt >= cutoff }
+        return records.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
     }
 
     private func weekStartDate(containing date: Date, calendar: Calendar) -> Date {
@@ -319,16 +720,28 @@ final class AnalysisHomeViewModel: ObservableObject {
         from records: [SentimentRecord],
         calendar: Calendar = .current
     ) -> Date? {
-        let monthlyRecords = records.filter { record in
-            let components = calendar.dateComponents([.year, .month], from: record.createdAt)
-            return components.year == selectedYear && components.month == selectedMonth
-        }
+        let monthlyRecords = recordsInMonth(
+            from: records,
+            year: selectedYear,
+            month: selectedMonth,
+            calendar: calendar
+        )
 
         guard let latestRecordDate = monthlyRecords.map(\.createdAt).max() else {
             return nil
         }
 
         return weekStartDate(containing: latestRecordDate, calendar: calendar)
+    }
+
+    private func referenceWeekStartDate(calendar: Calendar = .current) -> Date? {
+        let referenceComponents = calendar.dateComponents([.year, .month], from: referenceDate)
+        guard referenceComponents.year == selectedYear,
+              referenceComponents.month == selectedMonth else {
+            return nil
+        }
+
+        return weekStartDate(containing: referenceDate, calendar: calendar)
     }
 
     private func weekTitle(startDate: Date, endDate: Date, calendar: Calendar) -> String {

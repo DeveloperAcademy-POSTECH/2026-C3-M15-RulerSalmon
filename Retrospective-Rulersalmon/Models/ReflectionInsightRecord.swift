@@ -14,6 +14,7 @@ final class ReflectionInsightRecord {
     var kind: String
     var title: String
     var insightDescription: String
+    var topicKeyRawValue: String?
     var count: Int
     var sourceRecordIDs: String
     var scopeRawValue: String?
@@ -25,6 +26,7 @@ final class ReflectionInsightRecord {
         kind: String,
         title: String,
         insightDescription: String,
+        topicKey: String? = nil,
         count: Int,
         sourceRecordIDs: [UUID] = [],
         scopeRawValue: String = "weekly",
@@ -35,6 +37,7 @@ final class ReflectionInsightRecord {
         self.kind = kind
         self.title = title
         self.insightDescription = insightDescription
+        self.topicKeyRawValue = topicKey
         self.count = count
         self.sourceRecordIDs = sourceRecordIDs.map(\.uuidString).joined(separator: ",")
         self.scopeRawValue = scopeRawValue
@@ -44,6 +47,17 @@ final class ReflectionInsightRecord {
 
     var scope: String {
         scopeRawValue ?? "weekly"
+    }
+
+    var topicKey: String {
+        let trimmedTopicKey = topicKeyRawValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let trimmedTopicKey, !trimmedTopicKey.isEmpty {
+            return trimmedTopicKey
+        }
+
+        return title
     }
 
     var sourceIDs: Set<String> {
