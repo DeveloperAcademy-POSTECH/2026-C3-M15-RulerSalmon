@@ -14,7 +14,7 @@ struct SatisfactionPeriodSummaryCard: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 14) {
                 Text(summary.title)
-                    .font(.system(size: 21, weight: .bold))
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(Color.blue500)
                     .lineLimit(2)
                     .minimumScaleFactor(0.82)
@@ -22,7 +22,7 @@ struct SatisfactionPeriodSummaryCard: View {
 
                 HStack(alignment: .lastTextBaseline, spacing: 0) {
                     Text(score)
-                        .font(.system(size: 21, weight: .heavy))
+                        .font(.system(size: 20, weight: .heavy))
                         .foregroundStyle(Color.blue500)
                     
                     Text(" / 5 ")
@@ -108,13 +108,13 @@ struct SatisfactionTrendSummary {
         let periodName = selectedMode == .weekly ? "이번 주" : "\(month)월"
 
         if delta >= 0.3 {
-            return "\(periodName)은 만족도가 올라가는 흐름이에요"
+            return "\(periodName) 만족도는 \n올라가는 흐름이에요"
         } else if delta <= -0.3 {
-            return "\(periodName)은 만족도가 내려가는 흐름이에요"
+            return "\(periodName) 만족도는 \n내려가는 흐름이에요"
         } else if average >= 3.8 {
-            return "\(periodName)은 만족도가 안정적으로 높았어요"
+            return "\(periodName) 만족도는 \n안정적으로 높았어요"
         } else if average <= 2.4 {
-            return "\(periodName)은 만족도가 낮게 머문 편이에요"
+            return "\(periodName) 만족도는 \n낮게 머문 편이에요"
         } else {
             return "\(periodName) 만족도는 \n큰 변화 없이 이어졌어요"
         }
