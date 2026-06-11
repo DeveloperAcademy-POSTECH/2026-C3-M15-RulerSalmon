@@ -158,18 +158,22 @@ final class AnalysisHomeViewModel: ObservableObject {
     }
 
     func normalizeSelectedWeek(from records: [SentimentRecord]) {
+        let calendar = analysisCalendar
         let options = weekOptions()
         guard !options.isEmpty else {
             selectedWeekStartDate = nil
             return
         }
 
+        let defaultStartDate = defaultWeekStartDate(from: records, calendar: calendar)
+
         if let selectedWeekStartDate,
-           options.contains(where: { Calendar.current.isDate($0.startDate, inSameDayAs: selectedWeekStartDate) }) {
+           options.contains(where: { calendar.isDate($0.startDate, inSameDayAs: selectedWeekStartDate) }),
+           !sentimentRecordsInWeek(records, startDate: selectedWeekStartDate, calendar: calendar).isEmpty {
             return
         }
 
-        selectedWeekStartDate = defaultWeekStartDate(from: records) ?? options.first?.startDate
+        selectedWeekStartDate = defaultStartDate ?? options.first?.startDate
     }
 
     func showPeriodSheet() {
@@ -216,6 +220,18 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
 
         return reports.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
+    }
+
+    private func sentimentRecordsInWeek(
+        _ records: [SentimentRecord],
+        startDate: Date,
+        calendar: Calendar
+    ) -> [SentimentRecord] {
+        guard let endDate = calendar.date(byAdding: .day, value: 7, to: startDate) else {
+            return []
+        }
+
+        return records.filter { $0.createdAt >= startDate && $0.createdAt < endDate }
     }
 
     private func filteredInsights(
