@@ -21,6 +21,7 @@ struct ReportSummaryCardContent {
     let title: String
     let summary: String
     let transcript: String
+    let transcriptMessages: [ChatMessage]
     let transcriptLinkTitle: String
 }
 
@@ -32,6 +33,7 @@ struct ReportFourLCardContent {
 struct ReportKeywordSectionContent {
     let title: String
     let keywords: [String]
+    let emptyMessage: String
 }
 
 struct ReportActionItemRowContent: Identifiable {
@@ -68,6 +70,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
             title: summaryTitle,
             summary: report.summary,
             transcript: report.transcript,
+            transcriptMessages: report.transcriptMessages,
             transcriptLinkTitle: transcriptLinkTitle
         )
     }
@@ -82,7 +85,8 @@ final class RetrospectiveReportViewModel: ObservableObject {
     var keywordSection: ReportKeywordSectionContent {
         ReportKeywordSectionContent(
             title: keywordTitle,
-            keywords: report.keywords
+            keywords: report.keywords,
+            emptyMessage: emptyKeywordMessage
         )
     }
 
@@ -101,7 +105,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
     }
 
     var transcriptNavigationTitle: String {
-        "전사문"
+        "대화 내역"
     }
 
     private var navigationTitle: String {
@@ -135,6 +139,10 @@ final class RetrospectiveReportViewModel: ObservableObject {
         "핵심 키워드"
     }
 
+    private var emptyKeywordMessage: String {
+        "핵심키워드가 도출되지 않았어요."
+    }
+
     private var actionItemTitle: String {
         switch displayStyle {
         case .today:
@@ -145,7 +153,7 @@ final class RetrospectiveReportViewModel: ObservableObject {
     }
 
     private var transcriptLinkTitle: String {
-        "전사문 보기"
+        "대화 내역 보기"
     }
 
     private var emptyActionItemMessage: String {

@@ -15,6 +15,7 @@ final class ProfileEditorViewModel: ObservableObject {
     @Published var selectedAgeGroup: AgeGroup = .twenties
     @Published var selectedMentorID: Mentor.ID? = Mentor.sampleMentors.first?.id
     @Published var validationMessage: String?
+    @Published var validationAttemptID = 0
 
     private let dataStore: AppDataStore
     private var appleIntelligencePermissionGranted = false
@@ -37,6 +38,7 @@ final class ProfileEditorViewModel: ObservableObject {
     func saveUserInfo() -> Bool {
         guard canSaveUserInfo else {
             validationMessage = "닉네임은 2자 이상 12자 이하로 입력해 주세요."
+            validationAttemptID += 1
             return false
         }
 

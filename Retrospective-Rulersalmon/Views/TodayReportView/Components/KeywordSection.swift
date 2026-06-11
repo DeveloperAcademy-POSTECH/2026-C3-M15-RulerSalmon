@@ -16,17 +16,25 @@ struct KeywordSection: View {
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color.gray900)
 
-            FlowLayout(spacing: 8, rowSpacing: 8) {
-                ForEach(content.keywords, id: \.self) { keyword in
-                    Text("#\(keyword)")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color.blue500)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background {
-                            Capsule()
-                                .fill(Color.blue50)
-                        }
+            if content.keywords.isEmpty {
+                Text(content.emptyMessage)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Color.gray500)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+            } else {
+                FlowLayout(spacing: 8, rowSpacing: 8) {
+                    ForEach(content.keywords, id: \.self) { keyword in
+                        Text("#\(keyword)")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(Color.blue500)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background {
+                                Capsule()
+                                    .fill(Color.blue50)
+                            }
+                    }
                 }
             }
         }
@@ -118,7 +126,8 @@ struct KeywordSection_Previews: PreviewProvider {
             KeywordSection(
                 content: ReportKeywordSectionContent(
                     title: "핵심 키워드",
-                    keywords: RetrospectiveReport.mock.keywords
+                    keywords: RetrospectiveReport.mock.keywords,
+                    emptyMessage: "핵심키워드가 도출되지 않았어요."
                 )
             )
             .padding(.horizontal, ReportLayout.screenPadding)

@@ -257,6 +257,7 @@ final class AppDataStore {
                     kind: "reflection",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: [sourceRecordID]
                 )
@@ -269,6 +270,7 @@ final class AppDataStore {
                     kind: "strength",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: [sourceRecordID]
                 )
@@ -300,6 +302,7 @@ final class AppDataStore {
                     kind: "reflection",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: sourceRecordIDs,
                     scopeRawValue: scope,
@@ -315,6 +318,7 @@ final class AppDataStore {
                     kind: "strength",
                     title: point.title,
                     insightDescription: point.description,
+                    topicKey: point.topicKey,
                     count: point.count,
                     sourceRecordIDs: sourceRecordIDs,
                     scopeRawValue: scope,
@@ -323,6 +327,10 @@ final class AppDataStore {
                 )
             )
         }
+
+        #if DEBUG
+        print("[Storage][SwiftData] replacing insights scope=\(scope) reflection=\(result.reflectionPoints.count) strength=\(result.strengthPoints.count) sourceRecords=\(sourceRecordIDs.count) updatedAt=\(updatedAt)")
+        #endif
 
         saveContext(reason: "replaceInsights")
     }
@@ -621,6 +629,7 @@ final class StoredReflectionReport {
     var coreKeywordsRaw: String
     var emotionKeywordsRaw: String
     var actionItemsRaw: String
+    var conversationMessagesRaw: String = ""
 
     init(
         id: UUID = UUID(),
@@ -630,7 +639,8 @@ final class StoredReflectionReport {
         fourLItemsRaw: String,
         coreKeywordsRaw: String,
         emotionKeywordsRaw: String,
-        actionItemsRaw: String
+        actionItemsRaw: String,
+        conversationMessagesRaw: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -640,5 +650,6 @@ final class StoredReflectionReport {
         self.coreKeywordsRaw = coreKeywordsRaw
         self.emotionKeywordsRaw = emotionKeywordsRaw
         self.actionItemsRaw = actionItemsRaw
+        self.conversationMessagesRaw = conversationMessagesRaw
     }
 }
