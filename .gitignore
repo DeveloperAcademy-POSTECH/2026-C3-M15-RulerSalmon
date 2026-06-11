@@ -30,6 +30,9 @@ __pycache__/
 # Generated audio outputs
 *.wav
 
+# Large Core ML package
+/Retrospective-Rulersalmon/Resources/MLModels/SentimentAnalysis/HowRUInt8.mlpackage/
+
 # SwiftPM build output
 .build/
 **/.build/
