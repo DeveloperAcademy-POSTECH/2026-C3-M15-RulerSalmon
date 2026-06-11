@@ -67,19 +67,64 @@ final class ReflectionInsightService {
         case strength
     }
 
-    private struct TopicPattern {
-        let kind: String
-        let title: String
-        let keywords: [String]
-        let defaultDescription: String
-    }
-
     private struct PatternCandidate {
         let kind: String
         let title: String
         let count: Int
         let matchedKeywords: [String]
         let defaultDescription: String
+    }
+
+    private struct CandidatePayload: Decodable {
+        let candidates: [CandidatePayloadPoint]
+    }
+
+    private struct CandidatePayloadPoint: Decodable {
+        let kind: String
+        let title: String
+        let count: Int
+        let matchedKeywords: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case kind
+            case title
+            case count
+            case matchedKeywords
+            case matchedKeywordsSnake = "matched_keywords"
+            case keywords
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            kind = try container.decode(String.self, forKey: .kind)
+            title = try container.decode(String.self, forKey: .title)
+
+            if let intCount = try? container.decode(Int.self, forKey: .count) {
+                count = intCount
+            } else {
+                let stringCount = try container.decode(String.self, forKey: .count)
+                count = Int(stringCount.filter(\.isNumber)) ?? 0
+            }
+
+            if let keywords = try? container.decode([String].self, forKey: .matchedKeywordsSnake) {
+                matchedKeywords = keywords
+            } else if let keywords = try? container.decode([String].self, forKey: .matchedKeywords) {
+                matchedKeywords = keywords
+            } else if let keywords = try? container.decode([String].self, forKey: .keywords) {
+                matchedKeywords = keywords
+            } else if let keywordText = try? container.decode(String.self, forKey: .matchedKeywordsSnake) {
+                matchedKeywords = Self.splitKeywords(keywordText)
+            } else {
+                matchedKeywords = []
+            }
+        }
+
+        private static func splitKeywords(_ text: String) -> [String] {
+            text
+                .components(separatedBy: CharacterSet(charactersIn: ",，、/|"))
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
     }
 
     private struct InsightPayload: Decodable {
@@ -107,38 +152,6 @@ final class ReflectionInsightService {
 
     private let foundationModelService: FoundationModelServicing
     private let calendar: Calendar
-    private let topicPatterns: [TopicPattern] = [
-        TopicPattern(
-            kind: "reflection",
-            title: "시간 관리",
-            keywords: ["시간", "일정", "마감", "늦", "지연", "우선순위", "계획", "미룸", "딜레이", "촉박"],
-            defaultDescription: "시간 관리와 일정 조율의 어려움이 반복되고 있어요. 다음 회고에서는 가장 먼저 처리할 일을 하나만 정해보면 좋아요."
-        ),
-        TopicPattern(
-            kind: "strength",
-            title: "운동 습관",
-            keywords: ["운동", "헬스", "러닝", "산책", "요가", "필라테스", "꾸준", "뿌듯", "체력"],
-            defaultDescription: "꾸준히 몸을 움직이고 스스로 뿌듯함을 느끼는 흐름이 반복되고 있어요. 지속 가능한 루틴을 만드는 점이 강점이에요."
-        ),
-        TopicPattern(
-            kind: "reflection",
-            title: "집중과 컨디션",
-            keywords: ["집중", "피곤", "지침", "컨디션", "휴식", "몰입", "부담", "긴장"],
-            defaultDescription: "집중과 컨디션 관리의 어려움이 반복되고 있어요. 무리해서 밀기보다 회복 시간을 먼저 확보해보면 좋아요."
-        ),
-        TopicPattern(
-            kind: "strength",
-            title: "협업 적응력",
-            keywords: ["팀", "팀원", "소통", "협업", "피드백", "리뷰", "회의", "공유"],
-            defaultDescription: "팀과 소통하고 피드백을 받아들이는 모습이 반복되고 있어요. 협업 상황에 적응하는 힘이 강점으로 보여요."
-        ),
-        TopicPattern(
-            kind: "strength",
-            title: "학습 정리",
-            keywords: ["배웠", "학습", "깨달", "알게", "성장", "이해", "경험"],
-            defaultDescription: "회고에서 배운 점을 발견하고 정리하는 흐름이 반복되고 있어요. 경험을 학습으로 바꾸는 능력이 강점이에요."
-        )
-    ]
 
     init(
         foundationModelService: FoundationModelServicing = FoundationModelService(),
@@ -157,7 +170,7 @@ final class ReflectionInsightService {
         guard allRecords.count >= minimumRepeatCount else {
             return .empty
         }
-        let candidates = makePatternCandidates(
+        let candidates = try await makePatternCandidates(
             from: allRecords,
             minimumRepeatCount: minimumRepeatCount
         )
@@ -242,12 +255,26 @@ final class ReflectionInsightService {
         guard recentRecords.count >= minimumRepeatCount else {
             return .empty
         }
-        let candidates = makePatternCandidates(
+        let candidates = try await makePatternCandidates(
             from: recentRecords,
             minimumRepeatCount: minimumRepeatCount
         )
         guard !candidates.isEmpty else {
-            return .empty
+            let directPrompt = makeDirectInsightPrompt(
+                records: recentRecords,
+                days: days,
+                minimumRepeatCount: minimumRepeatCount
+            )
+            let directResponse = try await foundationModelService.respond(to: directPrompt)
+
+            #if DEBUG
+            print("[ReflectionInsightService] direct response: \(directResponse)")
+            #endif
+
+            return parse(
+                directResponse,
+                minimumRepeatCount: minimumRepeatCount
+            )
         }
 
         let prompt = makePrompt(
@@ -310,41 +337,31 @@ final class ReflectionInsightService {
     private func makePatternCandidates(
         from records: [ReflectionInsightSourceRecord],
         minimumRepeatCount: Int
-    ) -> [PatternCandidate] {
-        topicPatterns.compactMap { pattern in
-            let matchingRecords = records.filter { record in
-                containsAnyKeyword(
-                    in: record.transcript,
-                    keywords: pattern.keywords
-                )
-            }
-            guard matchingRecords.count >= minimumRepeatCount else {
-                return nil
-            }
-
-            let matchedKeywords = pattern.keywords.filter { keyword in
-                matchingRecords.contains { record in
-                    record.transcript.localizedCaseInsensitiveContains(keyword)
-                }
-            }
-
-            return PatternCandidate(
-                kind: pattern.kind,
-                title: pattern.title,
-                count: matchingRecords.count,
-                matchedKeywords: Array(matchedKeywords.prefix(5)),
-                defaultDescription: pattern.defaultDescription
-            )
-        }
+    ) async throws -> [PatternCandidate] {
+        try await makeFoundationModelCandidates(
+            from: records,
+            minimumRepeatCount: minimumRepeatCount
+        )
     }
 
-    private func containsAnyKeyword(
-        in text: String,
-        keywords: [String]
-    ) -> Bool {
-        keywords.contains { keyword in
-            text.localizedCaseInsensitiveContains(keyword)
-        }
+    private func makeFoundationModelCandidates(
+        from records: [ReflectionInsightSourceRecord],
+        minimumRepeatCount: Int
+    ) async throws -> [PatternCandidate] {
+        let prompt = makeCandidatePrompt(
+            records: records,
+            minimumRepeatCount: minimumRepeatCount
+        )
+        let response = try await foundationModelService.respond(to: prompt)
+
+        #if DEBUG
+        print("[ReflectionInsightService] candidate response: \(response)")
+        #endif
+
+        return parseCandidateResponse(
+            response,
+            minimumRepeatCount: minimumRepeatCount
+        )
     }
 
     private func stableResult(
@@ -475,7 +492,7 @@ final class ReflectionInsightService {
 
         return """
         너는 한국어 회고 앱의 분석 엔진이야.
-        앱이 최근 \(days)일 회고 \(records.count)개에서 반복 후보를 이미 계산했어.
+        앱이 최근 \(days)일 회고 \(records.count)개에서 반복 후보를 먼저 추출했어.
         너는 아래 후보를 사용자에게 보여줄 자연스러운 인사이트 문장으로 바꿔줘.
 
         기준:
@@ -500,6 +517,94 @@ final class ReflectionInsightService {
 
         반복 후보:
         \(candidateText)
+
+        회고:
+        \(recordText)
+        """
+    }
+
+    private func makeCandidatePrompt(
+        records: [ReflectionInsightSourceRecord],
+        minimumRepeatCount: Int
+    ) -> String {
+        let recordText = records.enumerated().map { index, record in
+            """
+            - id: \(record.id.uuidString)
+              index: \(index + 1)
+              date: \(formatDate(record.createdAt))
+              positive: \(formatPercentage(record.positivePercentage))%
+              negative: \(formatPercentage(record.negativePercentage))%
+              satisfaction: \(formatScore(record.satisfactionScore))/5
+              reflection: \(record.transcript)
+            """
+        }
+        .joined(separator: "\n")
+
+        return """
+        너는 한국어 회고 앱의 반복 패턴 추출 엔진이야.
+        아래 회고들에서 서로 다른 회고 \(minimumRepeatCount)개 이상에 반복해서 나타나는 주제를 후보로 뽑아줘.
+        같은 단어가 반복되지 않아도 의미, 감정, 행동, 어려움, 습관이 비슷하면 반복 주제로 봐.
+
+        후보 추출 기준:
+        - kind는 반드시 reflection 또는 strength 중 하나야.
+        - reflection은 사용자가 다음에 돌아보거나 조정하면 좋은 반복 어려움, 아쉬움, 위험 신호야.
+        - strength는 사용자가 유지하면 좋은 반복 강점, 습관, 성장 신호야.
+        - title은 2~8단어의 짧은 한국어 명사구로 써.
+        - count는 해당 주제가 나타난 서로 다른 회고 개수야.
+        - matched_keywords는 후보 판단에 실제로 근거가 된 핵심 단어 또는 짧은 표현을 최대 5개까지 써.
+        - 한 회고에만 등장한 사건, 사람, 물건, 날짜는 후보로 만들지 마.
+        - 같은 의미의 후보는 하나로 합쳐.
+        - 회고가 서로 완전히 무관할 때만 candidates를 빈 배열로 반환해.
+
+        출력은 반드시 JSON 객체 하나만 사용해. Markdown, 코드블록, 다른 설명은 쓰지 마.
+        JSON 키:
+        - candidates: 후보 배열
+        - 각 후보는 kind, title, count, matched_keywords를 가진 객체
+
+        회고:
+        \(recordText)
+        """
+    }
+
+    private func makeDirectInsightPrompt(
+        records: [ReflectionInsightSourceRecord],
+        days: Int,
+        minimumRepeatCount: Int
+    ) -> String {
+        let recordText = records.enumerated().map { index, record in
+            """
+            - id: \(record.id.uuidString)
+              index: \(index + 1)
+              date: \(formatDate(record.createdAt))
+              positive: \(formatPercentage(record.positivePercentage))%
+              negative: \(formatPercentage(record.negativePercentage))%
+              satisfaction: \(formatScore(record.satisfactionScore))/5
+              reflection: \(record.transcript)
+            """
+        }
+        .joined(separator: "\n")
+
+        return """
+        너는 한국어 회고 앱의 인사이트 분석 엔진이야.
+        최근 \(days)일 회고 \(records.count)개에서 반복되는 reflection/strength 인사이트를 직접 만들어줘.
+        같은 단어가 반복되지 않아도 의미, 감정, 행동, 어려움, 습관이 비슷하면 반복으로 봐.
+
+        기준:
+        - 서로 다른 회고 \(minimumRepeatCount)개 이상에서 반복된 주제만 포함해.
+        - reflection은 다음에 돌아보거나 조정하면 좋은 반복 어려움, 아쉬움, 위험 신호야.
+        - strength는 유지하면 좋은 반복 강점, 습관, 성장 신호야.
+        - 사용자를 비난하지 말고 다정한 제안형으로 말해.
+        - 한 회고의 구체적 사건, 날짜, 사람, 물건, 회고 번호를 쓰지 마.
+        - description은 여러 회고의 공통점과 다음에 시도할 방향을 담은 한 문장으로 써.
+        - count는 해당 주제가 나타난 서로 다른 회고 개수야.
+        - 회고가 서로 완전히 무관할 때만 빈 배열을 반환해.
+        - "제목", "설명", "새 반성 포인트 제목", "새 강점 포인트 제목" 같은 예시 문구를 절대 출력하지 마.
+
+        출력은 반드시 JSON 객체 하나만 사용해. Markdown, 코드블록, 다른 설명은 쓰지 마.
+        JSON 키:
+        - reflection: 반성 포인트 배열
+        - strength: 강점 포인트 배열
+        - 각 배열 항목은 title, description, count를 가진 객체
 
         회고:
         \(recordText)
@@ -780,6 +885,83 @@ final class ReflectionInsightService {
         }
 
         return try? JSONDecoder().decode(IncrementalInsightPayload.self, from: data)
+    }
+
+    private func parseCandidateResponse(
+        _ response: String,
+        minimumRepeatCount: Int
+    ) -> [PatternCandidate] {
+        guard let jsonRange = response.range(
+            of: #"\{[\s\S]*\}"#,
+            options: .regularExpression
+        ) else {
+            return []
+        }
+
+        let jsonText = String(response[jsonRange])
+        guard let data = jsonText.data(using: .utf8),
+              let payload = try? JSONDecoder().decode(CandidatePayload.self, from: data) else {
+            return []
+        }
+
+        var seenTitles = Set<String>()
+
+        return payload.candidates.compactMap { candidate -> PatternCandidate? in
+            let kind = normalizedKind(candidate.kind)
+            let title = candidate.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = normalizedKey(title)
+
+            guard let kind,
+                  candidate.count >= minimumRepeatCount,
+                  !title.isEmpty,
+                  !isPlaceholderPoint(title: title, description: title),
+                  !seenTitles.contains(key) else {
+                return nil
+            }
+
+            seenTitles.insert(key)
+
+            return PatternCandidate(
+                kind: kind,
+                title: title,
+                count: candidate.count,
+                matchedKeywords: Array(candidate.matchedKeywords
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                    .prefix(5)),
+                defaultDescription: defaultDescription(
+                    for: kind,
+                    title: title,
+                    count: candidate.count
+                )
+            )
+        }
+    }
+
+    private func normalizedKind(_ kind: String) -> String? {
+        let normalizedKind = normalizedKey(kind)
+
+        if normalizedKind == "reflection" || normalizedKind.contains("반성") {
+            return "reflection"
+        }
+
+        if normalizedKind == "strength" || normalizedKind.contains("강점") {
+            return "strength"
+        }
+
+        return nil
+    }
+
+    private func defaultDescription(
+        for kind: String,
+        title: String,
+        count: Int
+    ) -> String {
+        if kind == "strength" {
+            return "\(title)이 \(count)번의 회고에서 반복해서 드러났어요. 이 흐름을 계속 유지할 수 있는 작은 루틴을 이어가면 좋아요."
+        }
+
+        return "\(title)이 \(count)번의 회고에서 반복해서 나타났어요. 다음 회고에서는 이 주제를 조금 더 가볍게 조정할 방법을 하나 정해보면 좋아요."
     }
 
     private func normalizedKey(_ text: String) -> String {

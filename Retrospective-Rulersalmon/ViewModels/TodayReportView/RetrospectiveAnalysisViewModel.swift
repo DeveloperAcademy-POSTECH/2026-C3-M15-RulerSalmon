@@ -121,18 +121,16 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         let sentimentRecord = saveSentimentRecordIfNeeded()
         isCompleting = true
 
+        if let sentimentRecord {
+            await updateInsightsIfNeeded(with: sentimentRecord)
+        }
+
         do {
             try await Task.sleep(for: .milliseconds(600))
         } catch { }
 
         completedReport = report
         isShowingReport = true
-
-        if let sentimentRecord {
-            Task {
-                await updateInsightsIfNeeded(with: sentimentRecord)
-            }
-        }
     }
 
     private func saveReportIfNeeded(_ report: RetrospectiveReport) {
@@ -238,6 +236,10 @@ final class RetrospectiveAnalysisViewModel: ObservableObject {
         days: Int,
         referenceDate: Date
     ) async {
+        #if DEBUG
+        print("[RetrospectiveAnalysisViewModel] \(scope) insight source records=\(records.count)")
+        #endif
+
         guard records.count >= 3 else {
             dataStore.replaceInsights(
                 with: .empty,

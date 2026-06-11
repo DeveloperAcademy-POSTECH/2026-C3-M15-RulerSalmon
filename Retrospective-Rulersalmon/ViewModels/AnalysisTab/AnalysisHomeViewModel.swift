@@ -116,7 +116,7 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
 
         emotionKeywordStatistics = emotionKeywords(from: reports)
-        insightItems = selectedSentimentCount(from: sentiments) >= 3 ? self.insights(from: insights) : []
+        insightItems = shouldShowInsights(from: sentiments) ? self.insights(from: insights, sentiments: sentiments) : []
     }
 
     func availableRange(from reports: [StoredReflectionReport]) -> PeriodRange {
@@ -140,8 +140,14 @@ final class AnalysisHomeViewModel: ObservableObject {
         return topEmotionKeywords(from: selectedReports)
     }
 
-    func insights(from records: [ReflectionInsightRecord]) -> [AnalysisInsightItem] {
-        let uniqueInsights = uniqueInsightsByTitle(filteredInsights(from: records))
+    func insights(
+        from records: [ReflectionInsightRecord],
+        sentiments: [SentimentRecord]? = nil
+    ) -> [AnalysisInsightItem] {
+        let filteredRecords = sentiments.map {
+            filteredInsights(from: records, sentiments: $0)
+        } ?? filteredInsights(from: records)
+        let uniqueInsights = uniqueInsightsByTitle(filteredRecords)
         let reflectionInsights = uniqueInsights
             .filter { $0.kind == "reflection" }
             .sorted(by: insightSort)
@@ -241,6 +247,10 @@ final class AnalysisHomeViewModel: ObservableObject {
         }
     }
 
+    private func shouldShowInsights(from records: [SentimentRecord]) -> Bool {
+        selectedSentimentCount(from: records) >= 3
+    }
+
     private func uniqueInsightsByTitle(
         _ records: [ReflectionInsightRecord]
     ) -> [ReflectionInsightRecord] {
@@ -276,6 +286,14 @@ final class AnalysisHomeViewModel: ObservableObject {
         from records: [ReflectionInsightRecord],
         calendar: Calendar = .current
     ) -> [ReflectionInsightRecord] {
+        filteredInsights(from: records, sentiments: [], calendar: calendar)
+    }
+
+    private func filteredInsights(
+        from records: [ReflectionInsightRecord],
+        sentiments: [SentimentRecord],
+        calendar: Calendar = .current
+    ) -> [ReflectionInsightRecord] {
         switch selectedMode {
         case .weekly:
             guard let selectedWeekStartDate,
@@ -283,17 +301,42 @@ final class AnalysisHomeViewModel: ObservableObject {
                 return []
             }
 
+            let selectedWeekRecords = sentimentRecordsInWeek(
+                sentiments,
+                startDate: selectedWeekStartDate,
+                calendar: calendar
+            )
+            guard sentiments.isEmpty || selectedWeekRecords.count >= 3 else {
+                return []
+            }
+
+            let selectedWeekSourceIDs = Set(selectedWeekRecords.map { $0.id.uuidString })
             return records.filter {
                 $0.scope == "weekly" &&
-                    $0.updatedAt >= selectedWeekStartDate &&
-                    $0.updatedAt < endDate
+                    (
+                        ($0.updatedAt >= selectedWeekStartDate && $0.updatedAt < endDate) ||
+                        !$0.sourceIDs.isDisjoint(with: selectedWeekSourceIDs)
+                    )
             }
         case .monthly:
+            let selectedMonthRecords = recordsInMonth(
+                from: sentiments,
+                year: selectedYear,
+                month: selectedMonth,
+                calendar: calendar
+            )
+            guard sentiments.isEmpty || selectedMonthRecords.count >= 3 else {
+                return []
+            }
+
+            let selectedMonthSourceIDs = Set(selectedMonthRecords.map { $0.id.uuidString })
             return records.filter { record in
                 let components = calendar.dateComponents([.year, .month], from: record.updatedAt)
                 return record.scope == "monthly" &&
-                    components.year == selectedYear &&
-                    components.month == selectedMonth
+                    (
+                        (components.year == selectedYear && components.month == selectedMonth) ||
+                        !record.sourceIDs.isDisjoint(with: selectedMonthSourceIDs)
+                    )
             }
         }
     }

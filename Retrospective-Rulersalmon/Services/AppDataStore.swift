@@ -324,6 +324,10 @@ final class AppDataStore {
             )
         }
 
+        #if DEBUG
+        print("[Storage][SwiftData] replacing insights scope=\(scope) reflection=\(result.reflectionPoints.count) strength=\(result.strengthPoints.count) sourceRecords=\(sourceRecordIDs.count) updatedAt=\(updatedAt)")
+        #endif
+
         saveContext(reason: "replaceInsights")
     }
 
